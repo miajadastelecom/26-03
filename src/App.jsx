@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
 
-// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
   authDomain: "ticket2603.firebaseapp.com",
@@ -1031,7 +1030,7 @@ function Reportes({ tickets, usuarioActual }) {
 export default function App() {
   const [tickets,       setTickets]    = useState([]);
   const [usuarioId,     setUsuarioId]  = useState(() => {
-    try { return Number(sessionStorage.getItem("grupo_usuario_id")) || null; } catch { return null; }
+    try { const id = sessionStorage.getItem("grupo_usuario_id"); return id ? Number(id) : null; } catch { return null; }
   });
   const [pins,          setPins]       = useState({...PINS_DEFAULT});
   const [loginUsuarioId, setLoginUsuarioId] = useState("");
@@ -1049,20 +1048,26 @@ export default function App() {
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
 
-  // ── FIREBASE: escuchar tickets en tiempo real ──
+  // ── Firebase: tickets en tiempo real ──
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "tickets"), (snapshot) => {
-      const data = snapshot.docs.map(d => ({ ...d.data(), id: d.data().id || d.id }));
-      setTickets(data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
-    }, (err) => console.error("Firebase tickets error:", err));
+    const unsub = onSnapshot(
+      collection(db, "tickets"),
+      (snapshot) => {
+        const data = snapshot.docs.map(d => ({ ...d.data() }));
+        setTickets(data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+      },
+      (err) => console.error("Firebase tickets error:", err)
+    );
     return () => unsub();
   }, []);
 
-  // ── FIREBASE: escuchar notificaciones en tiempo real ──
+  // ── Firebase: notificaciones en tiempo real ──
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "notificaciones"), (snapshot) => {
-      setNotifs(snapshot.docs.map(d => d.data()));
-    }, (err) => console.error("Firebase notifs error:", err));
+    const unsub = onSnapshot(
+      collection(db, "notificaciones"),
+      (snapshot) => { setNotifs(snapshot.docs.map(d => d.data())); },
+      (err) => console.error("Firebase notifs error:", err)
+    );
     return () => unsub();
   }, []);
 
@@ -1116,22 +1121,23 @@ export default function App() {
   };
 
   const guardarNotifs = (nuevas) => {
-    setNotifs(nuevas); // Firebase se encarga de la sincronización
+    setNotifs(nuevas);
   };
 
-  const addNotif = async (notif) => {
+  const addNotif = (notif) => {
     const nueva = { id: genId(), fecha: new Date().toISOString(), leida: false, ...notif };
-    try {
-      await setDoc(doc(db, "notificaciones", String(nueva.id)), nueva);
-    } catch(e) { console.error("Error guardando notif:", e); }
+    setDoc(doc(db, "notificaciones", String(nueva.id)), nueva)
+      .catch(e => console.error("Error notif:", e));
   };
 
-  const actualizarTicket = async (t, ticketAnterior) => {
+  const actualizarTicket = (t, ticketAnterior) => {
     const ant = ticketAnterior || tickets.find(x => x.id === t.id);
+    // Actualizar UI inmediatamente (optimistic update)
+    setTickets(ts => ts.map(x => x.id === t.id ? t : x));
     setDetalle(t);
-    try {
-      await updateDoc(doc(db, "tickets", String(t.id)), t);
-    } catch(e) { console.error("Error actualizando ticket:", e); }
+    // Guardar en Firestore
+    setDoc(doc(db, "tickets", String(t.id)), t)
+      .catch(e => console.error("Error actualizando ticket:", e));
     // Generar notificaciones
     if (ant) {
       // Cambio a completado → notificar al creador
@@ -1155,10 +1161,12 @@ export default function App() {
     }
   };
 
-  const crearTicket = async (t) => {
-    try {
-      await setDoc(doc(db, "tickets", String(t.id)), t);
-    } catch(e) { console.error("Error creando ticket:", e); }
+  const crearTicket = (t) => {
+    // Actualizar UI inmediatamente
+    setTickets(ts => [t, ...ts]);
+    // Guardar en Firestore
+    setDoc(doc(db, "tickets", String(t.id)), t)
+      .catch(e => console.error("Error creando ticket:", e));
     // Notificar a encargados de empresas destino
     (t.empresasDestino||[]).forEach(empId => {
       const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
@@ -1169,13 +1177,13 @@ export default function App() {
   const misNotifs = notifs.filter(n => n.usuarioDestinoId === usuarioId);
   const notifsNoLeidas = misNotifs.filter(n => !n.leida).length;
 
-  const marcarLeidas = async () => {
-    const misNoLeidas = notifs.filter(n => n.usuarioDestinoId === usuarioId && !n.leida);
-    for (const n of misNoLeidas) {
-      try {
-        await updateDoc(doc(db, "notificaciones", String(n.id)), { leida: true });
-      } catch(e) { /* silencioso */ }
-    }
+  const marcarLeidas = () => {
+    notifs
+      .filter(n => n.usuarioDestinoId === usuarioId && !n.leida)
+      .forEach(n => {
+        updateDoc(doc(db, "notificaciones", String(n.id)), { leida: true })
+          .catch(e => console.error("Error marcando notif:", e));
+      });
   };
 
   const handleLogin = () => {
@@ -1197,7 +1205,7 @@ export default function App() {
   };
 
   // ── PANTALLA LOGIN ──
-  if (!logueado) {
+  if (!logueado || usuarioId === null) {
     return (
       <div style={{ minHeight: "100vh", background: "#0A0F1C", fontFamily: "'DM Sans','Segoe UI',sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
