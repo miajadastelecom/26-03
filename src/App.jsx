@@ -1,4 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
+
+// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
+  authDomain: "ticket2603.firebaseapp.com",
+  projectId: "ticket2603",
+  storageBucket: "ticket2603.firebasestorage.app",
+  messagingSenderId: "610654398369",
+  appId: "1:610654398369:web:006288839a1a94e6fd0de0"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 
 // ─── DATOS ────────────────────────────────────────────────────────────────────
 const EMPRESAS = [
@@ -1015,24 +1029,18 @@ function Reportes({ tickets, usuarioActual }) {
 
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
 export default function App() {
-  const [tickets,       setTickets]    = useState(() => {
-    try { const g = localStorage.getItem("grupo_tickets"); return g ? JSON.parse(g) : []; } catch { return []; }
-  });
+  const [tickets,       setTickets]    = useState([]);
   const [usuarioId,     setUsuarioId]  = useState(() => {
-    try { return Number(localStorage.getItem("grupo_usuario_id")) || 1; } catch { return 1; }
+    try { return Number(sessionStorage.getItem("grupo_usuario_id")) || null; } catch { return null; }
   });
-  const [pins,          setPins]       = useState(() => {
-    try { const p = localStorage.getItem("grupo_pins"); return p ? JSON.parse(p) : {...PINS_DEFAULT}; } catch { return {...PINS_DEFAULT}; }
-  });
+  const [pins,          setPins]       = useState({...PINS_DEFAULT});
   const [loginUsuarioId, setLoginUsuarioId] = useState("");
   const [loginPin,       setLoginPin]       = useState("");
   const [loginError,     setLoginError]     = useState("");
   const [logueado,       setLogueado]       = useState(() => {
-    try { return localStorage.getItem("grupo_logueado") === "1"; } catch { return false; }
+    try { return sessionStorage.getItem("grupo_logueado") === "1"; } catch { return false; }
   });
-  const [notifs,        setNotifs]     = useState(() => {
-    try { const n = localStorage.getItem("grupo_notifs"); return n ? JSON.parse(n) : []; } catch { return []; }
-  });
+  const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
   const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
@@ -1040,6 +1048,23 @@ export default function App() {
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
+
+  // ── FIREBASE: escuchar tickets en tiempo real ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "tickets"), (snapshot) => {
+      const data = snapshot.docs.map(d => ({ ...d.data(), id: d.data().id || d.id }));
+      setTickets(data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+    }, (err) => console.error("Firebase tickets error:", err));
+    return () => unsub();
+  }, []);
+
+  // ── FIREBASE: escuchar notificaciones en tiempo real ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "notificaciones"), (snapshot) => {
+      setNotifs(snapshot.docs.map(d => d.data()));
+    }, (err) => console.error("Firebase notifs error:", err));
+    return () => unsub();
+  }, []);
 
   const usuario  = USUARIOS.find(u => u.id === usuarioId);
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
@@ -1091,22 +1116,22 @@ export default function App() {
   };
 
   const guardarNotifs = (nuevas) => {
-    setNotifs(nuevas);
-    try { localStorage.setItem("grupo_notifs", JSON.stringify(nuevas)); } catch {}
+    setNotifs(nuevas); // Firebase se encarga de la sincronización
   };
 
-  const addNotif = (notif) => {
-    guardarNotifs([{ id: genId(), fecha: new Date().toISOString(), leida: false, ...notif }, ...notifs]);
+  const addNotif = async (notif) => {
+    const nueva = { id: genId(), fecha: new Date().toISOString(), leida: false, ...notif };
+    try {
+      await setDoc(doc(db, "notificaciones", String(nueva.id)), nueva);
+    } catch(e) { console.error("Error guardando notif:", e); }
   };
 
-  const actualizarTicket = (t, ticketAnterior) => {
+  const actualizarTicket = async (t, ticketAnterior) => {
     const ant = ticketAnterior || tickets.find(x => x.id === t.id);
-    setTickets(ts => {
-      const nuevos = ts.map(x => x.id === t.id ? t : x);
-      try { localStorage.setItem("grupo_tickets", JSON.stringify(nuevos)); } catch {}
-      return nuevos;
-    });
     setDetalle(t);
+    try {
+      await updateDoc(doc(db, "tickets", String(t.id)), t);
+    } catch(e) { console.error("Error actualizando ticket:", e); }
     // Generar notificaciones
     if (ant) {
       // Cambio a completado → notificar al creador
@@ -1130,12 +1155,10 @@ export default function App() {
     }
   };
 
-  const crearTicket = (t) => {
-    setTickets(ts => {
-      const nuevos = [t, ...ts];
-      try { localStorage.setItem("grupo_tickets", JSON.stringify(nuevos)); } catch {}
-      return nuevos;
-    });
+  const crearTicket = async (t) => {
+    try {
+      await setDoc(doc(db, "tickets", String(t.id)), t);
+    } catch(e) { console.error("Error creando ticket:", e); }
     // Notificar a encargados de empresas destino
     (t.empresasDestino||[]).forEach(empId => {
       const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
@@ -1146,9 +1169,13 @@ export default function App() {
   const misNotifs = notifs.filter(n => n.usuarioDestinoId === usuarioId);
   const notifsNoLeidas = misNotifs.filter(n => !n.leida).length;
 
-  const marcarLeidas = () => {
-    const nuevas = notifs.map(n => n.usuarioDestinoId === usuarioId ? { ...n, leida: true } : n);
-    guardarNotifs(nuevas);
+  const marcarLeidas = async () => {
+    const misNoLeidas = notifs.filter(n => n.usuarioDestinoId === usuarioId && !n.leida);
+    for (const n of misNoLeidas) {
+      try {
+        await updateDoc(doc(db, "notificaciones", String(n.id)), { leida: true });
+      } catch(e) { /* silencioso */ }
+    }
   };
 
   const handleLogin = () => {
@@ -1157,7 +1184,7 @@ export default function App() {
     if (!pin) { setLoginError("Selecciona un usuario"); return; }
     if (loginPin !== pin) { setLoginError("PIN incorrecto"); return; }
     setUsuarioId(uid);
-    try { localStorage.setItem("grupo_usuario_id", uid); localStorage.setItem("grupo_logueado", "1"); } catch {}
+    try { sessionStorage.setItem("grupo_usuario_id", String(uid)); sessionStorage.setItem("grupo_logueado", "1"); } catch {}
     setLogueado(true);
     setLoginError("");
   };
@@ -1165,7 +1192,8 @@ export default function App() {
   const handleLogout = () => {
     setLogueado(false);
     setLoginPin("");
-    try { localStorage.removeItem("grupo_logueado"); } catch {}
+    setUsuarioId(null);
+    try { sessionStorage.removeItem("grupo_logueado"); sessionStorage.removeItem("grupo_usuario_id"); } catch {}
   };
 
   // ── PANTALLA LOGIN ──
