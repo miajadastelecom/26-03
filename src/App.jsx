@@ -70,6 +70,23 @@ function fmtFecha(iso) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// Firestore no acepta arrays con objetos anidados complejos
+// Serializamos imagenes y comentarios como strings JSON
+function ticketToFirestore(t) {
+  return {
+    ...t,
+    imagenes: JSON.stringify(t.imagenes || []),
+    comentarios: JSON.stringify(t.comentarios || []),
+  };
+}
+function ticketFromFirestore(t) {
+  return {
+    ...t,
+    imagenes: typeof t.imagenes === "string" ? JSON.parse(t.imagenes) : (t.imagenes || []),
+    comentarios: typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
+  };
+}
+
 // ─── ESTILOS BASE ─────────────────────────────────────────────────────────────
 const inp    = { fontFamily: "inherit", fontSize: 13, background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 6, padding: "9px 12px", color: "#E2E8F0", outline: "none", width: "100%", boxSizing: "border-box" };
 const btnS   = { fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer" };
@@ -1053,7 +1070,7 @@ export default function App() {
     const unsub = onSnapshot(
       collection(db, "tickets"),
       (snapshot) => {
-        const data = snapshot.docs.map(d => ({ ...d.data() }));
+        const data = snapshot.docs.map(d => ticketFromFirestore(d.data()));
         setTickets(data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
       },
       (err) => console.error("Firebase tickets error:", err)
@@ -1134,8 +1151,8 @@ export default function App() {
     // Actualizar UI inmediatamente (optimistic update)
     setTickets(ts => ts.map(x => x.id === t.id ? t : x));
     setDetalle(t);
-    // Guardar en Firestore
-    setDoc(doc(db, "tickets", String(t.id)), t)
+    // Guardar en Firestore (serializado)
+    setDoc(doc(db, "tickets", String(t.id)), ticketToFirestore(t))
       .catch(e => console.error("Error actualizando ticket:", e));
     // Generar notificaciones
     if (ant) {
@@ -1163,8 +1180,8 @@ export default function App() {
   const crearTicket = (t) => {
     // Actualizar UI inmediatamente
     setTickets(ts => [t, ...ts]);
-    // Guardar en Firestore
-    setDoc(doc(db, "tickets", String(t.id)), t)
+    // Guardar en Firestore (serializado)
+    setDoc(doc(db, "tickets", String(t.id)), ticketToFirestore(t))
       .catch(e => console.error("Error creando ticket:", e));
     // Notificar a encargados de empresas destino
     (t.empresasDestino||[]).forEach(empId => {
