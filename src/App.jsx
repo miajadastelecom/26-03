@@ -1071,7 +1071,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  const usuario  = USUARIOS.find(u => u.id === usuarioId);
+  const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
   const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: "#0D1424", border: "1px solid #1E293B", borderRadius: 6, padding: "7px 11px", color: "#E2E8F0", outline: "none" };
@@ -1093,12 +1093,11 @@ export default function App() {
     if (vista === "mis" && usuario?.rol !== "director") {
       const eds   = t.empresasDestino || [];
       const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+      if (!usuario) return false;
       if (usuario.rol === "encargado") {
-        // "Mis tickets" para encargado = su empresa es destino o él lo creó
         const mio = eds.includes(usuario.empresaId) || t.creadoPor === usuario.id;
         if (!mio) return false;
       } else {
-        // "Mis tickets" para trabajador = está asignado o lo creó
         const mio = asigs.includes(usuario.id) || t.creadoPor === usuario.id;
         if (!mio) return false;
       }
@@ -1205,7 +1204,7 @@ export default function App() {
   };
 
   // ── PANTALLA LOGIN ──
-  if (!logueado || usuarioId === null) {
+  if (!logueado || usuarioId === null || !usuario) {
     return (
       <div style={{ minHeight: "100vh", background: "#0A0F1C", fontFamily: "'DM Sans','Segoe UI',sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -1277,10 +1276,10 @@ export default function App() {
                 <div>
                   <p style={{ margin: 0, color: "#E2E8F0", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{usuario.nombre}</p>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <EmpresaTag empresaId={usuario.empresaId} />
+                    <EmpresaTag empresaId={usuario?.empresaId} />
                     <Badge
-                      texto={usuario.rol === "director" ? "Director" : usuario.rol === "encargado" ? "Encargado" : "Trabajador"}
-                      color={usuario.rol === "director" ? "#F6AD55" : usuario.rol === "encargado" ? empColor : "#64748B"}
+                      texto={usuario?.rol === "director" ? "Director" : usuario?.rol === "encargado" ? "Encargado" : "Trabajador"}
+                      color={usuario?.rol === "director" ? "#F6AD55" : usuario?.rol === "encargado" ? empColor : "#64748B"}
                       small />
                   </div>
                 </div>
