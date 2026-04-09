@@ -313,6 +313,10 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const [comentario, setComentario]   = useState("");
   const [seleccionados, setSelecs]    = useState(asignacionesIniciales);
   const [adjuntos, setAdjuntos]       = useState([]);
+  const [editandoFecha, setEditandoFecha] = useState(false);
+  const [editFecha,    setEditFecha]  = useState(ticket.fechaInicio || "");
+  const [editHora,     setEditHora]   = useState(ticket.horaInicio  || "");
+  const [editDuracion, setEditDuracion] = useState(ticket.duracion  || "");
 
   const empresasDestino   = ticket.empresasDestino || [];
   const asignaciones      = ticket.asignacionesPorEmpresa || {};
@@ -331,6 +335,16 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const misTrabs    = USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && u.rol === "trabajador");
 
   const toggleSel = (id) => setSelecs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const guardarFecha = () => {
+    onActualizar({
+      ...ticket,
+      fechaInicio: editFecha || null,
+      horaInicio:  editHora  || null,
+      duracion:    editDuracion || null,
+    });
+    setEditandoFecha(false);
+  };
 
   const asignar = () => {
     if (seleccionados.length === 0) return;
@@ -490,6 +504,76 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                 </a>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Editar fecha/hora/duración — solo encargados y director */}
+        {(esEncargadoDest || esDirector) && !["Cancelado"].includes(ticket.estado) && (
+          <div style={{ background: "#1A2235", borderRadius: 8, padding: 14, marginBottom: 14, border: "1px solid #2E3A55" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: editandoFecha ? 12 : 0 }}>
+              <p style={{ margin: 0, color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                📅 Fecha y hora del trabajo
+              </p>
+              {!editandoFecha
+                ? <button onClick={() => setEditandoFecha(true)}
+                    style={{ ...btnS, background: "#2E3A55", color: "#93C5FD", fontSize: 11, padding: "5px 12px" }}>
+                    ✏️ Editar
+                  </button>
+                : <button onClick={() => setEditandoFecha(false)}
+                    style={{ ...btnS, background: "transparent", color: "#475569", fontSize: 11, padding: "5px 12px" }}>
+                    Cancelar
+                  </button>
+              }
+            </div>
+            {!editandoFecha ? (
+              <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                <span style={{ color: "#64748B", fontSize: 12 }}>
+                  📅 {ticket.fechaInicio
+                    ? new Date(ticket.fechaInicio).toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
+                    : <span style={{ color: "#334155" }}>Sin fecha</span>}
+                  {ticket.horaInicio && <span style={{ color: "#94A3B8" }}> · {ticket.horaInicio}</span>}
+                </span>
+                {ticket.duracion && <span style={{ color: "#64748B", fontSize: 12 }}>⏱️ {ticket.duracion}</span>}
+                {!ticket.fechaInicio && !ticket.duracion && <span style={{ color: "#334155", fontSize: 12 }}>Sin fecha ni duración definidas</span>}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Fecha inicio</label>
+                    <input type="date" style={{ ...inp, colorScheme: "dark", fontSize: 12 }}
+                      value={editFecha} onChange={e => setEditFecha(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Hora inicio</label>
+                    <input type="time" style={{ ...inp, colorScheme: "dark", fontSize: 12 }}
+                      value={editHora} onChange={e => setEditHora(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Duración</label>
+                    <select style={{ ...inp, fontSize: 12 }} value={editDuracion} onChange={e => setEditDuracion(e.target.value)}>
+                      <option value="">Sin definir</option>
+                      <option value="30min">30 minutos</option>
+                      <option value="1h">1 hora</option>
+                      <option value="2h">2 horas</option>
+                      <option value="4h">4 horas</option>
+                      <option value="1 día">1 día</option>
+                      <option value="2 días">2 días</option>
+                      <option value="3 días">3 días</option>
+                      <option value="1 semana">1 semana</option>
+                      <option value="2 semanas">2 semanas</option>
+                      <option value="1 mes">1 mes</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={guardarFecha}
+                    style={{ ...btnS, background: "#3182CE", color: "#fff", fontWeight: 800, fontSize: 12 }}>
+                    ✓ Guardar cambios
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
