@@ -778,7 +778,7 @@ function Calendario({ tickets, usuarioActual, onVerTicket }) {
 
   const misTickets = tickets.filter(t => {
     if (!t.fechaAsignacion) return false;
-    if (!["Asignado","En progreso"].includes(t.estado)) return false;
+    if (!["Asignado","En progreso","Completado"].includes(t.estado)) return false;
     const eds  = t.empresasDestino || [];
     const todos = Object.values(t.asignacionesPorEmpresa || {}).flat();
     return todos.includes(usuarioActual.id) ||
@@ -840,9 +840,15 @@ function Calendario({ tickets, usuarioActual, onVerTicket }) {
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: "50%", background: esHoy ? "#E53E3E" : "transparent", color: esHoy ? "#fff" : "#64748B", fontSize: 12, fontWeight: esHoy ? 800 : 400, marginBottom: 4 }}>{dia}</span>
               {tHoy.slice(0, 3).map(t => {
                 const emp = EMPRESAS.find(e => e.id === t.empresaOrigenId);
+                const completado = t.estado === "Completado";
+                const color = completado ? "#38A169" : (emp?.color || "#3182CE");
                 return (
-                  <div key={t.id} onClick={() => onVerTicket(t)} style={{ background: (emp?.color || "#3182CE") + "22", border: `1px solid ${emp?.color || "#3182CE"}44`, borderRadius: 3, padding: "2px 5px", cursor: "pointer", marginBottom: 2 }} title={t.titulo}>
-                    <p style={{ margin: 0, color: emp?.color || "#3182CE", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.titulo}</p>
+                  <div key={t.id} onClick={() => onVerTicket(t)}
+                    style={{ background: color + (completado ? "33" : "22"), border: `1px solid ${color}${completado ? "88" : "44"}`, borderRadius: 3, padding: "2px 5px", cursor: "pointer", marginBottom: 2 }}
+                    title={t.titulo}>
+                    <p style={{ margin: 0, color, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {completado ? "✓ " : ""}{t.titulo}
+                    </p>
                   </div>
                 );
               })}
@@ -1148,6 +1154,7 @@ export default function App() {
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
+  const [subHistorial,  setSubHistorial] = useState("completados");
 
   // ── Firebase: tickets en tiempo real ──
   useEffect(() => {
@@ -1203,6 +1210,8 @@ export default function App() {
         if (!mio) return false;
       }
     }
+    // Pantalla principal: solo activos
+    if (["Completado", "Cancelado"].includes(t.estado)) return false;
     if (filtros.estado !== "todos" && t.estado !== filtros.estado) return false;
     if (filtros.empresa !== "todas") {
       const eds = t.empresasDestino || [];
@@ -1213,11 +1222,15 @@ export default function App() {
   });
 
   // Estadísticas basadas en los tickets del rol del usuario
+  const ticketsActivos    = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
+  const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
+  const ticketsCancelados  = ticketsMisRol.filter(t => t.estado === "Cancelado");
+
   const stats = {
-    total:       ticketsMisRol.length,
-    pendientes:  ticketsMisRol.filter(t => t.estado === "Pendiente").length,
-    enCurso:     ticketsMisRol.filter(t => ["Asignado","En progreso"].includes(t.estado)).length,
-    completados: ticketsMisRol.filter(t => t.estado === "Completado").length,
+    total:       ticketsActivos.length,
+    pendientes:  ticketsActivos.filter(t => t.estado === "Pendiente").length,
+    enCurso:     ticketsActivos.filter(t => ["Asignado","En progreso"].includes(t.estado)).length,
+    completados: ticketsCompletados.length,
   };
 
   const guardarNotifs = (nuevas) => {
@@ -1431,7 +1444,7 @@ export default function App() {
         {/* FILA 2: pestañas centradas */}
         <div style={{ display: "flex", justifyContent: "center", padding: "0 24px", height: 40 }}>
           <div style={{ display: "flex", gap: 2 }}>
-            {[["tickets","🎫 Tickets"],["calendario","📅 Calendario"],["reportes","📄 Reportes"]].map(([s,l]) => (
+            {[["tickets","🎫 Tickets"],["historial","🗂️ Historial"],["calendario","📅 Calendario"],["reportes","📄 Reportes"]].map(([s,l]) => (
               <button key={s} onClick={() => setSeccion(s)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "0 20px", height: 40, border: "none", cursor: "pointer", background: "transparent", color: seccion === s ? empColor : "#64748B", borderBottom: seccion === s ? `2px solid ${empColor}` : "2px solid transparent", transition: "all .15s" }}>{l}</button>
             ))}
           </div>
@@ -1453,6 +1466,45 @@ export default function App() {
 
         {seccion === "reportes" ? (
           <Reportes tickets={tickets} usuarioActual={usuario} />
+        ) : seccion === "historial" ? (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <h2 style={{ margin: "0 0 4px", color: "#E2E8F0", fontWeight: 800, fontSize: 18 }}>🗂️ Historial</h2>
+              <p style={{ margin: 0, color: "#475569", fontSize: 13 }}>Tickets finalizados — completados y cancelados</p>
+            </div>
+            {/* Sub-pestañas */}
+            <div style={{ display: "flex", gap: 2, background: "#111827", borderRadius: 8, padding: 3, border: "1px solid #1E293B", marginBottom: 20, width: "fit-content" }}>
+              {[["completados", `✅ Completados (${ticketsCompletados.length})`], ["cancelados", `❌ Cancelados (${ticketsCancelados.length})`]].map(([v, l]) => (
+                <button key={v} onClick={() => setSubHistorial(v)}
+                  style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 18px", borderRadius: 6, border: "none", cursor: "pointer",
+                    background: subHistorial === v ? (v === "completados" ? "#38A169" : "#E53E3E") : "transparent",
+                    color: subHistorial === v ? "#fff" : "#64748B" }}>{l}
+                </button>
+              ))}
+            </div>
+            {/* Lista */}
+            {(subHistorial === "completados" ? ticketsCompletados : ticketsCancelados)
+              .filter(t => !filtros.buscar || t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase()))
+              .length === 0 ? (
+              <div style={{ textAlign: "center", padding: "70px 20px" }}>
+                <p style={{ fontSize: 50, marginBottom: 12 }}>{subHistorial === "completados" ? "✅" : "❌"}</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "#475569" }}>
+                  No hay tickets {subHistorial === "completados" ? "completados" : "cancelados"} aún
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
+                  <input style={{ ...inpF, minWidth: 220 }} value={filtros.buscar} onChange={e => setFiltros(f => ({ ...f, buscar: e.target.value }))} placeholder="🔍 Buscar..." />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+                  {(subHistorial === "completados" ? ticketsCompletados : ticketsCancelados)
+                    .filter(t => !filtros.buscar || t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase()))
+                    .map(t => <TarjetaTicket key={t.id} ticket={t} onClick={() => setDetalle(t)} />)}
+                </div>
+              </>
+            )}
+          </>
         ) : seccion === "calendario" ? (
           <div>
             <div style={{ marginBottom: 20 }}>
@@ -1489,7 +1541,7 @@ export default function App() {
               <input style={{ ...inpF, minWidth: 180 }} value={filtros.buscar} onChange={e => setFiltros(f => ({ ...f, buscar: e.target.value }))} placeholder="🔍 Buscar..." />
               <select style={inpF} value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
                 <option value="todos">Todos los estados</option>
-                {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
+                {ESTADOS.filter(s => !["Completado","Cancelado"].includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <select style={inpF} value={filtros.empresa} onChange={e => setFiltros(f => ({ ...f, empresa: e.target.value }))}>
                 <option value="todas">Todas las empresas</option>
