@@ -209,41 +209,6 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
   const [horaInicio, setHoraInicio]   = useState("");
   const [duracion, setDuracion]       = useState("");
   const [ubicacion, setUbicacion]     = useState("");
-  const [geoLoading, setGeoLoading]   = useState(false);
-  const [geoError, setGeoError]       = useState("");
-
-  const obtenerUbicacion = () => {
-    if (!navigator.geolocation) {
-      setGeoError("Tu navegador no soporta geolocalización.");
-      return;
-    }
-    setGeoLoading(true);
-    setGeoError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
-          );
-          const data = await res.json();
-          setUbicacion(data.display_name || `${latitude}, ${longitude}`);
-        } catch {
-          setGeoError("No se pudo obtener la dirección. Intenta de nuevo.");
-        } finally {
-          setGeoLoading(false);
-        }
-      },
-      (err) => {
-        setGeoLoading(false);
-        if (err.code === 1) setGeoError("Permiso denegado. Actívalo en tu navegador.");
-        else if (err.code === 2) setGeoError("No se pudo detectar tu posición.");
-        else setGeoError("Tiempo de espera agotado. Intenta de nuevo.");
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
-  };
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
   const disponibles = EMPRESAS.filter(e => e.id !== 0);
@@ -330,34 +295,10 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
           {/* UBICACIÓN */}
           <div>
             <label style={labelS}>Ubicación</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative", flex: 1 }}>
-                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
-                <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => { setUbicacion(e.target.value); setGeoError(""); }} placeholder="Calle, número, ciudad..." />
-              </div>
-              <button
-                type="button"
-                onClick={obtenerUbicacion}
-                disabled={geoLoading}
-                title="Usar mi ubicación actual"
-                style={{ ...btnS, background: geoLoading ? "#1E293B" : "#1A2235", color: geoLoading ? "#475569" : "#94A3B8", border: "1px solid #2E3A55", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, padding: "9px 14px" }}
-              >
-                {geoLoading
-                  ? <><span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #475569", borderTopColor: "#94A3B8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Localizando...</>
-                  : <>🎯 Mi ubicación</>
-                }
-              </button>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
+              <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Calle, número, ciudad..." />
             </div>
-            {geoError && (
-              <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}>
-                ⚠️ {geoError}
-              </p>
-            )}
-            {ubicacion && !geoError && !geoLoading && (
-              <p style={{ margin: "5px 0 0", color: "#38A169", fontSize: 11 }}>
-                ✓ Ubicación detectada — puedes editarla si lo necesitas
-              </p>
-            )}
           </div>
 
           <div>
@@ -1518,7 +1459,6 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#0A0F1C", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#E2E8F0" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* NAV */}
       <nav style={{ background: "#0D1424", borderBottom: `2px solid ${empColor}33`, position: "sticky", top: 0, zIndex: 100 }}>
