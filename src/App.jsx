@@ -55,7 +55,7 @@ const USUARIOS = [
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
 const PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Urgente: "#E53E3E" };
-const CATEGORIAS_DEFAULT = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
+const CATEGORIAS = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
 const ESTADOS = ["Pendiente", "Asignado", "En progreso", "Completado", "Cancelado"];
 const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso": "#D4A017", Completado: "#38A169", Cancelado: "#E53E3E" };
 
@@ -121,83 +121,8 @@ function EmpresaTag({ empresaId }) {
   );
 }
 
-// ─── MODAL ADMIN CATEGORÍAS ───────────────────────────────────────────────────
-function ModalAdminCategorias({ categorias, onClose, onGuardar }) {
-  const [lista, setLista] = useState([...categorias]);
-  const [nueva, setNueva] = useState("");
-  const [error, setError] = useState("");
-
-  const añadir = () => {
-    const val = nueva.trim();
-    if (!val) { setError("Escribe un nombre"); return; }
-    if (lista.includes(val)) { setError("Ya existe esa categoría"); return; }
-    setLista(prev => [...prev, val]);
-    setNueva("");
-    setError("");
-  };
-
-  const eliminar = (cat) => {
-    if (lista.length <= 1) { setError("Debe haber al menos una categoría"); return; }
-    setLista(prev => prev.filter(c => c !== cat));
-    setError("");
-  };
-
-  const guardar = () => { onGuardar(lista); onClose(); };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#111827", border: "1px solid #2E3A55", borderRadius: 14, width: "100%", maxWidth: 480, padding: 28, boxShadow: "0 24px 80px #0008" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#E2E8F0" }}>🏷️ Gestionar Categorías</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 24, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", color: "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Nueva categoría</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, background: "#1A2235", border: `1px solid ${error ? "#E53E3E" : "#2E3A55"}`, borderRadius: 6, padding: "9px 12px", color: "#E2E8F0", outline: "none" }}
-              value={nueva} onChange={e => { setNueva(e.target.value); setError(""); }}
-              placeholder="Nombre de la categoría..."
-              onKeyDown={e => e.key === "Enter" && añadir()} />
-            <button onClick={añadir}
-              style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 6, border: "none", cursor: "pointer", background: "#3182CE", color: "#fff" }}>
-              + Añadir
-            </button>
-          </div>
-          {error && <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 12 }}>{error}</p>}
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", color: "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>
-            Categorías actuales ({lista.length})
-          </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
-            {lista.map(cat => (
-              <div key={cat} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#1A2235", borderRadius: 8, padding: "10px 14px", border: "1px solid #2E3A55" }}>
-                <span style={{ color: "#E2E8F0", fontSize: 13 }}>🏷️ {cat}</span>
-                <button onClick={() => eliminar(cat)}
-                  style={{ background: "#E53E3E22", border: "1px solid #E53E3E55", color: "#E53E3E", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit" }}>
-                  Eliminar
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>Cancelar</button>
-          <button onClick={guardar} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 18px", borderRadius: 6, border: "none", cursor: "pointer", background: "#38A169", color: "#fff" }}>
-            ✓ Guardar cambios
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── MODAL CREAR TICKET ───────────────────────────────────────────────────────
-function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
+function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [titulo, setTitulo]         = useState("");
   const [descripcion, setDesc]      = useState("");
   const [prioridad, setPrioridad]   = useState("Media");
@@ -209,6 +134,41 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
   const [horaInicio, setHoraInicio]   = useState("");
   const [duracion, setDuracion]       = useState("");
   const [ubicacion, setUbicacion]     = useState("");
+  const [geoLoading, setGeoLoading]   = useState(false);
+  const [geoError, setGeoError]       = useState("");
+
+  const obtenerUbicacion = () => {
+    if (!navigator.geolocation) {
+      setGeoError("Tu navegador no soporta geolocalización.");
+      return;
+    }
+    setGeoLoading(true);
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
+          );
+          const data = await res.json();
+          setUbicacion(data.display_name || `${latitude}, ${longitude}`);
+        } catch {
+          setGeoError("No se pudo obtener la dirección. Intenta de nuevo.");
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (err) => {
+        setGeoLoading(false);
+        if (err.code === 1) setGeoError("Permiso denegado. Actívalo en tu navegador.");
+        else if (err.code === 2) setGeoError("No se pudo detectar tu posición.");
+        else setGeoError("Tiempo de espera agotado. Intenta de nuevo.");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
   const disponibles = EMPRESAS.filter(e => e.id !== 0);
@@ -295,10 +255,34 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
           {/* UBICACIÓN */}
           <div>
             <label style={labelS}>Ubicación</label>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
-              <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Calle, número, ciudad..." />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
+                <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => { setUbicacion(e.target.value); setGeoError(""); }} placeholder="Calle, número, ciudad..." />
+              </div>
+              <button
+                type="button"
+                onClick={obtenerUbicacion}
+                disabled={geoLoading}
+                title="Usar mi ubicación actual"
+                style={{ ...btnS, background: geoLoading ? "#1E293B" : "#1A2235", color: geoLoading ? "#475569" : "#94A3B8", border: "1px solid #2E3A55", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, padding: "9px 14px" }}
+              >
+                {geoLoading
+                  ? <><span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #475569", borderTopColor: "#94A3B8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Localizando...</>
+                  : <>🎯 Mi ubicación</>
+                }
+              </button>
             </div>
+            {geoError && (
+              <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}>
+                ⚠️ {geoError}
+              </p>
+            )}
+            {ubicacion && !geoError && !geoLoading && (
+              <p style={{ margin: "5px 0 0", color: "#38A169", fontSize: 11 }}>
+                ✓ Ubicación detectada — puedes editarla si lo necesitas
+              </p>
+            )}
           </div>
 
           <div>
@@ -365,7 +349,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
             <div>
               <label style={labelS}>Categoría</label>
               <select style={inp} value={categoria} onChange={e => setCategoria(e.target.value)}>
-                {(categorias || CATEGORIAS_DEFAULT).map(c => <option key={c}>{c}</option>)}
+                {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -1223,9 +1207,7 @@ export default function App() {
   });
   const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
-  const [modalAdmin,      setModalAdmin]      = useState(false);
-  const [modalCategorias, setModalCategorias] = useState(false);
-  const [categorias,      setCategorias]      = useState(CATEGORIAS_DEFAULT);
+  const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
   const [detalle,       setDetalle]    = useState(null);
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
@@ -1256,17 +1238,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // ── Firebase: categorías ──
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "categorias"),
-      (snap) => { if (snap.exists() && snap.data().lista) setCategorias(snap.data().lista); },
-      (err) => console.error("Firebase categorias:", err)
-    );
-    return () => unsub();
-  }, []);
-
   const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
-  const esAdmin  = [0, 9].includes(usuarioId); // Miguel Manzano y Sara Márquez — ampliable
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
   const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: "#0D1424", border: "1px solid #1E293B", borderRadius: 6, padding: "7px 11px", color: "#E2E8F0", outline: "none" };
@@ -1386,12 +1358,6 @@ export default function App() {
       });
   };
 
-  const guardarCategorias = (nuevaLista) => {
-    setCategorias(nuevaLista);
-    setDoc(doc(db, "config", "categorias"), { lista: nuevaLista })
-      .catch(e => console.error("Error guardando categorías:", e));
-  };
-
   const handleLogin = () => {
     const uid = Number(loginUsuarioId);
     const pin = pins[uid];
@@ -1459,6 +1425,7 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#0A0F1C", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: "#E2E8F0" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* NAV */}
       <nav style={{ background: "#0D1424", borderBottom: `2px solid ${empColor}33`, position: "sticky", top: 0, zIndex: 100 }}>
@@ -1519,13 +1486,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* Botón gestionar categorías */}
-            {esAdmin && (
-              <button onClick={() => setModalCategorias(true)} title="Gestionar Categorías"
-                style={{ background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 14, color: "#93C5FD" }}>
-                🏷️
-              </button>
-            )}
             {/* Botón admin PINs — solo director */}
             {usuario?.rol === "director" && (
               <button onClick={() => setModalAdmin(true)} title="Gestionar PINs"
@@ -1668,9 +1628,8 @@ export default function App() {
         )}
       </div>
 
-      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} categorias={categorias} />}
+      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
-      {modalCategorias && <ModalAdminCategorias categorias={categorias} onClose={() => setModalCategorias(false)} onGuardar={guardarCategorias} />}
     </div>
   );
 }
