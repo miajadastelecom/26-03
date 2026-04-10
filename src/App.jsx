@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
 
@@ -209,40 +209,38 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
   const [horaInicio, setHoraInicio]   = useState("");
   const [duracion, setDuracion]       = useState("");
   const [ubicacion, setUbicacion]     = useState("");
-  const [geoLoading, setGeoLoading]   = useState(false);
-  const [geoError, setGeoError]       = useState("");
+  const [geoSugerencias, setGeoSugerencias] = useState([]);
+  const [geoLoading, setGeoLoading]         = useState(false);
+  const [geoAbierto, setGeoAbierto]         = useState(false);
+  const geoTimer = useRef(null);
 
-  const obtenerUbicacion = () => {
-    if (!navigator.geolocation) {
-      setGeoError("Tu navegador no soporta geolocalización.");
-      return;
-    }
+  const buscarSugerencias = (valor) => {
+    setUbicacion(valor);
+    setGeoAbierto(false);
+    if (geoTimer.current) clearTimeout(geoTimer.current);
+    if (valor.trim().length < 3) { setGeoSugerencias([]); return; }
     setGeoLoading(true);
-    setGeoError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
-          );
-          const data = await res.json();
-          setUbicacion(data.display_name || `${latitude}, ${longitude}`);
-        } catch {
-          setGeoError("No se pudo obtener la dirección. Intenta de nuevo.");
-        } finally {
-          setGeoLoading(false);
-        }
-      },
-      (err) => {
+    geoTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(valor)}&format=json&limit=5&addressdetails=1`,
+          { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
+        );
+        const data = await res.json();
+        setGeoSugerencias(data);
+        setGeoAbierto(data.length > 0);
+      } catch {
+        setGeoSugerencias([]);
+      } finally {
         setGeoLoading(false);
-        if (err.code === 1) setGeoError("Permiso denegado. Actívalo en tu navegador.");
-        else if (err.code === 2) setGeoError("No se pudo detectar tu posición.");
-        else setGeoError("Tiempo de espera agotado. Intenta de nuevo.");
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
+      }
+    }, 400);
+  };
+
+  const elegirSugerencia = (s) => {
+    setUbicacion(s.display_name);
+    setGeoSugerencias([]);
+    setGeoAbierto(false);
   };
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
@@ -328,35 +326,38 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
           </div>
 
           {/* UBICACIÓN */}
-          <div>
+          <div style={{ position: "relative" }}>
             <label style={labelS}>Ubicación</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative", flex: 1 }}>
-                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
-                <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => { setUbicacion(e.target.value); setGeoError(""); }} placeholder="Calle, número, ciudad..." />
-              </div>
-              <button
-                type="button"
-                onClick={obtenerUbicacion}
-                disabled={geoLoading}
-                title="Usar mi ubicación actual"
-                style={{ ...btnS, background: geoLoading ? "#1E293B" : "#1A2235", color: geoLoading ? "#475569" : "#94A3B8", border: "1px solid #2E3A55", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, padding: "9px 14px" }}
-              >
-                {geoLoading
-                  ? <><span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #475569", borderTopColor: "#94A3B8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Localizando...</>
-                  : <>🎯 Mi ubicación</>
-                }
-              </button>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none", zIndex: 1 }}>📍</span>
+              {geoLoading && (
+                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "inline-block", width: 13, height: 13, border: "2px solid #2E3A55", borderTopColor: "#64748B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              )}
+              <input
+                style={{ ...inp, paddingLeft: 34, paddingRight: geoLoading ? 34 : 12 }}
+                value={ubicacion}
+                onChange={e => buscarSugerencias(e.target.value)}
+                onBlur={() => setTimeout(() => setGeoAbierto(false), 150)}
+                onFocus={() => geoSugerencias.length > 0 && setGeoAbierto(true)}
+                placeholder="Escribe para buscar dirección..."
+                autoComplete="off"
+              />
             </div>
-            {geoError && (
-              <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}>
-                ⚠️ {geoError}
-              </p>
-            )}
-            {ubicacion && !geoError && !geoLoading && (
-              <p style={{ margin: "5px 0 0", color: "#38A169", fontSize: 11 }}>
-                ✓ Ubicación detectada — puedes editarla si lo necesitas
-              </p>
+            {geoAbierto && geoSugerencias.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid #2E3A55", borderRadius: 8, zIndex: 999, boxShadow: "0 8px 24px #0006", overflow: "hidden", marginTop: 4 }}>
+                {geoSugerencias.map((s, i) => (
+                  <div
+                    key={i}
+                    onMouseDown={() => elegirSugerencia(s)}
+                    style={{ padding: "10px 14px", cursor: "pointer", borderBottom: i < geoSugerencias.length - 1 ? "1px solid #1E293B" : "none", display: "flex", alignItems: "flex-start", gap: 10 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#1A2235"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ fontSize: 13, marginTop: 1, flexShrink: 0 }}>📍</span>
+                    <span style={{ color: "#CBD5E1", fontSize: 12, lineHeight: 1.4 }}>{s.display_name}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
