@@ -21,36 +21,58 @@ const EMPRESAS = [
   { id: 3, nombre: "Laura Otero Instalaciones",  color: "#2B6CB0", inicial: "LI" },
   { id: 4, nombre: "Zaqaru",                     color: "#805AD5", inicial: "ZQ" },
   { id: 5, nombre: "Laura Otero",                color: "#276749", inicial: "LO" },
+  { id: 6, nombre: "Comercial",                  color: "#E53E3E", inicial: "CO" },
 ];
 
 const USUARIOS = [
-  { id: 0,  nombre: "Miguel Manzano",       empresaId: 0, rol: "director"   },
-  { id: 1,  nombre: "Ángel Fernández",      empresaId: 1, rol: "encargado"  },
-  { id: 2,  nombre: "Jose Manuel Fuentes",  empresaId: 1, rol: "trabajador" },
-  { id: 3,  nombre: "María Manzano",        empresaId: 1, rol: "trabajador" },
-  { id: 4,  nombre: "Valentín Pérez",       empresaId: 2, rol: "encargado"  },
-  { id: 5,  nombre: "Esther Albalá",        empresaId: 2, rol: "trabajador" },
-  { id: 6,  nombre: "Aitor Garrido",        empresaId: 2, rol: "trabajador" },
-  { id: 7,  nombre: "Carlos Cintero",       empresaId: 2, rol: "trabajador" },
-  { id: 8,  nombre: "Javier Acedo",         empresaId: 2, rol: "trabajador" },
-  { id: 9,  nombre: "Sara Márquez",         empresaId: 2, rol: "trabajador" },
-  { id: 10, nombre: "Miguel Calvo",         empresaId: 3, rol: "encargado"  },
-  { id: 11, nombre: "Juan Antonio Fuentes", empresaId: 3, rol: "trabajador" },
-  { id: 12, nombre: "Jaime Naranjo",        empresaId: 3, rol: "trabajador" },
-  { id: 13, nombre: "Pepe Saavedra",        empresaId: 3, rol: "trabajador" },
-  { id: 14, nombre: "Carlos Pajuelo",       empresaId: 3, rol: "trabajador" },
-  { id: 15, nombre: "Oscar García",         empresaId: 3, rol: "trabajador" },
-  { id: 16, nombre: "Charly Llanos",        empresaId: 3, rol: "trabajador" },
-  { id: 17, nombre: "Borja Llanos",         empresaId: 3, rol: "trabajador" },
-  { id: 18, nombre: "Pedro Solis",          empresaId: 4, rol: "encargado"  },
-  { id: 19, nombre: "Alberto Solis",        empresaId: 4, rol: "trabajador" },
-  { id: 20, nombre: "Jorge Martínez",       empresaId: 4, rol: "trabajador" },
-  { id: 21, nombre: "Alberto Masa",         empresaId: 4, rol: "trabajador" },
-  { id: 22, nombre: "Antonio Vellarino",    empresaId: 4, rol: "trabajador" },
-  { id: 23, nombre: "Jose Antonio Viegas", empresaId: 5, rol: "encargado"  },
-  { id: 24, nombre: "Belén García",         empresaId: 5, rol: "trabajador" },
-  { id: 25, nombre: "Antonio Vellarino",    empresaId: 5, rol: "trabajador" },
-  { id: 26, nombre: "Vicente Manzano",      empresaId: 5, rol: "trabajador" },
+  { id: 0,  nombre: "Miguel Manzano",           empresaId: 0, rol: "director"   },
+  // Energía de Miajadas
+  { id: 1,  nombre: "Ángel Fernández",           empresaId: 1, rol: "encargado"  },
+  { id: 2,  nombre: "Jose Manuel Fuentes",       empresaId: 1, rol: "trabajador" },
+  { id: 3,  nombre: "María Manzano",             empresaId: 1, rol: "trabajador" },
+  // Miajadas Telecom
+  { id: 4,  nombre: "Valentín Pérez",            empresaId: 2, rol: "encargado"  },
+  { id: 5,  nombre: "Esther Albalá",             empresaId: 2, rol: "trabajador" },
+  { id: 6,  nombre: "Aitor Garrido",             empresaId: 2, rol: "trabajador" },
+  { id: 7,  nombre: "Carlos Cintero",            empresaId: 2, rol: "trabajador" },
+  { id: 8,  nombre: "Javier Acedo",              empresaId: 2, rol: "trabajador" },
+  { id: 9,  nombre: "Sara Márquez",              empresaId: 2, rol: "trabajador" },
+  // Laura Otero Instalaciones
+  { id: 10, nombre: "Miguel Calvo",              empresaId: 3, rol: "encargado"  },
+  { id: 11, nombre: "Juan Antonio Fuentes",      empresaId: 3, rol: "trabajador" },
+  { id: 12, nombre: "Jaime Naranjo",             empresaId: 3, rol: "trabajador" },
+  { id: 13, nombre: "Jose Luis Saavedra",        empresaId: 3, rol: "trabajador" },
+  { id: 14, nombre: "Carlos P. Pajuelo",         empresaId: 3, rol: "trabajador" },
+  { id: 15, nombre: "Oscar García",              empresaId: 3, rol: "trabajador" },
+  { id: 16, nombre: "Francisco Javier Llanos",   empresaId: 3, rol: "trabajador" },
+  { id: 17, nombre: "Borja Llanos",              empresaId: 3, rol: "trabajador" },
+  { id: 18, nombre: "Luis Collado",              empresaId: 3, rol: "trabajador" },
+  { id: 19, nombre: "Félix Loro",                empresaId: 3, rol: "trabajador" },
+  { id: 20, nombre: "Ekaitz Pereira",            empresaId: 3, rol: "trabajador" },
+  { id: 21, nombre: "Jairo Miguel",              empresaId: 3, rol: "trabajador" },
+  { id: 22, nombre: "Andrés Medina",             empresaId: 3, rol: "trabajador" },
+  { id: 23, nombre: "Francisco Babiano",         empresaId: 3, rol: "trabajador" },
+  { id: 24, nombre: "Guillermo Méndez",          empresaId: 3, rol: "trabajador" },
+  { id: 25, nombre: "Antonio Díaz",              empresaId: 3, rol: "trabajador" },
+  { id: 26, nombre: "Manolo Lobo",               empresaId: 3, rol: "trabajador" },
+  { id: 27, nombre: "David López",               empresaId: 3, rol: "trabajador" },
+  // Zaqaru
+  { id: 28, nombre: "Pedro Solis",               empresaId: 4, rol: "encargado"  },
+  { id: 29, nombre: "Alberto Solis",             empresaId: 4, rol: "trabajador" },
+  { id: 30, nombre: "Jorge Martínez",            empresaId: 4, rol: "trabajador" },
+  { id: 31, nombre: "Alberto Masa",              empresaId: 4, rol: "trabajador" },
+  { id: 32, nombre: "Antonio Vellarino",         empresaId: 4, rol: "trabajador" },
+  { id: 33, nombre: "Francisco Sánchez",         empresaId: 4, rol: "trabajador" },
+  // Laura Otero
+  { id: 34, nombre: "Jose Antonio Viegas",       empresaId: 5, rol: "encargado"  },
+  { id: 35, nombre: "Belén García",              empresaId: 5, rol: "trabajador" },
+  { id: 36, nombre: "Antonio Vellarino",         empresaId: 5, rol: "trabajador" },
+  { id: 37, nombre: "Vicente Manzano",           empresaId: 5, rol: "trabajador" },
+  // Comercial (sin encargado)
+  { id: 38, nombre: "Jesús Salazar",             empresaId: 6, rol: "trabajador" },
+  { id: 39, nombre: "Yolanda Jiménez",           empresaId: 6, rol: "trabajador" },
+  { id: 40, nombre: "Laura Hernández",           empresaId: 6, rol: "trabajador" },
+  { id: 41, nombre: "Iratxe Plaza",              empresaId: 6, rol: "trabajador" },
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
@@ -61,7 +83,7 @@ const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso
 
 // PINs por defecto (4 dígitos) — clave: userId, valor: pin string
 const PINS_DEFAULT = {};
-for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]) {
+for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]) {
   PINS_DEFAULT[u] = "1234";
 }
 
@@ -713,23 +735,23 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
         )}
 
         {/* Asignar — solo encargado de empresa destino */}
-        {esEncargadoDest && !["Completado", "Cancelado"].includes(ticket.estado) && (
-          <div style={{ background: "#1A2C45", borderRadius: 8, padding: 14, marginBottom: 14, border: "1px solid #2E4A70" }}>
-            <p style={{ margin: "0 0 10px", color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+        {esEncargadoDest && ![\"Completado\", \"Cancelado\"].includes(ticket.estado) && (
+          <div style={{ background: \"#1A2C45\", borderRadius: 8, padding: 14, marginBottom: 14, border: \"1px solid #2E4A70\" }}>
+            <p style={{ margin: \"0 0 10px\", color: \"#93C5FD\", fontSize: 11, fontWeight: 700, textTransform: \"uppercase\" }}>
               Asignar trabajadores de {miEmpresa?.nombre}
             </p>
             {misTrabs.length === 0
-              ? <p style={{ color: "#475569", fontSize: 13, margin: "0 0 12px" }}>No hay trabajadores en tu empresa.</p>
+              ? <p style={{ color: \"#475569\", fontSize: 13, margin: \"0 0 12px\" }}>No hay trabajadores en tu empresa.</p>
               : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 6, marginBottom: 12 }}>
                   {misTrabs.map(u => {
                     const marcado = seleccionados.includes(u.id);
-                    const col = miEmpresa?.color || "#3182CE";
+                    const col = miEmpresa?.color || \"#3182CE\";
                     return (
-                      <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 7, background: marcado ? col + "22" : "#111827", border: `1px solid ${marcado ? col + "66" : "#1E293B"}`, cursor: "pointer" }}>
-                        <input type="checkbox" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor: col, width: 15, height: 15 }} />
+                      <label key={u.id} style={{ display: \"flex\", alignItems: \"center\", gap: 10, padding: \"8px 12px\", borderRadius: 7, background: marcado ? col + \"22\" : \"#111827\", border: `1px solid ${marcado ? col + \"66\" : \"#1E293B\"}`, cursor: \"pointer\" }}>
+                        <input type=\"checkbox\" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor: col, width: 15, height: 15 }} />
                         <Avatar nombre={u.nombre} color={col} size={24} />
-                        <span style={{ color: marcado ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
+                        <span style={{ color: marcado ? \"#E2E8F0\" : \"#94A3B8\", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
                         {marcado && <span style={{ color: col, fontSize: 12 }}>✓</span>}
                       </label>
                     );
@@ -737,15 +759,55 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                 </div>
               )
             }
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "#64748B", fontSize: 12 }}>{seleccionados.length} seleccionado{seleccionados.length !== 1 ? "s" : ""}</span>
+            <div style={{ display: \"flex\", justifyContent: \"space-between\", alignItems: \"center\" }}>
+              <span style={{ color: \"#64748B\", fontSize: 12 }}>{seleccionados.length} seleccionado{seleccionados.length !== 1 ? \"s\" : \"\"}</span>
               <button onClick={asignar} disabled={seleccionados.length === 0}
-                style={{ ...btnS, background: seleccionados.length > 0 ? "#3182CE" : "#1E293B", color: seleccionados.length > 0 ? "#fff" : "#475569" }}>
+                style={{ ...btnS, background: seleccionados.length > 0 ? \"#3182CE\" : \"#1E293B\", color: seleccionados.length > 0 ? \"#fff\" : \"#475569\" }}>
                 Confirmar asignación
               </button>
             </div>
           </div>
         )}
+
+        {/* Asignación directa Comercial — solo quien creó el ticket */}
+        {empresasDestino.includes(6) && esCreadoPor && ![\"Completado\", \"Cancelado\"].includes(ticket.estado) && (() => {
+          const trabsComercial = USUARIOS.filter(u => u.empresaId === 6);
+          const asignadosComercial = asignaciones[6] || [];
+          const empComercial = EMPRESAS.find(e => e.id === 6);
+          const col = empComercial?.color || \"#E53E3E\";
+          const asignarComercial = (nuevosSels) => {
+            const nuevas = { ...asignaciones, 6: nuevosSels };
+            onActualizar({ ...ticket, asignacionesPorEmpresa: nuevas, estado: nuevosSels.length > 0 ? \"Asignado\" : ticket.estado, fechaAsignacion: ticket.fechaAsignacion || new Date().toISOString() });
+          };
+          return (
+            <div style={{ background: \"#2A1A1A\", borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${col}33` }}>
+              <p style={{ margin: \"0 0 10px\", color: col, fontSize: 11, fontWeight: 700, textTransform: \"uppercase\" }}>
+                🎯 Asignación directa — Comercial
+              </p>
+              <div style={{ display: \"flex\", flexDirection: \"column\", gap: 6, marginBottom: 12 }}>
+                {trabsComercial.map(u => {
+                  const marcado = asignadosComercial.includes(u.id);
+                  return (
+                    <label key={u.id} style={{ display: \"flex\", alignItems: \"center\", gap: 10, padding: \"8px 12px\", borderRadius: 7, background: marcado ? col + \"22\" : \"#111827\", border: `1px solid ${marcado ? col + \"66\" : \"#1E293B\"}`, cursor: \"pointer\" }}>
+                      <input type=\"checkbox\" checked={marcado}
+                        onChange={() => {
+                          const nuevos = marcado ? asignadosComercial.filter(id => id !== u.id) : [...asignadosComercial, u.id];
+                          asignarComercial(nuevos);
+                        }}
+                        style={{ accentColor: col, width: 15, height: 15 }} />
+                      <Avatar nombre={u.nombre} color={col} size={24} />
+                      <span style={{ color: marcado ? \"#E2E8F0\" : \"#94A3B8\", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
+                      {marcado && <span style={{ color: col, fontSize: 12 }}>✓</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              <p style={{ margin: 0, color: \"#64748B\", fontSize: 11 }}>
+                {asignadosComercial.length} persona{asignadosComercial.length !== 1 ? \"s\" : \"\"} asignada{asignadosComercial.length !== 1 ? \"s\" : \"\"}
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Cambiar estado — flujo ordenado con permisos */}
         {!["Completado", "Cancelado"].includes(ticket.estado) && (() => {
