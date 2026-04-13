@@ -151,6 +151,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [categoria, setCategoria]   = useState("Otro");
   const [imagenes, setImagenes]     = useState([]);
   const [empresasDestino, setEmps]  = useState([]);
+  const [comercialAsignados, setComercialAsignados] = useState([]);
   const [origenId, setOrigenId]     = useState(usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1);
   const [fechaInicio, setFechaInicio] = useState("");
   const [horaInicio, setHoraInicio]   = useState("");
@@ -196,7 +197,13 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const disponibles = EMPRESAS.filter(e => e.id !== 0);
   const puedeCrear  = titulo.trim().length > 0 && empresasDestino.length > 0;
 
-  const toggleEmp = (id) => setEmps(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleEmp = (id) => {
+    setEmps(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      if (id === 6 && !next.includes(6)) setComercialAsignados([]);
+      return next;
+    });
+  };
 
   const handleImagenes = (e) => {
     Array.from(e.target.files).forEach(f => {
@@ -209,16 +216,17 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const submit = () => {
     if (!puedeCrear) return;
     const asignacionesPorEmpresa = {};
-    empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = []; });
+    empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = id === 6 ? comercialAsignados : []; });
+    const tieneAsignadosComercial = empresasDestino.includes(6) && comercialAsignados.length > 0;
     onCrear({
       id: genId(), titulo: titulo.trim(), descripcion, prioridad, categoria,
       empresasDestino,
       empresaOrigenId: usuarioActual.rol === "director" ? origenId : usuarioActual.empresaId,
       creadoPor: usuarioActual.id,
-      estado: "Pendiente",
+      estado: tieneAsignadosComercial ? "Asignado" : "Pendiente",
       asignacionesPorEmpresa,
       fecha: new Date().toISOString(),
-      fechaAsignacion: null,
+      fechaAsignacion: tieneAsignadosComercial ? new Date().toISOString() : null,
       fechaInicio: fechaInicio || null,
       horaInicio: horaInicio || null,
       duracion: duracion || null,
@@ -344,19 +352,44 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
               {disponibles.map(emp => {
                 const marcada = empresasDestino.includes(emp.id);
                 return (
-                  <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, background: marcada ? emp.color + "18" : "#1A2235", border: `1px solid ${marcada ? emp.color + "66" : "#2E3A55"}`, cursor: "pointer" }}>
-                    <input type="checkbox" checked={marcada} onChange={() => toggleEmp(emp.id)} style={{ accentColor: emp.color, width: 15, height: 15, flexShrink: 0 }} />
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: emp.color, flexShrink: 0 }} />
-                    <span style={{ color: marcada ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcada ? 700 : 400, flex: 1 }}>{emp.nombre}</span>
-                    {emp.id === usuarioActual.empresaId && <span style={{ color: "#475569", fontSize: 10 }}>mi empresa</span>}
-                    {marcada && <span style={{ color: emp.color, fontSize: 12 }}>✓</span>}
-                  </label>
+                  <div key={emp.id}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, background: marcada ? emp.color + "18" : "#1A2235", border: `1px solid ${marcada ? emp.color + "66" : "#2E3A55"}`, cursor: "pointer" }}>
+                      <input type="checkbox" checked={marcada} onChange={() => toggleEmp(emp.id)} style={{ accentColor: emp.color, width: 15, height: 15, flexShrink: 0 }} />
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: emp.color, flexShrink: 0 }} />
+                      <span style={{ color: marcada ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcada ? 700 : 400, flex: 1 }}>{emp.nombre}</span>
+                      {emp.id === usuarioActual.empresaId && <span style={{ color: "#475569", fontSize: 10 }}>mi empresa</span>}
+                      {marcada && emp.id !== 6 && <span style={{ color: emp.color, fontSize: 12 }}>✓</span>}
+                      {marcada && emp.id === 6 && <span style={{ color: emp.color, fontSize: 10 }}>{comercialAsignados.length > 0 ? `${comercialAsignados.length} asignada${comercialAsignados.length > 1 ? "s" : ""}` : "elige persona"}</span>}
+                    </label>
+                    {/* Selector de personas para Comercial */}
+                    {marcada && emp.id === 6 && (
+                      <div style={{ marginTop: 4, marginLeft: 12, display: "flex", flexDirection: "column", gap: 4, padding: "10px 12px", background: "#0D1424", borderRadius: 8, border: `1px solid ${emp.color}33` }}>
+                        <p style={{ margin: "0 0 6px", color: emp.color, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>
+                          🎯 Selecciona a quién va dirigido
+                        </p>
+                        {USUARIOS.filter(u => u.empresaId === 6).map(u => {
+                          const sel = comercialAsignados.includes(u.id);
+                          return (
+                            <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 6, background: sel ? emp.color + "22" : "#1A2235", border: `1px solid ${sel ? emp.color + "66" : "#2E3A55"}`, cursor: "pointer" }}>
+                              <input type="checkbox" checked={sel}
+                                onChange={() => setComercialAsignados(prev => sel ? prev.filter(x => x !== u.id) : [...prev, u.id])}
+                                style={{ accentColor: emp.color, width: 14, height: 14, flexShrink: 0 }} />
+                              <Avatar nombre={u.nombre} color={emp.color} size={22} />
+                              <span style={{ color: sel ? "#E2E8F0" : "#94A3B8", fontSize: 12, fontWeight: sel ? 700 : 400, flex: 1 }}>{u.nombre}</span>
+                              {sel && <span style={{ color: emp.color, fontSize: 11 }}>✓</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
             {empresasDestino.length > 0 && (
               <p style={{ margin: "6px 0 0", color: "#64748B", fontSize: 11 }}>
-                {empresasDestino.length} empresa{empresasDestino.length > 1 ? "s" : ""} — el encargado de cada una asignará a sus trabajadores
+                {empresasDestino.filter(id => id !== 6).length > 0 && "El encargado de cada empresa asignará a sus trabajadores. "}
+                {empresasDestino.includes(6) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Comercial.</span>}
               </p>
             )}
           </div>
