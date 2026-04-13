@@ -928,7 +928,7 @@ function TarjetaTicket({ ticket, onClick }) {
 }
 
 // ─── CALENDARIO ───────────────────────────────────────────────────────────────
-function Calendario({ tickets, usuarioActual, onVerTicket }) {
+function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, onVerTicketPersonal }) {
   const hoy  = new Date();
   const [mes,  setMes]  = useState(hoy.getMonth());
   const [anio, setAnio] = useState(hoy.getFullYear());
@@ -952,10 +952,17 @@ function Calendario({ tickets, usuarioActual, onVerTicket }) {
       const d = new Date(t.fechaAsignacion);
       const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       if (!mapa[k]) mapa[k] = [];
-      mapa[k].push(t);
+      mapa[k].push({ ...t, _personal: false });
+    });
+    (ticketsPersonales || []).forEach(t => {
+      if (!t.fecha) return;
+      const d = new Date(t.fecha);
+      const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!mapa[k]) mapa[k] = [];
+      mapa[k].push({ ...t, _personal: true });
     });
     return mapa;
-  }, [misTickets]);
+  }, [misTickets, ticketsPersonales]);
 
   const primerDia = new Date(anio, mes, 1);
   const ultimoDia = new Date(anio, mes + 1, 0);
@@ -999,6 +1006,18 @@ function Calendario({ tickets, usuarioActual, onVerTicket }) {
             <div key={i} style={{ background: "#111827", minHeight: 80, padding: "6px 4px" }}>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: "50%", background: esHoy ? "#E53E3E" : "transparent", color: esHoy ? "#fff" : "#64748B", fontSize: 12, fontWeight: esHoy ? 800 : 400, marginBottom: 4 }}>{dia}</span>
               {tHoy.slice(0, 3).map(t => {
+                if (t._personal) {
+                  const hecho = t.estado === "hecho";
+                  return (
+                    <div key={t.id} onClick={() => onVerTicketPersonal && onVerTicketPersonal(t)}
+                      style={{ background: hecho ? "#FFFFFF18" : "#FFFFFF11", border: `1px solid ${hecho ? "#FFFFFF55" : "#FFFFFF33"}`, borderRadius: 3, padding: "2px 5px", cursor: "pointer", marginBottom: 2 }}
+                      title={t.titulo}>
+                      <p style={{ margin: 0, color: "#E2E8F0", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {hecho ? "✓ " : "📝 "}{t.titulo}
+                      </p>
+                    </div>
+                  );
+                }
                 const emp = EMPRESAS.find(e => e.id === t.empresaOrigenId);
                 const completado = t.estado === "Completado";
                 const color = completado ? "#38A169" : (emp?.color || "#3182CE");
@@ -1294,6 +1313,175 @@ function Reportes({ tickets, usuarioActual }) {
 }
 
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
+// ─── MODAL MIS TICKETS ────────────────────────────────────────────────────────
+function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle }) {
+  const [creando, setCreando] = useState(false);
+  const [titulo, setTitulo]   = useState("");
+  const [desc, setDesc]       = useState("");
+  const [fecha, setFecha]     = useState("");
+  const [hora, setHora]       = useState("");
+  const [alerta, setAlerta]   = useState(false);
+
+  const inp2 = { fontFamily: "inherit", fontSize: 13, background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 6, padding: "9px 12px", color: "#E2E8F0", outline: "none", width: "100%", boxSizing: "border-box" };
+
+  const pendientes = tickets.filter(t => t.estado !== "hecho");
+  const hechos     = tickets.filter(t => t.estado === "hecho");
+
+  const submit = () => {
+    if (!titulo.trim()) return;
+    const fechaAlerta = fecha && hora ? `${fecha}T${hora}` : fecha ? `${fecha}T09:00` : null;
+    onCrear({
+      id: genId(),
+      titulo: titulo.trim(),
+      descripcion: desc,
+      fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
+      alerta,
+      fechaAlerta,
+      estado: "pendiente",
+      creadoPor: usuarioId,
+    });
+    setTitulo(""); setDesc(""); setFecha(""); setHora(""); setAlerta(false); setCreando(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
+      <div style={{ background: "#111827", border: "1px solid #2E3A55", borderRadius: 14, width: "100%", maxWidth: 520, padding: 28, boxShadow: "0 24px 80px #0008", margin: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#E2E8F0" }}>📝 Mis Tickets Personales</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 24, cursor: "pointer" }}>×</button>
+        </div>
+
+        {/* Formulario nuevo ticket */}
+        {creando ? (
+          <div style={{ background: "#1A2235", borderRadius: 10, padding: 16, marginBottom: 20, border: "1px solid #2E3A55" }}>
+            <p style={{ margin: "0 0 12px", color: "#94A3B8", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Nuevo ticket personal</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input style={inp2} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título *" />
+              <textarea style={{ ...inp2, resize: "vertical", minHeight: 60 }} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descripción..." />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ display: "block", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Fecha</label>
+                  <input type="date" style={{ ...inp2, colorScheme: "dark" }} value={fecha} onChange={e => setFecha(e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ display: "block", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Hora alerta</label>
+                  <input type="time" style={{ ...inp2, colorScheme: "dark" }} value={hora} onChange={e => setHora(e.target.value)} />
+                </div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={alerta} onChange={e => setAlerta(e.target.checked)} style={{ accentColor: "#3182CE", width: 15, height: 15 }} />
+                <span style={{ color: "#94A3B8", fontSize: 13 }}>🔔 Activar notificación en el navegador</span>
+              </label>
+              {alerta && <p style={{ margin: 0, color: "#64748B", fontSize: 11 }}>⚠️ Asegúrate de tener los permisos de notificación activados en el navegador.</p>}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+              <button onClick={() => setCreando(false)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>Cancelar</button>
+              <button onClick={submit} disabled={!titulo.trim()} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: titulo.trim() ? "#3182CE" : "#1E293B", color: titulo.trim() ? "#fff" : "#475569" }}>Crear</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setCreando(true)} style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 8, border: "1px dashed #2E3A55", cursor: "pointer", background: "transparent", color: "#64748B", width: "100%", marginBottom: 20 }}>
+            + Nuevo ticket personal
+          </button>
+        )}
+
+        {/* Lista pendientes */}
+        {pendientes.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ margin: "0 0 8px", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Pendientes ({pendientes.length})</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {pendientes.map(t => (
+                <div key={t.id} onClick={() => onVerDetalle(t)} style={{ background: "#1A2235", borderRadius: 8, padding: "10px 14px", border: "1px solid #2E3A55", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#1E2D45"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1A2235"}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>📝</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, color: "#E2E8F0", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.titulo}</p>
+                    {t.fecha && <p style={{ margin: "2px 0 0", color: "#475569", fontSize: 11 }}>{fmtFecha(t.fecha)}{t.alerta ? " 🔔" : ""}</p>}
+                  </div>
+                  <span style={{ color: "#718096", fontSize: 11, background: "#111827", borderRadius: 4, padding: "2px 7px", flexShrink: 0 }}>pendiente</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Lista hechos */}
+        {hechos.length > 0 && (
+          <div>
+            <p style={{ margin: "0 0 8px", color: "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Completados ({hechos.length})</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {hechos.map(t => (
+                <div key={t.id} onClick={() => onVerDetalle(t)} style={{ background: "#111827", borderRadius: 8, padding: "10px 14px", border: "1px solid #1E293B", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, opacity: 0.6 }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                  <p style={{ margin: 0, color: "#64748B", fontSize: 13, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "line-through" }}>{t.titulo}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tickets.length === 0 && !creando && (
+          <div style={{ textAlign: "center", padding: "30px 0" }}>
+            <p style={{ fontSize: 40, marginBottom: 8 }}>📋</p>
+            <p style={{ color: "#475569", fontSize: 13 }}>No tienes tickets personales aún</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MODAL DETALLE MI TICKET ──────────────────────────────────────────────────
+function ModalDetalleMiTicket({ ticket, onClose, onActualizar }) {
+  const [editando, setEditando] = useState(false);
+  const [titulo, setTitulo]     = useState(ticket.titulo);
+  const [desc, setDesc]         = useState(ticket.descripcion || "");
+
+  const marcarHecho = () => onActualizar({ ...ticket, estado: "hecho" });
+  const marcarPendiente = () => onActualizar({ ...ticket, estado: "pendiente" });
+  const guardar = () => { onActualizar({ ...ticket, titulo: titulo.trim(), descripcion: desc }); setEditando(false); };
+  const hecho = ticket.estado === "hecho";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+      <div style={{ background: "#111827", border: "1px solid #2E3A55", borderRadius: 14, width: "100%", maxWidth: 480, padding: 28, boxShadow: "0 24px 80px #0008" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            <span style={{ background: hecho ? "#38A16922" : "#71809622", color: hecho ? "#38A169" : "#718096", border: `1px solid ${hecho ? "#38A16955" : "#71809655"}`, borderRadius: 4, padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>
+              {hecho ? "✓ Hecho" : "⏳ Pendiente"}
+            </span>
+            {!editando
+              ? <h2 style={{ margin: "8px 0 0", fontSize: 17, fontWeight: 800, color: "#E2E8F0" }}>{ticket.titulo}</h2>
+              : <input style={{ fontFamily: "inherit", fontSize: 15, fontWeight: 700, background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 6, padding: "7px 10px", color: "#E2E8F0", outline: "none", width: "100%", marginTop: 8, boxSizing: "border-box" }} value={titulo} onChange={e => setTitulo(e.target.value)} />
+            }
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 24, cursor: "pointer" }}>×</button>
+        </div>
+
+        {ticket.fecha && <p style={{ margin: "0 0 12px", color: "#475569", fontSize: 12 }}>📅 {fmtFecha(ticket.fecha)}{ticket.alerta ? "  🔔 Con notificación" : ""}</p>}
+
+        {!editando
+          ? ticket.descripcion && <div style={{ background: "#1A2235", borderRadius: 8, padding: 14, marginBottom: 16 }}><p style={{ margin: 0, color: "#94A3B8", fontSize: 13, lineHeight: 1.7 }}>{ticket.descripcion}</p></div>
+          : <textarea style={{ fontFamily: "inherit", fontSize: 13, background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 6, padding: "9px 12px", color: "#E2E8F0", outline: "none", width: "100%", boxSizing: "border-box", resize: "vertical", minHeight: 80, marginBottom: 16 }} value={desc} onChange={e => setDesc(e.target.value)} />
+        }
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {editando
+            ? <><button onClick={() => setEditando(false)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>Cancelar</button>
+                <button onClick={guardar} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#3182CE", color: "#fff" }}>Guardar</button></>
+            : <><button onClick={() => setEditando(true)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>✏️ Editar</button>
+                {hecho
+                  ? <button onClick={marcarPendiente} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>↩️ Marcar pendiente</button>
+                  : <button onClick={marcarHecho} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#38A169", color: "#fff" }}>✅ Marcar como hecho</button>
+                }</>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tickets,       setTickets]    = useState([]);
   const [usuarioId,     setUsuarioId]  = useState(() => {
@@ -1310,6 +1498,11 @@ export default function App() {
   const [verNotifs,     setVerNotifs]  = useState(false);
   const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
+  const [modalMisTickets, setModalMisTickets] = useState(false);
+  const [misTicketsPersonales, setMisTicketsPersonales] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mis_tickets_personales") || "[]"); } catch { return []; }
+  });
+  const [detalleMiTicket, setDetalleMiTicket] = useState(null);
   const [detalle,       setDetalle]    = useState(null);
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
   const [vista,         setVista]      = useState("mis");
@@ -1445,6 +1638,30 @@ export default function App() {
       const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
       if (enc && enc.id !== usuarioId) addNotif({ usuarioDestinoId: enc.id, tipo: "nuevo", ticketId: t.id, texto: `Nuevo ticket para tu empresa: "${t.titulo}".` });
     });
+  };
+
+  const guardarTicketPersonal = (t) => {
+    const nuevos = [t, ...misTicketsPersonales];
+    setMisTicketsPersonales(nuevos);
+    try { localStorage.setItem("mis_tickets_personales", JSON.stringify(nuevos)); } catch {}
+    // Programar notificación si tiene alerta
+    if (t.alerta && t.fechaAlerta) {
+      const ms = new Date(t.fechaAlerta).getTime() - Date.now();
+      if (ms > 0) {
+        setTimeout(() => {
+          if (Notification.permission === "granted") {
+            new Notification("📝 Recordatorio: " + t.titulo, { body: t.descripcion || "Tienes un ticket personal pendiente.", icon: "/favicon.ico" });
+          }
+        }, ms);
+      }
+    }
+  };
+
+  const actualizarTicketPersonal = (t) => {
+    const nuevos = misTicketsPersonales.map(x => x.id === t.id ? t : x);
+    setMisTicketsPersonales(nuevos);
+    try { localStorage.setItem("mis_tickets_personales", JSON.stringify(nuevos)); } catch {}
+    if (detalleMiTicket?.id === t.id) setDetalleMiTicket(t);
   };
 
   const misNotifs = notifs.filter(n => n.usuarioDestinoId === usuarioId);
@@ -1672,7 +1889,7 @@ export default function App() {
               <h2 style={{ margin: "0 0 4px", color: "#E2E8F0", fontWeight: 800, fontSize: 18 }}>📅 Mi Calendario</h2>
               <p style={{ margin: 0, color: "#475569", fontSize: 13 }}>Trabajos asignados — aparecen desde la fecha de asignación</p>
             </div>
-            <Calendario tickets={tickets} usuarioActual={usuario} onVerTicket={t => setDetalle(t)} />
+            <Calendario tickets={tickets} ticketsPersonales={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} usuarioActual={usuario} onVerTicket={t => setDetalle(t)} onVerTicketPersonal={t => setDetalleMiTicket(t)} />
           </div>
         ) : (
           <>
@@ -1711,6 +1928,12 @@ export default function App() {
               <button onClick={() => setModalCrear(true)} style={{ ...btnS, background: empColor, color: "#fff", fontWeight: 900, marginLeft: "auto", padding: "9px 20px", fontSize: 13 }}>
                 + Nuevo Ticket
               </button>
+              <button onClick={() => {
+                if (Notification.permission === "default") Notification.requestPermission();
+                setModalMisTickets(true);
+              }} style={{ ...btnS, background: "#1E293B", color: "#94A3B8", border: "1px solid #2E3A55", fontWeight: 700, padding: "9px 16px", fontSize: 13 }}>
+                📝 Mis Tickets {misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length > 0 && <span style={{ background: "#E53E3E", color: "#fff", borderRadius: "50%", fontSize: 10, padding: "1px 5px", marginLeft: 4 }}>{misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length}</span>}
+              </button>
             </div>
 
             {/* LISTA */}
@@ -1731,6 +1954,8 @@ export default function App() {
 
       {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
+      {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
+      {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
     </div>
   );
 }
