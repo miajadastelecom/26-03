@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
 
@@ -25,59 +25,59 @@ const EMPRESAS = [
 ];
 
 const USUARIOS = [
-  { id: 0,  nombre: "Miguel Manzano",           empresaId: 0, rol: "director"   },
+  { id: 0,  nombre: "Miguel Manzano",          empresaId: 0, rol: "director"   },
   // Energía de Miajadas
-  { id: 1,  nombre: "Ángel Fernández",           empresaId: 1, rol: "encargado"  },
-  { id: 2,  nombre: "Jose Manuel Fuentes",       empresaId: 1, rol: "trabajador" },
-  { id: 3,  nombre: "María Manzano",             empresaId: 1, rol: "trabajador" },
+  { id: 1,  nombre: "Ángel Fernández",          empresaId: 1, rol: "encargado"  },
+  { id: 2,  nombre: "Jose Manuel Fuentes",      empresaId: 1, rol: "trabajador" },
+  { id: 3,  nombre: "María Manzano",            empresaId: 1, rol: "trabajador" },
   // Miajadas Telecom
-  { id: 4,  nombre: "Valentín Pérez",            empresaId: 2, rol: "encargado"  },
-  { id: 5,  nombre: "Esther Albalá",             empresaId: 2, rol: "trabajador" },
-  { id: 6,  nombre: "Aitor Garrido",             empresaId: 2, rol: "trabajador" },
-  { id: 7,  nombre: "Carlos Cintero",            empresaId: 2, rol: "trabajador" },
-  { id: 8,  nombre: "Javier Acedo",              empresaId: 2, rol: "trabajador" },
-  { id: 9,  nombre: "Sara Márquez",              empresaId: 2, rol: "trabajador" },
+  { id: 4,  nombre: "Valentín Pérez",           empresaId: 2, rol: "encargado"  },
+  { id: 5,  nombre: "Esther Albalá",            empresaId: 2, rol: "trabajador" },
+  { id: 6,  nombre: "Aitor Garrido",            empresaId: 2, rol: "trabajador" },
+  { id: 7,  nombre: "Carlos Cintero",           empresaId: 2, rol: "trabajador" },
+  { id: 8,  nombre: "Javier Acedo",             empresaId: 2, rol: "trabajador" },
+  { id: 9,  nombre: "Sara Márquez",             empresaId: 2, rol: "trabajador" },
   // Laura Otero Instalaciones
-  { id: 10, nombre: "Miguel Calvo",              empresaId: 3, rol: "encargado"  },
-  { id: 11, nombre: "Juan Antonio Fuentes",      empresaId: 3, rol: "trabajador" },
-  { id: 12, nombre: "Jaime Naranjo",             empresaId: 3, rol: "trabajador" },
-  { id: 13, nombre: "Jose Luis Saavedra",        empresaId: 3, rol: "trabajador" },
-  { id: 14, nombre: "Carlos P. Pajuelo",         empresaId: 3, rol: "trabajador" },
-  { id: 15, nombre: "Oscar García",              empresaId: 3, rol: "trabajador" },
-  { id: 16, nombre: "Francisco Javier Llanos",   empresaId: 3, rol: "trabajador" },
-  { id: 17, nombre: "Borja Llanos",              empresaId: 3, rol: "trabajador" },
-  { id: 18, nombre: "Luis Collado",              empresaId: 3, rol: "trabajador" },
-  { id: 19, nombre: "Félix Loro",                empresaId: 3, rol: "trabajador" },
-  { id: 20, nombre: "Ekaitz Pereira",            empresaId: 3, rol: "trabajador" },
-  { id: 21, nombre: "Jairo Miguel",              empresaId: 3, rol: "trabajador" },
-  { id: 22, nombre: "Andrés Medina",             empresaId: 3, rol: "trabajador" },
-  { id: 23, nombre: "Francisco Babiano",         empresaId: 3, rol: "trabajador" },
-  { id: 24, nombre: "Guillermo Méndez",          empresaId: 3, rol: "trabajador" },
-  { id: 25, nombre: "Antonio Díaz",              empresaId: 3, rol: "trabajador" },
-  { id: 26, nombre: "Manolo Lobo",               empresaId: 3, rol: "trabajador" },
-  { id: 27, nombre: "David López",               empresaId: 3, rol: "trabajador" },
+  { id: 10, nombre: "Miguel Calvo",             empresaId: 3, rol: "encargado"  },
+  { id: 11, nombre: "Juan Antonio Fuentes",     empresaId: 3, rol: "trabajador" },
+  { id: 12, nombre: "Jaime Naranjo",            empresaId: 3, rol: "trabajador" },
+  { id: 13, nombre: "Jose Luis Saavedra",       empresaId: 3, rol: "trabajador" },
+  { id: 14, nombre: "Carlos P. Pajuelo",        empresaId: 3, rol: "trabajador" },
+  { id: 15, nombre: "Oscar García",             empresaId: 3, rol: "trabajador" },
+  { id: 16, nombre: "Francisco Javier Llanos",  empresaId: 3, rol: "trabajador" },
+  { id: 17, nombre: "Borja Llanos",             empresaId: 3, rol: "trabajador" },
+  { id: 18, nombre: "Luis Collado",             empresaId: 3, rol: "trabajador" },
+  { id: 19, nombre: "Félix Loro",               empresaId: 3, rol: "trabajador" },
+  { id: 20, nombre: "Ekaitz Pereira",           empresaId: 3, rol: "trabajador" },
+  { id: 21, nombre: "Jairo Miguel",             empresaId: 3, rol: "trabajador" },
+  { id: 22, nombre: "Andrés Medina",            empresaId: 3, rol: "trabajador" },
+  { id: 23, nombre: "Francisco Babiano",        empresaId: 3, rol: "trabajador" },
+  { id: 24, nombre: "Guillermo Méndez",         empresaId: 3, rol: "trabajador" },
+  { id: 25, nombre: "Antonio Díaz",             empresaId: 3, rol: "trabajador" },
+  { id: 26, nombre: "Manolo Lobo",              empresaId: 3, rol: "trabajador" },
+  { id: 27, nombre: "David López",              empresaId: 3, rol: "trabajador" },
   // Zaqaru
-  { id: 28, nombre: "Pedro Solis",               empresaId: 4, rol: "encargado"  },
-  { id: 29, nombre: "Alberto Solis",             empresaId: 4, rol: "trabajador" },
-  { id: 30, nombre: "Jorge Martínez",            empresaId: 4, rol: "trabajador" },
-  { id: 31, nombre: "Alberto Masa",              empresaId: 4, rol: "trabajador" },
-  { id: 32, nombre: "Antonio Vellarino",         empresaId: 4, rol: "trabajador" },
-  { id: 33, nombre: "Francisco Sánchez",         empresaId: 4, rol: "trabajador" },
+  { id: 28, nombre: "Pedro Solis",              empresaId: 4, rol: "encargado"  },
+  { id: 29, nombre: "Alberto Solis",            empresaId: 4, rol: "trabajador" },
+  { id: 30, nombre: "Jorge Martínez",           empresaId: 4, rol: "trabajador" },
+  { id: 31, nombre: "Alberto Masa",             empresaId: 4, rol: "trabajador" },
+  { id: 32, nombre: "Antonio Vellarino",        empresaId: 4, rol: "trabajador" },
+  { id: 33, nombre: "Francisco Sánchez",        empresaId: 4, rol: "trabajador" },
   // Laura Otero
-  { id: 34, nombre: "Jose Antonio Viegas",       empresaId: 5, rol: "encargado"  },
-  { id: 35, nombre: "Belén García",              empresaId: 5, rol: "trabajador" },
-  { id: 36, nombre: "Antonio Vellarino",         empresaId: 5, rol: "trabajador" },
-  { id: 37, nombre: "Vicente Manzano",           empresaId: 5, rol: "trabajador" },
-  // Comercial (sin encargado)
-  { id: 38, nombre: "Jesús Salazar",             empresaId: 6, rol: "trabajador" },
-  { id: 39, nombre: "Yolanda Jiménez",           empresaId: 6, rol: "trabajador" },
-  { id: 40, nombre: "Laura Hernández",           empresaId: 6, rol: "trabajador" },
-  { id: 41, nombre: "Iratxe Plaza",              empresaId: 6, rol: "trabajador" },
+  { id: 34, nombre: "Jose Antonio Viegas",      empresaId: 5, rol: "encargado"  },
+  { id: 35, nombre: "Belén García",             empresaId: 5, rol: "trabajador" },
+  { id: 36, nombre: "Antonio Vellarino",        empresaId: 5, rol: "trabajador" },
+  { id: 37, nombre: "Vicente Manzano",          empresaId: 5, rol: "trabajador" },
+  // Comercial (sin encargado — asignación directa)
+  { id: 38, nombre: "Jesús Salazar",            empresaId: 6, rol: "trabajador" },
+  { id: 39, nombre: "Yolanda Jiménez",          empresaId: 6, rol: "trabajador" },
+  { id: 40, nombre: "Laura Hernández",          empresaId: 6, rol: "trabajador" },
+  { id: 41, nombre: "Iratxe Plaza",             empresaId: 6, rol: "trabajador" },
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
 const PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Urgente: "#E53E3E" };
-const CATEGORIAS_DEFAULT = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
+const CATEGORIAS = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
 const ESTADOS = ["Pendiente", "Asignado", "En progreso", "Completado", "Cancelado"];
 const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso": "#D4A017", Completado: "#38A169", Cancelado: "#E53E3E" };
 
@@ -143,83 +143,8 @@ function EmpresaTag({ empresaId }) {
   );
 }
 
-// ─── MODAL ADMIN CATEGORÍAS ───────────────────────────────────────────────────
-function ModalAdminCategorias({ categorias, onClose, onGuardar }) {
-  const [lista, setLista] = useState([...categorias]);
-  const [nueva, setNueva] = useState("");
-  const [error, setError] = useState("");
-
-  const añadir = () => {
-    const val = nueva.trim();
-    if (!val) { setError("Escribe un nombre"); return; }
-    if (lista.includes(val)) { setError("Ya existe esa categoría"); return; }
-    setLista(prev => [...prev, val]);
-    setNueva("");
-    setError("");
-  };
-
-  const eliminar = (cat) => {
-    if (lista.length <= 1) { setError("Debe haber al menos una categoría"); return; }
-    setLista(prev => prev.filter(c => c !== cat));
-    setError("");
-  };
-
-  const guardar = () => { onGuardar(lista); onClose(); };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-      <div style={{ background: "#111827", border: "1px solid #2E3A55", borderRadius: 14, width: "100%", maxWidth: 480, padding: 28, boxShadow: "0 24px 80px #0008" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#E2E8F0" }}>🏷️ Gestionar Categorías</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 24, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", color: "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Nueva categoría</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, background: "#1A2235", border: `1px solid ${error ? "#E53E3E" : "#2E3A55"}`, borderRadius: 6, padding: "9px 12px", color: "#E2E8F0", outline: "none" }}
-              value={nueva} onChange={e => { setNueva(e.target.value); setError(""); }}
-              placeholder="Nombre de la categoría..."
-              onKeyDown={e => e.key === "Enter" && añadir()} />
-            <button onClick={añadir}
-              style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 6, border: "none", cursor: "pointer", background: "#3182CE", color: "#fff" }}>
-              + Añadir
-            </button>
-          </div>
-          {error && <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 12 }}>{error}</p>}
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "block", color: "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>
-            Categorías actuales ({lista.length})
-          </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
-            {lista.map(cat => (
-              <div key={cat} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#1A2235", borderRadius: 8, padding: "10px 14px", border: "1px solid #2E3A55" }}>
-                <span style={{ color: "#E2E8F0", fontSize: 13 }}>🏷️ {cat}</span>
-                <button onClick={() => eliminar(cat)}
-                  style={{ background: "#E53E3E22", border: "1px solid #E53E3E55", color: "#E53E3E", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "inherit" }}>
-                  Eliminar
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: "#1E293B", color: "#94A3B8" }}>Cancelar</button>
-          <button onClick={guardar} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 18px", borderRadius: 6, border: "none", cursor: "pointer", background: "#38A169", color: "#fff" }}>
-            ✓ Guardar cambios
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── MODAL CREAR TICKET ───────────────────────────────────────────────────────
-function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
+function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [titulo, setTitulo]         = useState("");
   const [descripcion, setDesc]      = useState("");
   const [prioridad, setPrioridad]   = useState("Media");
@@ -231,38 +156,40 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
   const [horaInicio, setHoraInicio]   = useState("");
   const [duracion, setDuracion]       = useState("");
   const [ubicacion, setUbicacion]     = useState("");
-  const [geoSugerencias, setGeoSugerencias] = useState([]);
-  const [geoLoading, setGeoLoading]         = useState(false);
-  const [geoAbierto, setGeoAbierto]         = useState(false);
-  const geoTimer = useRef(null);
+  const [geoLoading, setGeoLoading]   = useState(false);
+  const [geoError, setGeoError]       = useState("");
 
-  const buscarSugerencias = (valor) => {
-    setUbicacion(valor);
-    setGeoAbierto(false);
-    if (geoTimer.current) clearTimeout(geoTimer.current);
-    if (valor.trim().length < 3) { setGeoSugerencias([]); return; }
+  const obtenerUbicacion = () => {
+    if (!navigator.geolocation) {
+      setGeoError("Tu navegador no soporta geolocalización.");
+      return;
+    }
     setGeoLoading(true);
-    geoTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(valor)}&format=json&limit=5&addressdetails=1`,
-          { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
-        );
-        const data = await res.json();
-        setGeoSugerencias(data);
-        setGeoAbierto(data.length > 0);
-      } catch {
-        setGeoSugerencias([]);
-      } finally {
+    setGeoError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { "Accept-Language": "es", "User-Agent": "TicketApp/1.0" } }
+          );
+          const data = await res.json();
+          setUbicacion(data.display_name || `${latitude}, ${longitude}`);
+        } catch {
+          setGeoError("No se pudo obtener la dirección. Intenta de nuevo.");
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (err) => {
         setGeoLoading(false);
-      }
-    }, 400);
-  };
-
-  const elegirSugerencia = (s) => {
-    setUbicacion(s.display_name);
-    setGeoSugerencias([]);
-    setGeoAbierto(false);
+        if (err.code === 1) setGeoError("Permiso denegado. Actívalo en tu navegador.");
+        else if (err.code === 2) setGeoError("No se pudo detectar tu posición.");
+        else setGeoError("Tiempo de espera agotado. Intenta de nuevo.");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   };
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
@@ -348,38 +275,35 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
           </div>
 
           {/* UBICACIÓN */}
-          <div style={{ position: "relative" }}>
+          <div>
             <label style={labelS}>Ubicación</label>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none", zIndex: 1 }}>📍</span>
-              {geoLoading && (
-                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "inline-block", width: 13, height: 13, border: "2px solid #2E3A55", borderTopColor: "#64748B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              )}
-              <input
-                style={{ ...inp, paddingLeft: 34, paddingRight: geoLoading ? 34 : 12 }}
-                value={ubicacion}
-                onChange={e => buscarSugerencias(e.target.value)}
-                onBlur={() => setTimeout(() => setGeoAbierto(false), 150)}
-                onFocus={() => geoSugerencias.length > 0 && setGeoAbierto(true)}
-                placeholder="Escribe para buscar dirección..."
-                autoComplete="off"
-              />
-            </div>
-            {geoAbierto && geoSugerencias.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#111827", border: "1px solid #2E3A55", borderRadius: 8, zIndex: 999, boxShadow: "0 8px 24px #0006", overflow: "hidden", marginTop: 4 }}>
-                {geoSugerencias.map((s, i) => (
-                  <div
-                    key={i}
-                    onMouseDown={() => elegirSugerencia(s)}
-                    style={{ padding: "10px 14px", cursor: "pointer", borderBottom: i < geoSugerencias.length - 1 ? "1px solid #1E293B" : "none", display: "flex", alignItems: "flex-start", gap: 10 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#1A2235"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <span style={{ fontSize: 13, marginTop: 1, flexShrink: 0 }}>📍</span>
-                    <span style={{ color: "#CBD5E1", fontSize: 12, lineHeight: 1.4 }}>{s.display_name}</span>
-                  </div>
-                ))}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, pointerEvents: "none" }}>📍</span>
+                <input style={{ ...inp, paddingLeft: 34 }} value={ubicacion} onChange={e => { setUbicacion(e.target.value); setGeoError(""); }} placeholder="Calle, número, ciudad..." />
               </div>
+              <button
+                type="button"
+                onClick={obtenerUbicacion}
+                disabled={geoLoading}
+                title="Usar mi ubicación actual"
+                style={{ ...btnS, background: geoLoading ? "#1E293B" : "#1A2235", color: geoLoading ? "#475569" : "#94A3B8", border: "1px solid #2E3A55", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, padding: "9px 14px" }}
+              >
+                {geoLoading
+                  ? <><span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #475569", borderTopColor: "#94A3B8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Localizando...</>
+                  : <>🎯 Mi ubicación</>
+                }
+              </button>
+            </div>
+            {geoError && (
+              <p style={{ margin: "5px 0 0", color: "#E53E3E", fontSize: 11, display: "flex", alignItems: "center", gap: 5 }}>
+                ⚠️ {geoError}
+              </p>
+            )}
+            {ubicacion && !geoError && !geoLoading && (
+              <p style={{ margin: "5px 0 0", color: "#38A169", fontSize: 11 }}>
+                ✓ Ubicación detectada — puedes editarla si lo necesitas
+              </p>
             )}
           </div>
 
@@ -447,7 +371,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias }) {
             <div>
               <label style={labelS}>Categoría</label>
               <select style={inp} value={categoria} onChange={e => setCategoria(e.target.value)}>
-                {(categorias || CATEGORIAS_DEFAULT).map(c => <option key={c}>{c}</option>)}
+                {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -735,23 +659,23 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
         )}
 
         {/* Asignar — solo encargado de empresa destino */}
-        {esEncargadoDest && ![\"Completado\", \"Cancelado\"].includes(ticket.estado) && (
-          <div style={{ background: \"#1A2C45\", borderRadius: 8, padding: 14, marginBottom: 14, border: \"1px solid #2E4A70\" }}>
-            <p style={{ margin: \"0 0 10px\", color: \"#93C5FD\", fontSize: 11, fontWeight: 700, textTransform: \"uppercase\" }}>
+        {esEncargadoDest && !["Completado", "Cancelado"].includes(ticket.estado) && (
+          <div style={{ background: "#1A2C45", borderRadius: 8, padding: 14, marginBottom: 14, border: "1px solid #2E4A70" }}>
+            <p style={{ margin: "0 0 10px", color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
               Asignar trabajadores de {miEmpresa?.nombre}
             </p>
             {misTrabs.length === 0
-              ? <p style={{ color: \"#475569\", fontSize: 13, margin: \"0 0 12px\" }}>No hay trabajadores en tu empresa.</p>
+              ? <p style={{ color: "#475569", fontSize: 13, margin: "0 0 12px" }}>No hay trabajadores en tu empresa.</p>
               : (
-                <div style={{ display: \"flex\", flexDirection: \"column\", gap: 6, marginBottom: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                   {misTrabs.map(u => {
                     const marcado = seleccionados.includes(u.id);
-                    const col = miEmpresa?.color || \"#3182CE\";
+                    const col = miEmpresa?.color || "#3182CE";
                     return (
-                      <label key={u.id} style={{ display: \"flex\", alignItems: \"center\", gap: 10, padding: \"8px 12px\", borderRadius: 7, background: marcado ? col + \"22\" : \"#111827\", border: `1px solid ${marcado ? col + \"66\" : \"#1E293B\"}`, cursor: \"pointer\" }}>
-                        <input type=\"checkbox\" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor: col, width: 15, height: 15 }} />
+                      <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 7, background: marcado ? col + "22" : "#111827", border: `1px solid ${marcado ? col + "66" : "#1E293B"}`, cursor: "pointer" }}>
+                        <input type="checkbox" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor: col, width: 15, height: 15 }} />
                         <Avatar nombre={u.nombre} color={col} size={24} />
-                        <span style={{ color: marcado ? \"#E2E8F0\" : \"#94A3B8\", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
+                        <span style={{ color: marcado ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
                         {marcado && <span style={{ color: col, fontSize: 12 }}>✓</span>}
                       </label>
                     );
@@ -759,10 +683,10 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                 </div>
               )
             }
-            <div style={{ display: \"flex\", justifyContent: \"space-between\", alignItems: \"center\" }}>
-              <span style={{ color: \"#64748B\", fontSize: 12 }}>{seleccionados.length} seleccionado{seleccionados.length !== 1 ? \"s\" : \"\"}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#64748B", fontSize: 12 }}>{seleccionados.length} seleccionado{seleccionados.length !== 1 ? "s" : ""}</span>
               <button onClick={asignar} disabled={seleccionados.length === 0}
-                style={{ ...btnS, background: seleccionados.length > 0 ? \"#3182CE\" : \"#1E293B\", color: seleccionados.length > 0 ? \"#fff\" : \"#475569\" }}>
+                style={{ ...btnS, background: seleccionados.length > 0 ? "#3182CE" : "#1E293B", color: seleccionados.length > 0 ? "#fff" : "#475569" }}>
                 Confirmar asignación
               </button>
             </div>
@@ -770,40 +694,46 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
         )}
 
         {/* Asignación directa Comercial — solo quien creó el ticket */}
-        {empresasDestino.includes(6) && esCreadoPor && ![\"Completado\", \"Cancelado\"].includes(ticket.estado) && (() => {
+        {empresasDestino.includes(6) && esCreadoPor && !["Completado", "Cancelado"].includes(ticket.estado) && (() => {
           const trabsComercial = USUARIOS.filter(u => u.empresaId === 6);
           const asignadosComercial = asignaciones[6] || [];
-          const empComercial = EMPRESAS.find(e => e.id === 6);
-          const col = empComercial?.color || \"#E53E3E\";
-          const asignarComercial = (nuevosSels) => {
-            const nuevas = { ...asignaciones, 6: nuevosSels };
-            onActualizar({ ...ticket, asignacionesPorEmpresa: nuevas, estado: nuevosSels.length > 0 ? \"Asignado\" : ticket.estado, fechaAsignacion: ticket.fechaAsignacion || new Date().toISOString() });
+          const col = "#E53E3E";
+          const asignarComercial = (nuevos) => {
+            const nuevasAsig = { ...asignaciones, 6: nuevos };
+            onActualizar({
+              ...ticket,
+              asignacionesPorEmpresa: nuevasAsig,
+              estado: nuevos.length > 0 && ticket.estado === "Pendiente" ? "Asignado" : ticket.estado,
+              fechaAsignacion: ticket.fechaAsignacion || new Date().toISOString(),
+            });
           };
           return (
-            <div style={{ background: \"#2A1A1A\", borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${col}33` }}>
-              <p style={{ margin: \"0 0 10px\", color: col, fontSize: 11, fontWeight: 700, textTransform: \"uppercase\" }}>
+            <div style={{ background: "#2A1A1A", borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${col}33` }}>
+              <p style={{ margin: "0 0 10px", color: col, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
                 🎯 Asignación directa — Comercial
               </p>
-              <div style={{ display: \"flex\", flexDirection: \"column\", gap: 6, marginBottom: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                 {trabsComercial.map(u => {
                   const marcado = asignadosComercial.includes(u.id);
                   return (
-                    <label key={u.id} style={{ display: \"flex\", alignItems: \"center\", gap: 10, padding: \"8px 12px\", borderRadius: 7, background: marcado ? col + \"22\" : \"#111827\", border: `1px solid ${marcado ? col + \"66\" : \"#1E293B\"}`, cursor: \"pointer\" }}>
-                      <input type=\"checkbox\" checked={marcado}
+                    <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 7, background: marcado ? col + "22" : "#111827", border: `1px solid ${marcado ? col + "66" : "#1E293B"}`, cursor: "pointer" }}>
+                      <input type="checkbox" checked={marcado}
                         onChange={() => {
-                          const nuevos = marcado ? asignadosComercial.filter(id => id !== u.id) : [...asignadosComercial, u.id];
+                          const nuevos = marcado
+                            ? asignadosComercial.filter(id => id !== u.id)
+                            : [...asignadosComercial, u.id];
                           asignarComercial(nuevos);
                         }}
                         style={{ accentColor: col, width: 15, height: 15 }} />
                       <Avatar nombre={u.nombre} color={col} size={24} />
-                      <span style={{ color: marcado ? \"#E2E8F0\" : \"#94A3B8\", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
+                      <span style={{ color: marcado ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
                       {marcado && <span style={{ color: col, fontSize: 12 }}>✓</span>}
                     </label>
                   );
                 })}
               </div>
-              <p style={{ margin: 0, color: \"#64748B\", fontSize: 11 }}>
-                {asignadosComercial.length} persona{asignadosComercial.length !== 1 ? \"s\" : \"\"} asignada{asignadosComercial.length !== 1 ? \"s\" : \"\"}
+              <p style={{ margin: 0, color: "#64748B", fontSize: 11 }}>
+                {asignadosComercial.length} persona{asignadosComercial.length !== 1 ? "s" : ""} asignada{asignadosComercial.length !== 1 ? "s" : ""} — la asignación se guarda automáticamente
               </p>
             </div>
           );
@@ -1345,9 +1275,7 @@ export default function App() {
   });
   const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
-  const [modalAdmin,      setModalAdmin]      = useState(false);
-  const [modalCategorias, setModalCategorias] = useState(false);
-  const [categorias,      setCategorias]      = useState(CATEGORIAS_DEFAULT);
+  const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
   const [detalle,       setDetalle]    = useState(null);
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
@@ -1378,17 +1306,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // ── Firebase: categorías ──
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "categorias"),
-      (snap) => { if (snap.exists() && snap.data().lista) setCategorias(snap.data().lista); },
-      (err) => console.error("Firebase categorias:", err)
-    );
-    return () => unsub();
-  }, []);
-
   const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
-  const esAdmin  = [0, 9].includes(usuarioId); // Miguel Manzano y Sara Márquez — ampliable
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
   const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: "#0D1424", border: "1px solid #1E293B", borderRadius: 6, padding: "7px 11px", color: "#E2E8F0", outline: "none" };
@@ -1506,12 +1424,6 @@ export default function App() {
         updateDoc(doc(db, "notificaciones", String(n.id)), { leida: true })
           .catch(e => console.error("Error marcando notif:", e));
       });
-  };
-
-  const guardarCategorias = (nuevaLista) => {
-    setCategorias(nuevaLista);
-    setDoc(doc(db, "config", "categorias"), { lista: nuevaLista })
-      .catch(e => console.error("Error guardando categorías:", e));
   };
 
   const handleLogin = () => {
@@ -1642,13 +1554,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* Botón gestionar categorías */}
-            {esAdmin && (
-              <button onClick={() => setModalCategorias(true)} title="Gestionar Categorías"
-                style={{ background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 14, color: "#93C5FD" }}>
-                🏷️
-              </button>
-            )}
             {/* Botón admin PINs — solo director */}
             {usuario?.rol === "director" && (
               <button onClick={() => setModalAdmin(true)} title="Gestionar PINs"
@@ -1791,9 +1696,8 @@ export default function App() {
         )}
       </div>
 
-      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} categorias={categorias} />}
+      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
-      {modalCategorias && <ModalAdminCategorias categorias={categorias} onClose={() => setModalCategorias(false)} onGuardar={guardarCategorias} />}
     </div>
   );
 }
