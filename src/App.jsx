@@ -1959,3 +1959,33 @@ export default function App() {
     </div>
   );
 }
+
+
+// --- TICKS SYSTEM ADDED ---
+
+export const renderTicks = (ticket) => {
+  if (!ticket?.encargadoVio) return "✔";
+  if (ticket.encargadoVio && !ticket.trabajadorVio) return "✔✔";
+  if (ticket.trabajadorVio) return <span style={{ color: "green" }}>✔✔</span>;
+};
+
+export const marcarComoVisto = async (ticket, usuarioActual, db) => {
+  const { doc, updateDoc } = await import("firebase/firestore");
+  const ref = doc(db, "tickets", ticket.id);
+
+  if (usuarioActual?.rol === "encargado" && !ticket.encargadoVio) {
+    await updateDoc(ref, {
+      encargadoVio: true,
+      estadoVisual: "ENCARGADO"
+    });
+  }
+
+  if (usuarioActual?.rol === "trabajador" && !ticket.trabajadorVio) {
+    await updateDoc(ref, {
+      trabajadorVio: true,
+      estadoVisual: "TRABAJADOR"
+    });
+  }
+};
+
+// --- END TICKS SYSTEM ---
