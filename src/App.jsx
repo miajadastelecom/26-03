@@ -1576,7 +1576,7 @@ function ModalAdministracion({ onClose }) {
 
   // ════ CATEGORÍAS ════
   const guardarCategoria = () => {
-    if (!formCat?.trim()) return;
+    if (!formCat?.valor?.trim()) return;
     let nuevas;
     if (formCat._esNueva) {
       nuevas = [...categorias, formCat.valor.trim()];
