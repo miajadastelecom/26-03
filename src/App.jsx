@@ -36,7 +36,7 @@ const USUARIOS = [
   { id: 6,  nombre: "Aitor Garrido",            empresaId: 2, rol: "trabajador" },
   { id: 7,  nombre: "Carlos Cintero",           empresaId: 2, rol: "trabajador" },
   { id: 8,  nombre: "Javier Acedo",             empresaId: 2, rol: "trabajador" },
-  { id: 9,  nombre: "Sara Márquez",             empresaId: 2, rol: "trabajador" },
+  { id: 9,  nombre: "Sara Márquez",             empresaId: 2, rol: "administrador" },
   // Laura Otero Instalaciones
   { id: 10, nombre: "Miguel Calvo",             empresaId: 3, rol: "encargado"  },
   { id: 11, nombre: "Juan Antonio Fuentes",     empresaId: 3, rol: "trabajador" },
@@ -1482,6 +1482,353 @@ function ModalDetalleMiTicket({ ticket, onClose, onActualizar }) {
   );
 }
 
+// ─── MODAL ADMINISTRACIÓN ─────────────────────────────────────────────────────
+function ModalAdministracion({ onClose }) {
+  const [tab, setTab] = useState("empresas");
+
+  // ── Estado local reactivo ──
+  const [empresas,    setEmpresas]    = useState(() => JSON.parse(JSON.stringify(EMPRESAS)));
+  const [usuarios,    setUsuarios]    = useState(() => JSON.parse(JSON.stringify(USUARIOS)));
+  const [categorias,  setCategorias]  = useState(() => [...CATEGORIAS]);
+  const [estados,     setEstados]     = useState(() => [...ESTADOS]);
+
+  // ── Forms ──
+  const [formEmp,  setFormEmp]  = useState(null); // null | {id,nombre,color,inicial} | "nueva"
+  const [formUser, setFormUser] = useState(null);
+  const [formCat,  setFormCat]  = useState(null);
+  const [formEst,  setFormEst]  = useState(null);
+
+  const inp2  = { fontFamily:"inherit", fontSize:13, background:"#0D1424", border:"1px solid #2E3A55", borderRadius:6, padding:"8px 11px", color:"#E2E8F0", outline:"none", width:"100%", boxSizing:"border-box" };
+  const label2 = { display:"block", color:"#64748B", fontSize:10, fontWeight:700, textTransform:"uppercase", marginBottom:4 };
+  const btnPri = { fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"8px 16px", borderRadius:6, border:"none", cursor:"pointer", background:"#3182CE", color:"#fff" };
+  const btnSec = { fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"8px 16px", borderRadius:6, border:"none", cursor:"pointer", background:"#1E293B", color:"#94A3B8" };
+  const btnDel = { fontFamily:"inherit", fontSize:11, fontWeight:700, padding:"5px 10px", borderRadius:5, border:"none", cursor:"pointer", background:"#E53E3E22", color:"#E53E3E" };
+
+  const persistConfig = async (key, value) => {
+    try { await setDoc(doc(db, "config", key), { value: JSON.stringify(value) }); } catch {}
+  };
+
+  // ════ EMPRESAS ════
+  const guardarEmpresa = () => {
+    if (!formEmp?.nombre?.trim()) return;
+    let nuevas;
+    if (formEmp.id === "nueva") {
+      const newId = Math.max(...empresas.map(e => e.id)) + 1;
+      const nueva = { id: newId, nombre: formEmp.nombre.trim(), color: formEmp.color || "#94A3B8", inicial: formEmp.nombre.trim().slice(0,2).toUpperCase() };
+      nuevas = [...empresas, nueva];
+      EMPRESAS.push(nueva);
+    } else {
+      nuevas = empresas.map(e => e.id === formEmp.id ? { ...e, nombre: formEmp.nombre.trim(), color: formEmp.color, inicial: formEmp.nombre.trim().slice(0,2).toUpperCase() } : e);
+      const idx = EMPRESAS.findIndex(e => e.id === formEmp.id);
+      if (idx >= 0) EMPRESAS[idx] = { ...EMPRESAS[idx], nombre: formEmp.nombre.trim(), color: formEmp.color, inicial: formEmp.nombre.trim().slice(0,2).toUpperCase() };
+    }
+    setEmpresas(nuevas);
+    persistConfig("empresas", nuevas);
+    setFormEmp(null);
+  };
+
+  const eliminarEmpresa = (id) => {
+    if (!window.confirm("¿Eliminar esta empresa? Los tickets existentes no se verán afectados.")) return;
+    const nuevas = empresas.filter(e => e.id !== id);
+    const idx = EMPRESAS.findIndex(e => e.id === id);
+    if (idx >= 0) EMPRESAS.splice(idx, 1);
+    setEmpresas(nuevas);
+    persistConfig("empresas", nuevas);
+  };
+
+  // ════ USUARIOS ════
+  const guardarUsuario = () => {
+    if (!formUser?.nombre?.trim()) return;
+    let nuevos;
+    if (formUser.id === "nuevo") {
+      const newId = Math.max(...usuarios.map(u => u.id)) + 1;
+      const nuevo = { id: newId, nombre: formUser.nombre.trim(), empresaId: Number(formUser.empresaId), rol: formUser.rol || "trabajador", activo: true };
+      nuevos = [...usuarios, nuevo];
+      USUARIOS.push(nuevo);
+      // PIN por defecto
+      PINS_DEFAULT[newId] = "1234";
+    } else {
+      nuevos = usuarios.map(u => u.id === formUser.id ? { ...u, nombre: formUser.nombre.trim(), empresaId: Number(formUser.empresaId), rol: formUser.rol, activo: formUser.activo } : u);
+      const idx = USUARIOS.findIndex(u => u.id === formUser.id);
+      if (idx >= 0) USUARIOS[idx] = { ...USUARIOS[idx], ...formUser, empresaId: Number(formUser.empresaId) };
+    }
+    setUsuarios(nuevos);
+    persistConfig("usuarios", nuevos);
+    setFormUser(null);
+  };
+
+  const toggleActivo = (id) => {
+    const nuevos = usuarios.map(u => u.id === id ? { ...u, activo: u.activo === false ? true : false } : u);
+    const idx = USUARIOS.findIndex(u => u.id === id);
+    if (idx >= 0) USUARIOS[idx].activo = USUARIOS[idx].activo === false ? true : false;
+    setUsuarios(nuevos);
+    persistConfig("usuarios", nuevos);
+  };
+
+  const eliminarUsuario = (id) => {
+    if (!window.confirm("¿Eliminar este usuario?")) return;
+    const nuevos = usuarios.filter(u => u.id !== id);
+    const idx = USUARIOS.findIndex(u => u.id === id);
+    if (idx >= 0) USUARIOS.splice(idx, 1);
+    setUsuarios(nuevos);
+    persistConfig("usuarios", nuevos);
+  };
+
+  // ════ CATEGORÍAS ════
+  const guardarCategoria = () => {
+    if (!formCat?.trim()) return;
+    let nuevas;
+    if (formCat._esNueva) {
+      nuevas = [...categorias, formCat.valor.trim()];
+      CATEGORIAS.push(formCat.valor.trim());
+    } else {
+      nuevas = categorias.map(c => c === formCat._original ? formCat.valor : c);
+      const idx = CATEGORIAS.indexOf(formCat._original);
+      if (idx >= 0) CATEGORIAS[idx] = formCat.valor;
+    }
+    setCategorias(nuevas);
+    persistConfig("categorias", nuevas);
+    setFormCat(null);
+  };
+
+  const eliminarCategoria = (cat) => {
+    if (!window.confirm(`¿Eliminar categoría "${cat}"?`)) return;
+    const nuevas = categorias.filter(c => c !== cat);
+    const idx = CATEGORIAS.indexOf(cat);
+    if (idx >= 0) CATEGORIAS.splice(idx, 1);
+    setCategorias(nuevas);
+    persistConfig("categorias", nuevas);
+  };
+
+  // ════ ESTADOS ════
+  const guardarEstado = () => {
+    if (!formEst?.valor?.trim()) return;
+    let nuevos;
+    if (formEst._esNuevo) {
+      nuevos = [...estados, formEst.valor.trim()];
+      ESTADOS.push(formEst.valor.trim());
+    } else {
+      nuevos = estados.map(e => e === formEst._original ? formEst.valor.trim() : e);
+      const idx = ESTADOS.indexOf(formEst._original);
+      if (idx >= 0) ESTADOS[idx] = formEst.valor.trim();
+    }
+    setEstados(nuevos);
+    persistConfig("estados", nuevos);
+    setFormEst(null);
+  };
+
+  const eliminarEstado = (est) => {
+    if (!window.confirm(`¿Eliminar estado "${est}"?`)) return;
+    const nuevos = estados.filter(e => e !== est);
+    const idx = ESTADOS.indexOf(est);
+    if (idx >= 0) ESTADOS.splice(idx, 1);
+    setEstados(nuevos);
+    persistConfig("estados", nuevos);
+  };
+
+  const TABS = [["empresas","🏢 Empresas"],["usuarios","👥 Usuarios"],["categorias","🏷️ Categorías"],["estados","📊 Estados"]];
+  const ROLES = ["trabajador","encargado","director","administrador"];
+  const COLORES_PRESET = ["#E53E3E","#D4A017","#2B6CB0","#805AD5","#276749","#38A169","#E53E3E","#94A3B8","#DD6B20","#0BC5EA"];
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"flex-start", justifyContent:"center", zIndex:2000, padding:20, overflowY:"auto" }}>
+      <div style={{ background:"#0D1424", border:"1px solid #2E3A55", borderRadius:16, width:"100%", maxWidth:720, padding:0, boxShadow:"0 24px 80px #0009", margin:"auto", overflow:"hidden" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 28px", borderBottom:"1px solid #1E293B", background:"#111827" }}>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:900, color:"#E2E8F0" }}>⚙️ Administración</h2>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:24, cursor:"pointer" }}>×</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex", borderBottom:"1px solid #1E293B", background:"#111827" }}>
+          {TABS.map(([key, label]) => (
+            <button key={key} onClick={() => { setTab(key); setFormEmp(null); setFormUser(null); setFormCat(null); setFormEst(null); }}
+              style={{ fontFamily:"inherit", flex:1, padding:"12px 0", border:"none", cursor:"pointer", fontSize:12, fontWeight:700,
+                background: tab === key ? "#0D1424" : "transparent",
+                color: tab === key ? "#E2E8F0" : "#475569",
+                borderBottom: tab === key ? "2px solid #3182CE" : "2px solid transparent" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding:24, maxHeight:"70vh", overflowY:"auto" }}>
+
+          {/* ── EMPRESAS ── */}
+          {tab === "empresas" && (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <p style={{ margin:0, color:"#64748B", fontSize:12 }}>{empresas.length} empresa{empresas.length !== 1 ? "s" : ""}</p>
+                <button onClick={() => setFormEmp({ id:"nueva", nombre:"", color:"#94A3B8", inicial:"" })} style={{ ...btnPri, fontSize:11 }}>+ Nueva empresa</button>
+              </div>
+
+              {formEmp && (
+                <div style={{ background:"#111827", borderRadius:10, padding:16, marginBottom:16, border:"1px solid #3182CE55" }}>
+                  <p style={{ margin:"0 0 14px", color:"#93C5FD", fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{formEmp.id === "nueva" ? "Nueva empresa" : "Editar empresa"}</p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                    <div><label style={label2}>Nombre</label><input style={inp2} value={formEmp.nombre} onChange={e => setFormEmp(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre de la empresa" /></div>
+                    <div>
+                      <label style={label2}>Color</label>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                        {COLORES_PRESET.map(c => (
+                          <div key={c} onClick={() => setFormEmp(f => ({ ...f, color: c }))}
+                            style={{ width:28, height:28, borderRadius:"50%", background:c, cursor:"pointer", border: formEmp.color === c ? "3px solid #fff" : "2px solid transparent" }} />
+                        ))}
+                        <input type="color" value={formEmp.color} onChange={e => setFormEmp(f => ({ ...f, color: e.target.value }))}
+                          style={{ width:28, height:28, borderRadius:"50%", border:"none", cursor:"pointer", background:"none", padding:0 }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:14 }}>
+                    <button onClick={() => setFormEmp(null)} style={btnSec}>Cancelar</button>
+                    <button onClick={guardarEmpresa} style={btnPri}>Guardar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {empresas.map(emp => (
+                  <div key={emp.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#111827", borderRadius:8, border:"1px solid #1E293B" }}>
+                    <div style={{ width:14, height:14, borderRadius:"50%", background:emp.color, flexShrink:0 }} />
+                    <span style={{ color:"#E2E8F0", fontSize:13, fontWeight:600, flex:1 }}>{emp.nombre}</span>
+                    <span style={{ color:"#475569", fontSize:11, background:"#1E293B", borderRadius:4, padding:"2px 7px" }}>{emp.inicial}</span>
+                    <button onClick={() => setFormEmp({ ...emp })} style={{ ...btnSec, padding:"5px 10px", fontSize:11 }}>✏️ Editar</button>
+                    {emp.id !== 0 && <button onClick={() => eliminarEmpresa(emp.id)} style={btnDel}>🗑️</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── USUARIOS ── */}
+          {tab === "usuarios" && (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <p style={{ margin:0, color:"#64748B", fontSize:12 }}>{usuarios.length} usuario{usuarios.length !== 1 ? "s" : ""}</p>
+                <button onClick={() => setFormUser({ id:"nuevo", nombre:"", empresaId:1, rol:"trabajador", activo:true })} style={{ ...btnPri, fontSize:11 }}>+ Nuevo usuario</button>
+              </div>
+
+              {formUser && (
+                <div style={{ background:"#111827", borderRadius:10, padding:16, marginBottom:16, border:"1px solid #3182CE55" }}>
+                  <p style={{ margin:"0 0 14px", color:"#93C5FD", fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{formUser.id === "nuevo" ? "Nuevo usuario" : "Editar usuario"}</p>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                    <div style={{ gridColumn:"1/-1" }}><label style={label2}>Nombre completo</label><input style={inp2} value={formUser.nombre} onChange={e => setFormUser(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre y apellidos" /></div>
+                    <div>
+                      <label style={label2}>Empresa</label>
+                      <select style={{ ...inp2 }} value={formUser.empresaId} onChange={e => setFormUser(f => ({ ...f, empresaId: e.target.value }))}>
+                        {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={label2}>Rol</label>
+                      <select style={{ ...inp2 }} value={formUser.rol} onChange={e => setFormUser(f => ({ ...f, rol: e.target.value }))}>
+                        {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:14 }}>
+                    <button onClick={() => setFormUser(null)} style={btnSec}>Cancelar</button>
+                    <button onClick={guardarUsuario} style={btnPri}>Guardar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {usuarios.map(u => {
+                  const emp = empresas.find(e => e.id === u.empresaId);
+                  const activo = u.activo !== false;
+                  return (
+                    <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"#111827", borderRadius:8, border:"1px solid #1E293B", opacity: activo ? 1 : 0.5 }}>
+                      <Avatar nombre={u.nombre} color={emp?.color || "#94A3B8"} size={30} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ margin:0, color: activo ? "#E2E8F0" : "#64748B", fontSize:13, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{u.nombre}</p>
+                        <p style={{ margin:0, color:"#475569", fontSize:11 }}>{emp?.nombre} · <span style={{ color: u.rol === "director" ? "#F6AD55" : u.rol === "administrador" ? "#805AD5" : u.rol === "encargado" ? "#3182CE" : "#475569" }}>{u.rol}</span></p>
+                      </div>
+                      <button onClick={() => toggleActivo(u.id)} style={{ ...btnSec, padding:"4px 9px", fontSize:10 }}>{activo ? "🟢 Activo" : "🔴 Inactivo"}</button>
+                      <button onClick={() => setFormUser({ ...u })} style={{ ...btnSec, padding:"5px 10px", fontSize:11 }}>✏️</button>
+                      {u.id !== 0 && <button onClick={() => eliminarUsuario(u.id)} style={btnDel}>🗑️</button>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── CATEGORÍAS ── */}
+          {tab === "categorias" && (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <p style={{ margin:0, color:"#64748B", fontSize:12 }}>{categorias.length} categoría{categorias.length !== 1 ? "s" : ""}</p>
+                <button onClick={() => setFormCat({ _esNueva:true, valor:"" })} style={{ ...btnPri, fontSize:11 }}>+ Nueva categoría</button>
+              </div>
+
+              {formCat && (
+                <div style={{ background:"#111827", borderRadius:10, padding:16, marginBottom:16, border:"1px solid #3182CE55" }}>
+                  <p style={{ margin:"0 0 10px", color:"#93C5FD", fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{formCat._esNueva ? "Nueva categoría" : "Editar categoría"}</p>
+                  <input style={inp2} value={formCat.valor} onChange={e => setFormCat(f => ({ ...f, valor: e.target.value }))} placeholder="Nombre de la categoría" />
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:12 }}>
+                    <button onClick={() => setFormCat(null)} style={btnSec}>Cancelar</button>
+                    <button onClick={guardarCategoria} style={btnPri}>Guardar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {categorias.map((cat, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"#111827", borderRadius:8, border:"1px solid #1E293B" }}>
+                    <span style={{ fontSize:16 }}>🏷️</span>
+                    <span style={{ color:"#E2E8F0", fontSize:13, fontWeight:600, flex:1 }}>{cat}</span>
+                    <button onClick={() => setFormCat({ _esNueva:false, _original:cat, valor:cat })} style={{ ...btnSec, padding:"5px 10px", fontSize:11 }}>✏️ Editar</button>
+                    <button onClick={() => eliminarCategoria(cat)} style={btnDel}>🗑️</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── ESTADOS ── */}
+          {tab === "estados" && (
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <p style={{ margin:0, color:"#64748B", fontSize:12 }}>{estados.length} estado{estados.length !== 1 ? "s" : ""}</p>
+                <button onClick={() => setFormEst({ _esNuevo:true, valor:"" })} style={{ ...btnPri, fontSize:11 }}>+ Nuevo estado</button>
+              </div>
+
+              {formEst && (
+                <div style={{ background:"#111827", borderRadius:10, padding:16, marginBottom:16, border:"1px solid #3182CE55" }}>
+                  <p style={{ margin:"0 0 10px", color:"#93C5FD", fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{formEst._esNuevo ? "Nuevo estado" : "Editar estado"}</p>
+                  <input style={inp2} value={formEst.valor} onChange={e => setFormEst(f => ({ ...f, valor: e.target.value }))} placeholder="Nombre del estado" />
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:12 }}>
+                    <button onClick={() => setFormEst(null)} style={btnSec}>Cancelar</button>
+                    <button onClick={guardarEstado} style={btnPri}>Guardar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {estados.map((est, i) => {
+                  const col = ESTADO_COLORES[est] || "#64748B";
+                  return (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"#111827", borderRadius:8, border:"1px solid #1E293B" }}>
+                      <span style={{ width:10, height:10, borderRadius:"50%", background:col, flexShrink:0 }} />
+                      <span style={{ color:"#E2E8F0", fontSize:13, fontWeight:600, flex:1 }}>{est}</span>
+                      <Badge texto={est} color={col} small />
+                      <button onClick={() => setFormEst({ _esNuevo:false, _original:est, valor:est })} style={{ ...btnSec, padding:"5px 10px", fontSize:11 }}>✏️ Editar</button>
+                      <button onClick={() => eliminarEstado(est)} style={btnDel}>🗑️</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tickets,       setTickets]    = useState([]);
   const [usuarioId,     setUsuarioId]  = useState(() => {
@@ -1804,11 +2151,11 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* Botón admin PINs — solo director */}
-            {usuario?.rol === "director" && (
-              <button onClick={() => setModalAdmin(true)} title="Gestionar PINs"
+            {/* Botón admin — director y administradores */}
+            {(usuario?.rol === "director" || usuario?.rol === "administrador") && (
+              <button onClick={() => setModalAdmin(true)} title="Administración"
                 style={{ background: "#1A2235", border: "1px solid #2E3A55", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 14, color: "#F6AD55" }}>
-                🔐
+                ⚙️
               </button>
             )}
             {/* Cerrar sesión */}
@@ -1956,6 +2303,7 @@ export default function App() {
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
+      {modalAdmin && <ModalAdministracion onClose={() => setModalAdmin(false)} />}
     </div>
   );
 }
