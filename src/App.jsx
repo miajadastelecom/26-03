@@ -921,22 +921,7 @@ function TarjetaTicket({ ticket, onClick }) {
           )}
           {asignadosArr.length === 0 && <span style={{ color: "#334155", fontSize: 11 }}>Sin asignar</span>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: "#334155", fontSize: 11 }}>{fmtFecha(ticket.fecha)}</span>
-          {(() => {
-            const vistoPor = ticket.vistoPor || [];
-            const asignados = Object.values(ticket.asignacionesPorEmpresa || {}).flat();
-            const estaAsignado = asignados.length > 0;
-            const vistoTrabajador = asignados.some(id => vistoPor.includes(id));
-            const col2 = vistoTrabajador ? "#38A169" : "#475569";
-            return (
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ color: "#475569", fontSize: 15, fontWeight: 900, lineHeight: 1 }}>✓</span>
-                {estaAsignado && <span style={{ color: col2, fontSize: 15, fontWeight: 900, lineHeight: 1, marginLeft: -4 }}>✓</span>}
-              </div>
-            );
-          })()}
-        </div>
+        <span style={{ color: "#334155", fontSize: 11 }}>{fmtFecha(ticket.fecha)}</span>
       </div>
     </div>
   );
@@ -1679,18 +1664,7 @@ export default function App() {
     if (detalleMiTicket?.id === t.id) setDetalleMiTicket(t);
   };
 
-  const abrirDetalle = (t) => {
-    const asignados = Object.values(t.asignacionesPorEmpresa || {}).flat();
-    const yaVisto   = (t.vistoPor || []).includes(usuarioId);
-    // Registrar visto si es trabajador asignado y aún no lo ha visto
-    if (!yaVisto && asignados.includes(usuarioId)) {
-      const actualizado = { ...t, vistoPor: [...(t.vistoPor || []), usuarioId] };
-      actualizarTicket(actualizado);
-      setDetalle(actualizado);
-    } else {
-      setDetalle(t);
-    }
-  };
+  const misNotifs = notifs.filter(n => n.usuarioDestinoId === usuarioId);
   const notifsNoLeidas = misNotifs.filter(n => !n.leida).length;
 
   const marcarLeidas = () => {
@@ -1904,7 +1878,7 @@ export default function App() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
                   {(subHistorial === "completados" ? ticketsCompletados : ticketsCancelados)
                     .filter(t => !filtros.buscar || t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase()))
-                    .map(t => <TarjetaTicket key={t.id} ticket={t} onClick={() => abrirDetalle(t)} />)}
+                    .map(t => <TarjetaTicket key={t.id} ticket={t} onClick={() => setDetalle(t)} />)}
                 </div>
               </>
             )}
@@ -1915,7 +1889,7 @@ export default function App() {
               <h2 style={{ margin: "0 0 4px", color: "#E2E8F0", fontWeight: 800, fontSize: 18 }}>📅 Mi Calendario</h2>
               <p style={{ margin: 0, color: "#475569", fontSize: 13 }}>Trabajos asignados — aparecen desde la fecha de asignación</p>
             </div>
-            <Calendario tickets={tickets} ticketsPersonales={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} usuarioActual={usuario} onVerTicket={t => abrirDetalle(t)} onVerTicketPersonal={t => setDetalleMiTicket(t)} />
+            <Calendario tickets={tickets} ticketsPersonales={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} usuarioActual={usuario} onVerTicket={t => setDetalle(t)} onVerTicketPersonal={t => setDetalleMiTicket(t)} />
           </div>
         ) : (
           <>
@@ -1971,7 +1945,7 @@ export default function App() {
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-                {ticketsFiltrados.map(t => <TarjetaTicket key={t.id} ticket={t} onClick={() => abrirDetalle(t)} />)}
+                {ticketsFiltrados.map(t => <TarjetaTicket key={t.id} ticket={t} onClick={() => setDetalle(t)} />)}
               </div>
             )}
           </>
