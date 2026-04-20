@@ -923,6 +923,50 @@ function TarjetaTicket({ ticket, onClick }) {
         </div>
         <span style={{ color: "#334155", fontSize: 11 }}>{fmtFecha(ticket.fecha)}</span>
       </div>
+
+      {/* Barra de progreso con checks */}
+      {(() => {
+        const estado = ticket.estado;
+        const completado = estado === "Completado";
+        const enProgreso = estado === "En progreso" || estado === "Asignado";
+        const col = completado ? "#38A169" : "#475569";
+
+        const Check = ({ activo, verde }) => (
+          <div style={{
+            width: 20, height: 20, borderRadius: "50%",
+            background: activo ? (verde ? "#38A16922" : "#47556922") : "#1A2235",
+            border: `2px solid ${activo ? (verde ? "#38A169" : "#475569") : "#2E3A55"}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all .3s"
+          }}>
+            {activo && <span style={{ color: verde ? "#38A169" : "#64748B", fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+          </div>
+        );
+
+        const Line = ({ activo, verde }) => (
+          <div style={{ flex: 1, height: 2, borderRadius: 1, background: activo ? (verde ? "#38A169" : "#475569") : "#2E3A55", transition: "all .3s" }} />
+        );
+
+        return (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #1E293B22" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {/* Check 1: Creado — siempre activo */}
+              <Check activo={true} verde={completado} />
+              <Line activo={enProgreso || completado} verde={completado} />
+              {/* Check 2: En progreso */}
+              <Check activo={enProgreso || completado} verde={completado} />
+              <Line activo={completado} verde={completado} />
+              {/* Check 3: Completado */}
+              <Check activo={completado} verde={completado} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              <span style={{ color: "#334155", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Creado</span>
+              <span style={{ color: enProgreso || completado ? (completado ? "#38A169" : "#64748B") : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
+              <span style={{ color: completado ? "#38A169" : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
