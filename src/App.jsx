@@ -2390,17 +2390,47 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* ESTADÍSTICAS */}
+            {/* ESTADÍSTICAS — clicables */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-              {[["Total", stats.total, "#94A3B8", "🎫"], ["Pendientes", stats.pendientes, "#718096", "⏳"], ["En curso", stats.enCurso, "#D4A017", "⚙️"], ["Completados", stats.completados, "#38A169", "✅"]].map(([l, v, c, ic]) => (
-                <div key={l} style={{ background: "#111827", border: "1px solid #1E293B", borderRadius: 10, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, background: c + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{ic}</div>
-                  <div>
-                    <p style={{ margin: 0, color: "#475569", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{l}</p>
-                    <p style={{ margin: "2px 0 0", color: c, fontSize: 24, fontWeight: 900, lineHeight: 1 }}>{v}</p>
+              {[
+                ["Total",       stats.total,       "#94A3B8", "🎫", "todos"],
+                ["Pendientes",  stats.pendientes,   "#718096", "⏳", "Pendiente"],
+                ["En curso",    stats.enCurso,      "#D4A017", "⚙️", "en_curso"],
+                ["Completados", stats.completados,  "#38A169", "✅", "completados_hist"],
+              ].map(([l, v, c, ic, accion]) => {
+                const activo =
+                  (accion === "todos"           && filtros.estado === "todos") ||
+                  (accion === "Pendiente"        && filtros.estado === "Pendiente") ||
+                  (accion === "en_curso"         && ["Asignado","En progreso"].includes(filtros.estado)) ||
+                  (accion === "completados_hist" && seccion === "historial" && subHistorial === "completados");
+
+                const handleClick = () => {
+                  if (accion === "completados_hist") {
+                    setSeccion("historial");
+                    setSubHistorial("completados");
+                  } else if (accion === "en_curso") {
+                    setSeccion("tickets");
+                    setFiltros(f => ({ ...f, estado: filtros.estado === "Asignado" ? "todos" : "Asignado" }));
+                  } else {
+                    setSeccion("tickets");
+                    setFiltros(f => ({ ...f, estado: activo ? "todos" : accion }));
+                  }
+                };
+
+                return (
+                  <div key={l} onClick={handleClick}
+                    style={{ background: activo ? c + "18" : "#111827", border: `1px solid ${activo ? c + "66" : "#1E293B"}`, borderRadius: 10, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", transition: "all .15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = c + "88"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = activo ? c + "66" : "#1E293B"; e.currentTarget.style.transform = "none"; }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 8, background: c + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{ic}</div>
+                    <div>
+                      <p style={{ margin: 0, color: activo ? c : "#475569", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{l}</p>
+                      <p style={{ margin: "2px 0 0", color: c, fontSize: 24, fontWeight: 900, lineHeight: 1 }}>{v}</p>
+                    </div>
+                    {activo && <span style={{ marginLeft: "auto", color: c, fontSize: 10, fontWeight: 700 }}>●</span>}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* FILTROS */}
