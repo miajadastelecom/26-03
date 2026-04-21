@@ -1035,40 +1035,42 @@ function TarjetaTicket({ ticket, onClick }) {
         const estado = ticket.estado;
         const completado = estado === "Completado";
         const enProgreso = estado === "En progreso" || estado === "Asignado";
-        const col = completado ? "#38A169" : "#475569";
+        const colProgreso   = "#DD6B20";
+        const colCompletado = "#38A169";
+        const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : "#475569";
 
-        const Check = ({ activo, verde }) => (
+        const Check = ({ activo, color }) => (
           <div style={{
             width: 20, height: 20, borderRadius: "50%",
-            background: activo ? (verde ? "#38A16922" : "#47556922") : "#1A2235",
-            border: `2px solid ${activo ? (verde ? "#38A169" : "#475569") : "#2E3A55"}`,
+            background: activo ? color + "22" : "#1A2235",
+            border: `2px solid ${activo ? color : "#2E3A55"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all .3s"
           }}>
-            {activo && <span style={{ color: verde ? "#38A169" : "#64748B", fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+            {activo && <span style={{ color, fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
           </div>
         );
 
-        const Line = ({ activo, verde }) => (
-          <div style={{ flex: 1, height: 2, borderRadius: 1, background: activo ? (verde ? "#38A169" : "#475569") : "#2E3A55", transition: "all .3s" }} />
+        const Line = ({ activo, color }) => (
+          <div style={{ flex: 1, height: 2, borderRadius: 1, background: activo ? color : "#2E3A55", transition: "all .3s" }} />
         );
 
         return (
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #1E293B22" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {/* Check 1: Creado — siempre activo */}
-              <Check activo={true} verde={completado} />
-              <Line activo={enProgreso || completado} verde={completado} />
+              <Check activo={true} color={colActivo} />
+              <Line activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
               {/* Check 2: En progreso */}
-              <Check activo={enProgreso || completado} verde={completado} />
-              <Line activo={completado} verde={completado} />
+              <Check activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
+              <Line activo={completado} color={colCompletado} />
               {/* Check 3: Completado */}
-              <Check activo={completado} verde={completado} />
+              <Check activo={completado} color={colCompletado} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
               <span style={{ color: "#334155", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Creado</span>
-              <span style={{ color: enProgreso || completado ? (completado ? "#38A169" : "#64748B") : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
-              <span style={{ color: completado ? "#38A169" : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
+              <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
+              <span style={{ color: completado ? colCompletado : "#2E3A55", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
             </div>
           </div>
         );
