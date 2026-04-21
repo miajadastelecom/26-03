@@ -159,6 +159,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [ubicacion, setUbicacion]     = useState("");
   const [geoLoading, setGeoLoading]   = useState(false);
   const [geoError, setGeoError]       = useState("");
+  const [acopio, setAcopio]           = useState(null); // null=sin responder, true=Sí, false=No
+  const [materiales, setMateriales]   = useState("");
 
   const obtenerUbicacion = () => {
     if (!navigator.geolocation) {
@@ -232,6 +234,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
       duracion: duracion || null,
       ubicacion: ubicacion.trim() || null,
       comentarios: [], imagenes,
+      acopio: acopio,
+      materiales: acopio === true ? materiales.trim() : null,
     });
     onClose();
   };
@@ -394,6 +398,31 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             )}
           </div>
 
+          {/* ACOPIO DE MATERIALES */}
+          <div style={{ background: "#1A2235", borderRadius: 8, padding: "14px 16px", border: "1px solid #2E3A55" }}>
+            <label style={{ ...labelS, marginBottom: 10 }}>📦 Acopio de materiales</label>
+            <div style={{ display: "flex", gap: 10, marginBottom: acopio === true ? 12 : 0 }}>
+              {[{ val: true, label: "✅ Sí", color: "#38A169" }, { val: false, label: "❌ No", color: "#E53E3E" }].map(({ val, label, color }) => (
+                <button key={String(val)} type="button"
+                  onClick={() => { setAcopio(val); if (!val) setMateriales(""); }}
+                  style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 6, border: `2px solid ${acopio === val ? color : "#2E3A55"}`, cursor: "pointer", background: acopio === val ? color + "22" : "#111827", color: acopio === val ? color : "#64748B", transition: "all .15s" }}>
+                  {label}
+                </button>
+              ))}
+              {acopio === null && <span style={{ color: "#475569", fontSize: 12, alignSelf: "center" }}>Selecciona una opción</span>}
+            </div>
+            {acopio === true && (
+              <div>
+                <label style={{ ...labelS, marginBottom: 5 }}>Lista de materiales</label>
+                <textarea
+                  style={{ ...inp, resize: "vertical", minHeight: 80 }}
+                  value={materiales}
+                  onChange={e => setMateriales(e.target.value)}
+                  placeholder="Ej: 10m cable RJ45, 2 conectores, 1 switch 8 puertos..." />
+              </div>
+            )}
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={labelS}>Prioridad</label>
@@ -431,6 +460,9 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const [editFecha,    setEditFecha]  = useState(ticket.fechaInicio || "");
   const [editHora,     setEditHora]   = useState(ticket.horaInicio  || "");
   const [editDuracion, setEditDuracion] = useState(ticket.duracion  || "");
+  const [editandoAcopio, setEditandoAcopio] = useState(false);
+  const [editAcopio,     setEditAcopio]     = useState(ticket.acopio ?? null);
+  const [editMateriales, setEditMateriales] = useState(ticket.materiales || "");
 
   const empresasDestino   = ticket.empresasDestino || [];
   const asignaciones      = ticket.asignacionesPorEmpresa || {};
@@ -458,6 +490,15 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
       duracion:    editDuracion || null,
     });
     setEditandoFecha(false);
+  };
+
+  const guardarAcopio = () => {
+    onActualizar({
+      ...ticket,
+      acopio:     editAcopio,
+      materiales: editAcopio === true ? editMateriales.trim() : null,
+    });
+    setEditandoAcopio(false);
   };
 
   const asignar = () => {
@@ -600,6 +641,25 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
           </div>
         </div>
 
+        {/* Acopio de materiales */}
+        {ticket.acopio !== null && ticket.acopio !== undefined && (
+          <div style={{ background: "#1A2235", borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${ticket.acopio ? "#38A16933" : "#E53E3E33"}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: ticket.acopio && ticket.materiales ? 10 : 0 }}>
+              <span style={{ fontSize: 16 }}>📦</span>
+              <span style={{ color: "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Acopio de materiales</span>
+              <span style={{ background: ticket.acopio ? "#38A16922" : "#E53E3E22", color: ticket.acopio ? "#38A169" : "#E53E3E", border: `1px solid ${ticket.acopio ? "#38A16955" : "#E53E3E55"}`, borderRadius: 4, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>
+                {ticket.acopio ? "✅ Sí" : "❌ No"}
+              </span>
+            </div>
+            {ticket.acopio && ticket.materiales && (
+              <p style={{ margin: 0, color: "#94A3B8", fontSize: 13, lineHeight: 1.7, paddingLeft: 24 }}>{ticket.materiales}</p>
+            )}
+            {ticket.acopio && !ticket.materiales && (
+              <p style={{ margin: 0, color: "#475569", fontSize: 12, fontStyle: "italic", paddingLeft: 24 }}>Sin lista de materiales especificada</p>
+            )}
+          </div>
+        )}
+
         {/* Descripción */}
         {!!ticket.descripcion && (
           <div style={{ background: "#1A2235", borderRadius: 8, padding: 14, marginBottom: 14 }}>
@@ -685,6 +745,52 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                     style={{ ...btnS, background: "#3182CE", color: "#fff", fontWeight: 800, fontSize: 12 }}>
                     ✓ Guardar cambios
                   </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Editar acopio de materiales — encargados y director */}
+        {(esEncargadoDest || esDirector) && !["Cancelado"].includes(ticket.estado) && (
+          <div style={{ background: "#1A2235", borderRadius: 8, padding: 14, marginBottom: 14, border: "1px solid #2E3A55" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: editandoAcopio ? 12 : 0 }}>
+              <p style={{ margin: 0, color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📦 Acopio de materiales</p>
+              {!editandoAcopio
+                ? <button onClick={() => setEditandoAcopio(true)} style={{ ...btnS, background: "#2E3A55", color: "#93C5FD", fontSize: 11, padding: "5px 12px" }}>✏️ Editar</button>
+                : <button onClick={() => setEditandoAcopio(false)} style={{ ...btnS, background: "transparent", color: "#475569", fontSize: 11, padding: "5px 12px" }}>Cancelar</button>
+              }
+            </div>
+            {!editandoAcopio ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                {ticket.acopio === null || ticket.acopio === undefined
+                  ? <span style={{ color: "#334155", fontSize: 12 }}>Sin definir</span>
+                  : <span style={{ background: ticket.acopio ? "#38A16922" : "#E53E3E22", color: ticket.acopio ? "#38A169" : "#E53E3E", border: `1px solid ${ticket.acopio ? "#38A16955" : "#E53E3E55"}`, borderRadius: 4, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>
+                      {ticket.acopio ? "✅ Sí" : "❌ No"}
+                    </span>
+                }
+                {ticket.acopio && ticket.materiales && <span style={{ color: "#64748B", fontSize: 12 }}>· {ticket.materiales}</span>}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[{ val: true, label: "✅ Sí", color: "#38A169" }, { val: false, label: "❌ No", color: "#E53E3E" }].map(({ val, label, color }) => (
+                    <button key={String(val)} type="button"
+                      onClick={() => { setEditAcopio(val); if (!val) setEditMateriales(""); }}
+                      style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 6, border: `2px solid ${editAcopio === val ? color : "#2E3A55"}`, cursor: "pointer", background: editAcopio === val ? color + "22" : "#0D1424", color: editAcopio === val ? color : "#64748B" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {editAcopio === true && (
+                  <textarea
+                    style={{ ...inp, resize: "vertical", minHeight: 70, fontSize: 12 }}
+                    value={editMateriales}
+                    onChange={e => setEditMateriales(e.target.value)}
+                    placeholder="Lista de materiales necesarios..." />
+                )}
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={guardarAcopio} style={{ ...btnS, background: "#3182CE", color: "#fff", fontWeight: 800, fontSize: 12 }}>✓ Guardar</button>
                 </div>
               </div>
             )}
