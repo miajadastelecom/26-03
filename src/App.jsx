@@ -1088,20 +1088,23 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
   const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const DIAS  = ["L","M","X","J","V","S","D"];
 
+  // Tickets que aparecen en el calendario:
+  // - Deben tener fechaInicio definida
+  // - El usuario debe estar asignado (o ser encargado/director)
   const misTickets = tickets.filter(t => {
-    if (!t.fechaAsignacion) return false;
-    if (!["Asignado","En progreso","Completado"].includes(t.estado)) return false;
-    const eds  = t.empresasDestino || [];
-    const todos = Object.values(t.asignacionesPorEmpresa || {}).flat();
-    return todos.includes(usuarioActual.id) ||
+    if (!t.fechaInicio) return false; // solo tickets con fecha de inicio
+    const todosAsignados = Object.values(t.asignacionesPorEmpresa || {}).flat();
+    const eds = t.empresasDestino || [];
+    return todosAsignados.includes(usuarioActual.id) ||
            (usuarioActual.rol === "encargado" && eds.includes(usuarioActual.empresaId)) ||
-           usuarioActual.rol === "director";
+           usuarioActual.rol === "director" ||
+           t.creadoPor === usuarioActual.id;
   });
 
   const ticketsPorDia = useMemo(() => {
     const mapa = {};
     misTickets.forEach(t => {
-      const d = new Date(t.fechaAsignacion);
+      const d = new Date(t.fechaInicio); // usar fechaInicio
       const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       if (!mapa[k]) mapa[k] = [];
       mapa[k].push({ ...t, _personal: false });
@@ -1132,7 +1135,7 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
   };
 
   const esteMes = misTickets.filter(t => {
-    const d = new Date(t.fechaAsignacion);
+    const d = new Date(t.fechaInicio);
     return d.getMonth() === mes && d.getFullYear() === anio;
   }).length;
 
@@ -1190,7 +1193,7 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
       </div>
 
       <div style={{ padding: "12px 16px", borderTop: "1px solid #1E293B" }}>
-        <span style={{ color: "#475569", fontSize: 11 }}>Este mes: <strong style={{ color: "#94A3B8" }}>{esteMes}</strong> trabajo{esteMes !== 1 ? "s" : ""} asignado{esteMes !== 1 ? "s" : ""}</span>
+        <span style={{ color: "#475569", fontSize: 11 }}>Este mes: <strong style={{ color: "#94A3B8" }}>{esteMes}</strong> ticket{esteMes !== 1 ? "s" : ""} con fecha de inicio</span>
       </div>
     </div>
   );
