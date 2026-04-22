@@ -469,16 +469,17 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const todosAsignadosIds = Object.values(asignaciones).flat();
 
   const esDirector         = usuarioActual.rol === "director";
-  const esEncargadoDest    = usuarioActual.rol === "encargado" && empresasDestino.includes(usuarioActual.empresaId);
+  const esAdmin            = usuarioActual.rol === "administrador";
+  const esEncargadoDest    = (usuarioActual.rol === "encargado" || esAdmin) && empresasDestino.includes(usuarioActual.empresaId);
   const esAsignado         = todosAsignadosIds.includes(usuarioActual.id);
   const esCreadoPor        = ticket.creadoPor === usuarioActual.id;
-  const puedeAccion        = esDirector || esEncargadoDest || esAsignado || esCreadoPor;
+  const puedeAccion        = esDirector || esEncargadoDest || esAsignado || esCreadoPor || esAdmin;
 
   const creador     = USUARIOS.find(u => u.id === ticket.creadoPor);
   const empOrigen   = EMPRESAS.find(e => e.id === ticket.empresaOrigenId);
   const accentColor = empOrigen?.color || "#3182CE";
   const miEmpresa   = EMPRESAS.find(e => e.id === usuarioActual.empresaId);
-  const misTrabs    = USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && u.rol === "trabajador");
+  const misTrabs    = USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && ["trabajador","encargado","administrador"].includes(u.rol));
 
   const toggleSel = (id) => setSelecs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -2280,8 +2281,8 @@ export default function App() {
                   <div style={{ display: "flex", gap: 4 }}>
                     <EmpresaTag empresaId={usuario?.empresaId} />
                     <Badge
-                      texto={usuario?.rol === "director" ? "Director" : usuario?.rol === "encargado" ? "Encargado" : "Trabajador"}
-                      color={usuario?.rol === "director" ? "#F6AD55" : usuario?.rol === "encargado" ? empColor : "#64748B"}
+                      texto={usuario?.rol === "director" ? "Director" : usuario?.rol === "encargado" ? "Encargado" : usuario?.rol === "administrador" ? "Administrador" : "Trabajador"}
+                      color={usuario?.rol === "director" ? "#F6AD55" : usuario?.rol === "encargado" ? empColor : usuario?.rol === "administrador" ? "#805AD5" : "#64748B"}
                       small />
                   </div>
                 </div>
