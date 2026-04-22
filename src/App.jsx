@@ -162,7 +162,6 @@ function Avatar({ nombre, color, size = 32 }) {
     <div style={{ width: size, height: size, borderRadius: "50%", background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.33, fontWeight: 800, flexShrink: 0 }}>
       {ini}
     </div>
-    </ThemeContext.Provider>
   );
 }
 
@@ -2589,5 +2588,6 @@ export default function App() {
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
       {modalAdmin && <ModalAdministracion onClose={() => setModalAdmin(false)} />}
     </div>
+    </ThemeContext.Provider>
   );
 }
