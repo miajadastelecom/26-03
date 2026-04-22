@@ -1252,6 +1252,12 @@ function Reportes({ tickets, usuarioActual }) {
         return `${autor}: ${c.texto}`;
       }).join(" | ") || "-";
 
+      const acopioTexto = t.acopio === true
+        ? `<span style="background:#c6f6d5;color:#276749;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✓ Sí</span>${t.materiales ? `<br><span style="font-size:10px;color:#4a5568;font-style:italic">${t.materiales}</span>` : ""}`
+        : t.acopio === false
+          ? `<span style="background:#fed7d7;color:#c53030;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">✗ No</span>`
+          : `<span style="color:#a0aec0;font-size:11px">-</span>`;
+
       return `
         <tr>
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1a202c">${t.titulo}</td>
@@ -1262,6 +1268,7 @@ function Reportes({ tickets, usuarioActual }) {
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568">${t.ubicacion || "-"}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568">${t.categoria}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0"><span style="background:${t.prioridad==="Urgente"?"#fed7d7":t.prioridad==="Alta"?"#feebc8":t.prioridad==="Media"?"#fefcbf":"#c6f6d5"};color:${t.prioridad==="Urgente"?"#c53030":t.prioridad==="Alta"?"#c05621":t.prioridad==="Media"?"#b7791f":"#276749"};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${t.prioridad}</span></td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-size:11px">${acopioTexto}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568;font-size:11px">${asignados}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;color:#718096;font-size:11px;max-width:200px">${comentariosTexto}</td>
         </tr>`;
@@ -1331,6 +1338,7 @@ function Reportes({ tickets, usuarioActual }) {
         <th>Ubicación</th>
         <th>Categoría</th>
         <th>Prioridad</th>
+        <th>Acopio</th>
         <th>Trabajadores</th>
         <th>Comentarios</th>
       </tr>
