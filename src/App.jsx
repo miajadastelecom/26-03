@@ -2280,21 +2280,20 @@ export default function App() {
         *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }
         html { -webkit-text-size-adjust: 100%; }
         body { margin: 0; padding: 0; }
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
           .nav-logo-subtitle { display: none !important; }
           .nav-user-role { display: none !important; }
           .nav-empresa-name { display: none !important; }
           .nav-user-nombre { display: none !important; }
-          .nav-row1 { padding: 0 10px !important; height: 52px !important; gap: 6px !important; }
-          .nav-row1-logo { gap: 6px !important; }
-          .nav-row1-logo img, .nav-row1-logo svg { width: 28px !important; height: 28px !important; }
-          .nav-row2 { padding: 0 !important; height: 42px !important; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; justify-content: flex-start !important; }
+          .nav-user-tags { display: none !important; }
+          .nav-row1 { padding: 0 8px !important; height: 50px !important; }
+          .nav-row2 { padding: 0 !important; height: 44px !important; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; justify-content: flex-start !important; }
           .nav-row2::-webkit-scrollbar { display: none; }
-          .nav-row2 > div { padding: 0 4px !important; min-width: max-content; }
-          .nav-tab-btn { padding: 0 12px !important; font-size: 11px !important; white-space: nowrap !important; }
-          .nav-user-info { gap: 4px !important; }
+          .nav-row2-inner { padding: 0 8px !important; min-width: max-content; }
+          .nav-tab-btn { padding: 0 14px !important; font-size: 12px !important; white-space: nowrap !important; }
+          .nav-user-info { gap: 6px !important; }
           .nav-action-btns { gap: 4px !important; }
-          .nav-action-btns button { padding: 5px 7px !important; font-size: 14px !important; }
+          .nav-action-btns button { padding: 5px 7px !important; font-size: 15px !important; }
           .main-content { padding: 14px 10px !important; }
           .stats-grid { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
           .tickets-grid { grid-template-columns: 1fr !important; }
@@ -2311,8 +2310,8 @@ export default function App() {
           .historial-subtabs { width: 100% !important; }
           .historial-subtabs button { flex: 1 !important; }
         }
-        @media (max-width: 400px) {
-          .nav-tab-btn { padding: 0 9px !important; font-size: 10px !important; }
+        @media (max-width: 380px) {
+          .nav-tab-btn { padding: 0 10px !important; font-size: 11px !important; }
           .stats-grid { gap: 6px !important; }
           .nav-action-btns button { padding: 4px 6px !important; }
         }
@@ -2340,7 +2339,7 @@ export default function App() {
                 <Avatar nombre={usuario.nombre} color={empColor} size={30} />
                 <div>
                   <p className="nav-user-nombre" style={{ margin: 0, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{usuario.nombre}</p>
-                  <div style={{ display: "flex", gap: 4 }}>
+                  <div className="nav-user-tags" style={{ display: "flex", gap: 4 }}>
                     <EmpresaTag empresaId={usuario?.empresaId} />
                     <Badge
                       texto={usuario?.rol === "director" ? "Director" : usuario?.rol === "encargado" ? "Encargado" : usuario?.rol === "administrador" ? "Administrador" : "Trabajador"}
@@ -2401,8 +2400,8 @@ export default function App() {
         </div>
 
         {/* FILA 2: pestañas centradas */}
-        <div className="nav-row2" style={{ display: "flex", justifyContent: "center", padding: "0 24px", height: 40 }}>
-          <div style={{ display: "flex", gap: 2 }}>
+        <div className="nav-row2" style={{ display: "flex", justifyContent: "center", padding: "0 24px", height: 44 }}>
+          <div className="nav-row2-inner" style={{ display: "flex", gap: 2 }}>
             {[["tickets","🎫 Tickets"],["historial","🗂️ Historial"],["calendario","📅 Calendario"],["reportes","📄 Reportes"]].map(([s,l]) => (
               <button key={s} onClick={() => setSeccion(s)} className="nav-tab-btn" style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "0 20px", height: 40, border: "none", cursor: "pointer", background: "transparent", color: seccion === s ? empColor : "#64748B", borderBottom: seccion === s ? `2px solid ${empColor}` : "2px solid transparent", transition: "all .15s", whiteSpace: "nowrap" }}>{l}</button>
             ))}
