@@ -1,4 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
+
+// Dark/Light mode — módulo nivel para acceso global
+const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } catch { return true; } };
+let __darkMode = getDM();
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
 
@@ -145,7 +149,7 @@ function EmpresaTag({ empresaId }) {
 
 // ─── MODAL CREAR TICKET ───────────────────────────────────────────────────────
 function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const [titulo, setTitulo]         = useState("");
   const [descripcion, setDesc]      = useState("");
   const [prioridad, setPrioridad]   = useState("Media");
@@ -453,7 +457,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 
 // ─── MODAL DETALLE ────────────────────────────────────────────────────────────
 function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const asignacionesIniciales = (ticket.asignacionesPorEmpresa || {})[usuarioActual.empresaId] || [];
   const [comentario, setComentario]   = useState("");
   const [seleccionados, setSelecs]    = useState(asignacionesIniciales);
@@ -968,7 +972,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
 
 // ─── TARJETA TICKET ───────────────────────────────────────────────────────────
 function TarjetaTicket({ ticket, onClick }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const empresasDestino   = ticket.empresasDestino || [];
   const asignaciones      = ticket.asignacionesPorEmpresa || {};
   const todosAsignadosIds = Object.values(asignaciones).flat();
@@ -1085,7 +1089,7 @@ function TarjetaTicket({ ticket, onClick }) {
 
 // ─── CALENDARIO ───────────────────────────────────────────────────────────────
 function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, onVerTicketPersonal }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const hoy  = new Date();
   const [mes,  setMes]  = useState(hoy.getMonth());
   const [anio, setAnio] = useState(hoy.getFullYear());
@@ -1207,7 +1211,7 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
 
 // ─── REPORTES ─────────────────────────────────────────────────────────────────
 function Reportes({ tickets, usuarioActual }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const [empresaFiltro, setEmpresaFiltro] = useState("todas");
   const [mesFiltro, setMesFiltro]         = useState("todos");
 
@@ -1484,7 +1488,7 @@ function Reportes({ tickets, usuarioActual }) {
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────────
 // ─── MODAL MIS TICKETS ────────────────────────────────────────────────────────
 function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const [creando, setCreando] = useState(false);
   const [titulo, setTitulo]   = useState("");
   const [desc, setDesc]       = useState("");
@@ -1604,7 +1608,7 @@ function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle })
 
 // ─── MODAL DETALLE MI TICKET ──────────────────────────────────────────────────
 function ModalDetalleMiTicket({ ticket, onClose, onActualizar }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const [editando, setEditando] = useState(false);
   const [titulo, setTitulo]     = useState(ticket.titulo);
   const [desc, setDesc]         = useState(ticket.descripcion || "");
@@ -1655,7 +1659,7 @@ function ModalDetalleMiTicket({ ticket, onClose, onActualizar }) {
 
 // ─── MODAL ADMINISTRACIÓN ─────────────────────────────────────────────────────
 function ModalAdministracion({ onClose }) {
-  const darkMode = window.__dm !== false;
+  const darkMode = __darkMode;
   const [tab, setTab] = useState("empresas");
 
   // ── Estado local reactivo ──
@@ -2015,16 +2019,14 @@ export default function App() {
   });
   const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    try { return localStorage.getItem("theme") !== "light"; } catch { return true; }
-  });
+  const [darkMode, setDarkMode] = useState(getDM);
   const toggleTheme = () => setDarkMode(d => {
     const next = !d;
+    __darkMode = next;
     try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
-    window.__dm = next;
     return next;
   });
-  window.__dm = darkMode;
+  useEffect(() => { __darkMode = darkMode; }, [darkMode]);
   const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
   const [modalMisTickets, setModalMisTickets] = useState(false);
@@ -2272,10 +2274,7 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: darkMode ? "#0A0F1C" : "#F1F5F9", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: darkMode ? "#E2E8F0" : "#0F172A", transition: "background .2s, color .2s" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }`}</style>
 
       {/* NAV */}
       <nav style={{ background: darkMode ? "#0D1424" : "#FFFFFF", borderBottom: `2px solid ${empColor}33`, position: "sticky", top: 0, zIndex: 100 }}>
@@ -2336,7 +2335,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* Toggle Dark/Light */}
             <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"}
               style={{ background: darkMode ? "#1A2235" : "#F1F5F9", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>
               {darkMode ? "☀️" : "🌙"}
