@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 // Dark/Light mode — módulo nivel para acceso global
 const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } catch { return true; } };
 let __darkMode = getDM();
+const darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
 
