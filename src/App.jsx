@@ -2402,7 +2402,7 @@ export default function App() {
         {/* FILA 2: pestañas centradas */}
         <div className="nav-row2" style={{ display: "flex", justifyContent: "center", padding: "0 24px", height: 44 }}>
           <div className="nav-row2-inner" style={{ display: "flex", gap: 2 }}>
-            {[["tickets","🎫 Tickets"],["historial","🗂️ Historial"],["calendario","📅 Calendario"],["reportes","📄 Reportes"]].map(([s,l]) => (
+            {[["tickets","🎫 Tickets"],["historial","🗂️ Historial"],["calendario","📅 Calendario"],...(["director","encargado","administrador"].includes(usuario?.rol) ? [["reportes","📄 Reportes"]] : [])].map(([s,l]) => (
               <button key={s} onClick={() => setSeccion(s)} className="nav-tab-btn" style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "0 20px", height: 40, border: "none", cursor: "pointer", background: "transparent", color: seccion === s ? empColor : "#64748B", borderBottom: seccion === s ? `2px solid ${empColor}` : "2px solid transparent", transition: "all .15s", whiteSpace: "nowrap" }}>{l}</button>
             ))}
           </div>
@@ -2422,7 +2422,7 @@ export default function App() {
           </div>
         )}
 
-        {seccion === "reportes" ? (
+        {seccion === "reportes" && ["director","encargado","administrador"].includes(usuario?.rol) ? (
           <Reportes tickets={tickets} usuarioActual={usuario} />
         ) : seccion === "historial" ? (
           <>
