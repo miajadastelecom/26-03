@@ -264,8 +264,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             <textarea style={{ ...inp, resize: "vertical", minHeight: 80 }} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Explica con más detalle..." />
           </div>
 
-          {/* FECHA, HORA Y DURACIÓN */}
-          <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {/* FECHA Y HORA DE INICIO */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={labelS}>Fecha de inicio</label>
               <input type="date" style={{ ...inp, colorScheme: "dark" }} value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />
@@ -273,22 +273,6 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             <div>
               <label style={labelS}>Hora de inicio</label>
               <input type="time" style={{ ...inp, colorScheme: "dark" }} value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
-            </div>
-            <div>
-              <label style={labelS}>Duración estimada</label>
-              <select style={inp} value={duracion} onChange={e => setDuracion(e.target.value)}>
-                <option value="">Sin definir</option>
-                <option value="30min">30 minutos</option>
-                <option value="1h">1 hora</option>
-                <option value="2h">2 horas</option>
-                <option value="4h">4 horas</option>
-                <option value="1 día">1 día</option>
-                <option value="2 días">2 días</option>
-                <option value="3 días">3 días</option>
-                <option value="1 semana">1 semana</option>
-                <option value="2 semanas">2 semanas</option>
-                <option value="1 mes">1 mes</option>
-              </select>
             </div>
           </div>
 
