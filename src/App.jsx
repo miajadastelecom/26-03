@@ -309,6 +309,31 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             )}
           </div>
 
+          {/* ACOPIO DE MATERIALES */}
+          <div style={{ background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 8, padding: "14px 16px", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}` }}>
+            <label style={{ ...labelS, marginBottom: 10 }}>📦 Acopio de materiales</label>
+            <div style={{ display: "flex", gap: 10, marginBottom: acopio === true ? 12 : 0 }}>
+              {[{ val: true, label: "✅ Sí", color: "#38A169" }, { val: false, label: "❌ No", color: "#E53E3E" }].map(({ val, label, color }) => (
+                <button key={String(val)} type="button"
+                  onClick={() => { setAcopio(val); if (!val) setMateriales(""); }}
+                  style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 6, border: `2px solid ${acopio === val ? color : darkMode ? "#2E3A55" : "#CBD5E1"}`, cursor: "pointer", background: acopio === val ? color + "22" : darkMode ? "#111827" : "#FFFFFF", color: acopio === val ? color : "#64748B", transition: "all .15s" }}>
+                  {label}
+                </button>
+              ))}
+              {acopio === null && <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 12, alignSelf: "center" }}>Selecciona una opción</span>}
+            </div>
+            {acopio === true && (
+              <div>
+                <label style={{ ...labelS, marginBottom: 5 }}>Lista de materiales</label>
+                <textarea
+                  style={{ ...inp, resize: "vertical", minHeight: 80 }}
+                  value={materiales}
+                  onChange={e => setMateriales(e.target.value)}
+                  placeholder="Ej: 10m cable RJ45, 2 conectores, 1 switch 8 puertos..." />
+              </div>
+            )}
+          </div>
+
           <div>
             <label style={labelS}>Imágenes adjuntas</label>
             <label style={{ display: "flex", alignItems: "center", gap: 10, background: darkMode ? "#1A2235" : "#F8FAFC", border: "2px dashed #2E3A55", borderRadius: 8, padding: "12px 16px", cursor: "pointer" }}>
@@ -385,31 +410,6 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
                 {empresasDestino.filter(id => id !== 6).length > 0 && "El encargado de cada empresa asignará a sus trabajadores. "}
                 {empresasDestino.includes(6) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Comercial.</span>}
               </p>
-            )}
-          </div>
-
-          {/* ACOPIO DE MATERIALES */}
-          <div style={{ background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 8, padding: "14px 16px", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}` }}>
-            <label style={{ ...labelS, marginBottom: 10 }}>📦 Acopio de materiales</label>
-            <div style={{ display: "flex", gap: 10, marginBottom: acopio === true ? 12 : 0 }}>
-              {[{ val: true, label: "✅ Sí", color: "#38A169" }, { val: false, label: "❌ No", color: "#E53E3E" }].map(({ val, label, color }) => (
-                <button key={String(val)} type="button"
-                  onClick={() => { setAcopio(val); if (!val) setMateriales(""); }}
-                  style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 6, border: `2px solid ${acopio === val ? color : darkMode ? "#2E3A55" : "#CBD5E1"}`, cursor: "pointer", background: acopio === val ? color + "22" : darkMode ? "#111827" : "#FFFFFF", color: acopio === val ? color : "#64748B", transition: "all .15s" }}>
-                  {label}
-                </button>
-              ))}
-              {acopio === null && <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 12, alignSelf: "center" }}>Selecciona una opción</span>}
-            </div>
-            {acopio === true && (
-              <div>
-                <label style={{ ...labelS, marginBottom: 5 }}>Lista de materiales</label>
-                <textarea
-                  style={{ ...inp, resize: "vertical", minHeight: 80 }}
-                  value={materiales}
-                  onChange={e => setMateriales(e.target.value)}
-                  placeholder="Ej: 10m cable RJ45, 2 conectores, 1 switch 8 puertos..." />
-              </div>
             )}
           </div>
 
@@ -783,8 +783,8 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
           </div>
         )}
 
-        {/* Editar acopio de materiales — encargados y director */}
-        {(esEncargadoDest || esDirector) && !["Cancelado"].includes(ticket.estado) && (
+        {/* Editar acopio de materiales — todos los roles */}
+        {puedeAccion && !["Cancelado"].includes(ticket.estado) && (
           <div style={{ background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 8, padding: 14, marginBottom: 14, border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: editandoAcopio ? 12 : 0 }}>
               <p style={{ margin: 0, color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📦 Acopio de materiales</p>
