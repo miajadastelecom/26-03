@@ -149,7 +149,7 @@ function EmpresaTag({ empresaId }) {
 }
 
 // ─── MODAL CREAR TICKET ───────────────────────────────────────────────────────
-function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
+function ModalCrearTicket({ usuarioActual, onClose, onCrear, categorias = CATEGORIAS, estados = ESTADOS }) {
   const darkMode = __darkMode;
   const [titulo, setTitulo]         = useState("");
   const [descripcion, setDesc]      = useState("");
@@ -423,7 +423,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             <div>
               <label style={labelS}>Categoría</label>
               <select style={inp} value={categoria} onChange={e => setCategoria(e.target.value)}>
-                {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
+                {categorias.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -441,7 +441,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 }
 
 // ─── MODAL DETALLE ────────────────────────────────────────────────────────────
-function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
+function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, categorias = CATEGORIAS, estados = ESTADOS }) {
   const darkMode = __darkMode;
   const asignacionesIniciales = (ticket.asignacionesPorEmpresa || {})[usuarioActual.empresaId] || [];
   const [comentario, setComentario]   = useState("");
@@ -1235,7 +1235,7 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
 
 
 // ─── REPORTES ─────────────────────────────────────────────────────────────────
-function Reportes({ tickets, usuarioActual }) {
+function Reportes({ tickets, usuarioActual, categorias = CATEGORIAS, estados = ESTADOS }) {
   const darkMode = __darkMode;
   const [empresaFiltro, setEmpresaFiltro] = useState("todas");
   const [mesFiltro, setMesFiltro]         = useState("todos");
@@ -2052,6 +2052,31 @@ export default function App() {
     return next;
   });
   useEffect(() => { __darkMode = darkMode; }, [darkMode]);
+
+  // ── Config dinámica: categorías, estados desde Firestore ──
+  const [categoriasState, setCategoriasState] = useState(CATEGORIAS);
+  const [estadosState,    setEstadosState]    = useState(ESTADOS);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "config"), (snapshot) => {
+      snapshot.docs.forEach(d => {
+        try {
+          const val = JSON.parse(d.data().value);
+          if (d.id === "categorias" && Array.isArray(val)) {
+            setCategoriasState(val);
+            CATEGORIAS.length = 0;
+            val.forEach(v => CATEGORIAS.push(v));
+          }
+          if (d.id === "estados" && Array.isArray(val)) {
+            setEstadosState(val);
+            ESTADOS.length = 0;
+            val.forEach(v => ESTADOS.push(v));
+          }
+        } catch {}
+      });
+    });
+    return () => unsub();
+  }, []);
   const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
   const [modalMisTickets, setModalMisTickets] = useState(false);
@@ -2447,7 +2472,7 @@ export default function App() {
         )}
 
         {seccion === "reportes" && ["director","encargado","administrador"].includes(usuario?.rol) ? (
-          <Reportes tickets={tickets} usuarioActual={usuario} />
+          <Reportes tickets={tickets} usuarioActual={usuario} categorias={categoriasState} estados={estadosState} />
         ) : seccion === "historial" ? (
           <>
             <div style={{ marginBottom: 20 }}>
@@ -2553,7 +2578,7 @@ export default function App() {
               <input style={{ ...inpF, minWidth: 180 }} value={filtros.buscar} onChange={e => setFiltros(f => ({ ...f, buscar: e.target.value }))} placeholder="🔍 Buscar..." />
               <select style={inpF} value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
                 <option value="todos">Todos los estados</option>
-                {ESTADOS.filter(s => !["Completado","Cancelado"].includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
+                {estados.filter(s => !["Completado","Cancelado"].includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <select style={inpF} value={filtros.empresa} onChange={e => setFiltros(f => ({ ...f, empresa: e.target.value }))}>
                 <option value="todas">Todas las empresas</option>
@@ -2586,8 +2611,8 @@ export default function App() {
         )}
       </div>
 
-      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
-      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
+      {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} categorias={categoriasState} estados={estadosState} />}
+      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} categorias={categoriasState} estados={estadosState} />}
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
       {modalAdmin && <ModalAdministracion onClose={() => setModalAdmin(false)} />}
