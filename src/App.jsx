@@ -520,7 +520,33 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
     });
   };
 
-  const cambiarEstado = (estado) => onActualizar({ ...ticket, estado });
+  const cambiarEstado = (estado) => {
+    if (estado === "Completado") {
+      const ahora    = new Date();
+      const fechaFin = ahora.toISOString().split("T")[0];
+      const horaFin  = ahora.toTimeString().slice(0, 5);
+      // Calcular duración real si hay fecha de inicio
+      let duracion = ticket.duracion || null;
+      if (ticket.fechaInicio) {
+        const inicio = new Date(`${ticket.fechaInicio}T${ticket.horaInicio || "00:00"}`);
+        const diff   = ahora - inicio;
+        if (diff > 0) {
+          const mins  = Math.floor(diff / 60000);
+          const dias  = Math.floor(mins / 1440);
+          const horas = Math.floor((mins % 1440) / 60);
+          const mints = mins % 60;
+          let r = "";
+          if (dias > 0)  r += `${dias}d `;
+          if (horas > 0) r += `${horas}h `;
+          if (mints > 0) r += `${mints}min`;
+          duracion = r.trim() || duracion;
+        }
+      }
+      onActualizar({ ...ticket, estado, fechaFin, horaFin, duracion, fechaCompletado: ahora.toISOString() });
+    } else {
+      onActualizar({ ...ticket, estado });
+    }
+  };
 
   const enviarComentario = () => {
     if (!comentario.trim() && adjuntos.length === 0) return;
@@ -597,8 +623,22 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
               <div style={{ display: "flex", alignItems: "center", gap: 7, background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 7, padding: "8px 12px", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}` }}>
                 <span style={{ fontSize: 14 }}>⏱️</span>
                 <div>
-                  <p style={{ margin: 0, color: darkMode ? "#475569" : "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Duración</p>
-                  <p style={{ margin: 0, color: "#CBD5E1", fontSize: 12, fontWeight: 600 }}>{ticket.duracion}</p>
+                  <p style={{ margin: 0, color: darkMode ? "#475569" : "#64748B", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>
+                    {ticket.estado === "Completado" ? "Duración real" : "Duración estimada"}
+                  </p>
+                  <p style={{ margin: 0, color: ticket.estado === "Completado" ? "#38A169" : "#CBD5E1", fontSize: 12, fontWeight: 600 }}>{ticket.duracion}</p>
+                </div>
+              </div>
+            )}
+            {ticket.fechaFin && (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, background: darkMode ? "#1A223522" : "#F0FDF4", borderRadius: 7, padding: "8px 12px", border: `1px solid ${darkMode ? "#38A16944" : "#BBF7D0"}` }}>
+                <span style={{ fontSize: 14 }}>🏁</span>
+                <div>
+                  <p style={{ margin: 0, color: "#38A169", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Completado</p>
+                  <p style={{ margin: 0, color: "#38A169", fontSize: 12, fontWeight: 600 }}>
+                    {new Date(ticket.fechaFin).toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                    {ticket.horaFin && <span> · {ticket.horaFin}</span>}
+                  </p>
                 </div>
               </div>
             )}
