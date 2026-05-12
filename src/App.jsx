@@ -99,13 +99,6 @@ const loadConfig = async () => {
         if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
           ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v));
         }
-        // FIX: cargar usuarios y empresas desde Firestore al iniciar
-        if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
-          USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
-        }
-        if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
-          EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v));
-        }
       } catch {}
     });
   } catch {}
@@ -117,13 +110,6 @@ const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso
 const PINS_DEFAULT = {};
 for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]) {
   PINS_DEFAULT[u] = "1234";
-}
-// FIX: función para asegurar que cualquier usuario cargado desde Firestore tenga PIN asignado
-function asegurarPinsUsuarios(pins) {
-  USUARIOS.forEach(u => {
-    if (!(u.id in pins)) pins[u.id] = "1234";
-  });
-  return pins;
 }
 
 function genId() { return Date.now() + Math.random(); }
@@ -1102,7 +1088,7 @@ function TarjetaTicket({ ticket, onClick }) {
         const estado = ticket.estado;
         const completado = estado === "Completado";
         const enProgreso = estado === "En progreso" || estado === "Asignado";
-        const colProgreso   = "#DD6B20";
+        const colProgreso   = "#3182CE";
         const colCompletado = "#38A169";
         const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : "#475569";
 
@@ -1136,7 +1122,7 @@ function TarjetaTicket({ ticket, onClick }) {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
               <span style={{ color: darkMode ? "#334155" : "#94A3B8", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Creado</span>
-              <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
+              <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Asignado</span>
               <span style={{ color: completado ? colCompletado : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
             </div>
           </div>
@@ -2087,7 +2073,7 @@ export default function App() {
   });
   useEffect(() => { __darkMode = darkMode; }, [darkMode]);
 
-  // ── Firebase: config (categorías, estados, usuarios, empresas) en tiempo real ──
+  // ── Firebase: config (categorías, estados) en tiempo real ──
   const [, forceUpdate] = useState(0);
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "config"), (snapshot) => {
@@ -2100,15 +2086,6 @@ export default function App() {
           }
           if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
             ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v)); changed = true;
-          }
-          // FIX: sincronizar usuarios y empresas en tiempo real entre dispositivos
-          if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
-            USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
-            setPins(prev => asegurarPinsUsuarios({ ...prev }));
-            changed = true;
-          }
-          if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
-            EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v)); changed = true;
           }
         } catch {}
       });
