@@ -5,7 +5,7 @@ const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } 
 let __darkMode = getDM();
 const darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
@@ -122,15 +122,21 @@ function fmtFecha(iso) {
 function ticketToFirestore(t) {
   return {
     ...t,
-    imagenes: JSON.stringify(t.imagenes || []),
-    comentarios: JSON.stringify(t.comentarios || []),
+    imagenes:                  JSON.stringify(t.imagenes || []),
+    comentarios:               JSON.stringify(t.comentarios || []),
+    pendienteEliminacion:      t.pendienteEliminacion      || false,
+    solicitadoPor:             t.solicitadoPor              ?? null,
+    fechaSolicitudEliminacion: t.fechaSolicitudEliminacion  ?? null,
   };
 }
 function ticketFromFirestore(t) {
   return {
     ...t,
-    imagenes: typeof t.imagenes === "string" ? JSON.parse(t.imagenes) : (t.imagenes || []),
-    comentarios: typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
+    imagenes:                  typeof t.imagenes === "string" ? JSON.parse(t.imagenes) : (t.imagenes || []),
+    comentarios:               typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
+    pendienteEliminacion:      t.pendienteEliminacion      || false,
+    solicitadoPor:             t.solicitadoPor              ?? null,
+    fechaSolicitudEliminacion: t.fechaSolicitudEliminacion  ?? null,
   };
 }
 
@@ -461,7 +467,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 }
 
 // ─── MODAL DETALLE ────────────────────────────────────────────────────────────
-function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
+function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onSolicitarEliminacion, onAprobarEliminacion, onRechazarEliminacion }) {
   const darkMode = __darkMode;
   const asignacionesIniciales = (ticket.asignacionesPorEmpresa || {})[usuarioActual.empresaId] || [];
   const [comentario, setComentario]   = useState("");
@@ -954,6 +960,58 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
           );
         })()}
 
+        {/* Solicitar / aprobar / rechazar eliminación */}
+        {(() => {
+          const esEncargado = usuarioActual.rol === "encargado";
+          const esAdminODir = esAdmin || esDirector;
+          const pendiente   = ticket.pendienteEliminacion === true;
+
+          // Encargado puede solicitar eliminación si no está ya pendiente
+          if (esEncargado && !pendiente && !["Completado","Cancelado"].includes(ticket.estado)) {
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <button onClick={() => onSolicitarEliminacion(ticket)}
+                  style={{ ...btnS, background: "#E53E3E11", color: "#E53E3E", border: "1px solid #E53E3E44", fontSize: 11 }}>
+                  🗑️ Solicitar eliminación
+                </button>
+              </div>
+            );
+          }
+
+          // Encargado ve aviso de que su solicitud está pendiente
+          if (esEncargado && pendiente) {
+            return (
+              <div style={{ marginBottom: 14, background: "#D4A01722", border: "1px solid #D4A01755", borderRadius: 8, padding: "10px 14px" }}>
+                <p style={{ margin: 0, color: "#D4A017", fontSize: 12, fontWeight: 700 }}>⏳ Solicitud de eliminación pendiente de aprobación por un administrador.</p>
+              </div>
+            );
+          }
+
+          // Admin / director ven los botones de aprobar o rechazar si hay solicitud pendiente
+          if (esAdminODir && pendiente) {
+            const solicitante = USUARIOS.find(u => u.id === ticket.solicitadoPor);
+            return (
+              <div style={{ marginBottom: 14, background: "#E53E3E11", border: "1px solid #E53E3E44", borderRadius: 8, padding: "12px 14px" }}>
+                <p style={{ margin: "0 0 10px", color: "#E53E3E", fontSize: 12, fontWeight: 700 }}>
+                  ⚠️ Solicitud de eliminación{solicitante ? ` por ${solicitante.nombre}` : ""}
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => onAprobarEliminacion(ticket)}
+                    style={{ ...btnS, background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E55" }}>
+                    🗑️ Aprobar y eliminar
+                  </button>
+                  <button onClick={() => onRechazarEliminacion(ticket)}
+                    style={{ ...btnS, background: "#1E293B", color: "#94A3B8", border: "1px solid #2E3A55" }}>
+                    ↩️ Rechazar
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
+
         {/* Comentarios */}
         <div>
           <p style={{ margin: "0 0 10px", color: darkMode ? "#64748B" : "#475569", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
@@ -1036,6 +1094,12 @@ function TarjetaTicket({ ticket, onClick }) {
         {empresasDestino.map(id => <EmpresaTag key={id} empresaId={id} />)}
       </div>
 
+      {ticket.pendienteEliminacion && (
+        <div style={{ background: "#E53E3E11", border: "1px solid #E53E3E44", borderRadius: 6, padding: "5px 10px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11 }}>🗑️</span>
+          <span style={{ color: "#E53E3E", fontSize: 10, fontWeight: 700 }}>PENDIENTE DE ELIMINACIÓN</span>
+        </div>
+      )}
       <p style={{ margin: "0 0 10px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{ticket.titulo}</p>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
@@ -1086,13 +1150,11 @@ function TarjetaTicket({ ticket, onClick }) {
       {/* Barra de progreso con checks */}
       {(() => {
         const estado = ticket.estado;
-        const completado  = estado === "Completado";
-        const enProgreso  = estado === "En progreso";
-        const asignado    = estado === "Asignado" || enProgreso || completado;
-        const colAsignado   = "#3182CE";
+        const completado = estado === "Completado";
+        const enProgreso = estado === "En progreso" || estado === "Asignado";
         const colProgreso   = "#DD6B20";
         const colCompletado = "#38A169";
-        const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : asignado ? colAsignado : "#475569";
+        const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : "#475569";
 
         const Check = ({ activo, color }) => (
           <div style={{
@@ -1115,19 +1177,15 @@ function TarjetaTicket({ ticket, onClick }) {
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {/* Check 1: Creado — siempre activo */}
               <Check activo={true} color={colActivo} />
-              <Line activo={asignado} color={enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado} />
-              {/* Check 2: Asignado */}
-              <Check activo={asignado} color={enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado} />
               <Line activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
-              {/* Check 3: En progreso */}
+              {/* Check 2: En progreso */}
               <Check activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
               <Line activo={completado} color={colCompletado} />
-              {/* Check 4: Completado */}
+              {/* Check 3: Completado */}
               <Check activo={completado} color={colCompletado} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
               <span style={{ color: darkMode ? "#334155" : "#94A3B8", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Creado</span>
-              <span style={{ color: asignado ? (enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Asignado</span>
               <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
               <span style={{ color: completado ? colCompletado : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
             </div>
@@ -2243,6 +2301,64 @@ export default function App() {
     });
   };
 
+  // ── Solicitar eliminación de ticket (encargado) ──
+  const solicitarEliminacion = (ticket) => {
+    if (!window.confirm(`¿Solicitar la eliminación del ticket "${ticket.titulo}"? Un administrador recibirá el aviso y deberá confirmarlo.`)) return;
+    const ticketMarcado = { ...ticket, pendienteEliminacion: true, solicitadoPor: usuarioId, fechaSolicitudEliminacion: new Date().toISOString() };
+    setTickets(ts => ts.map(x => x.id === ticket.id ? ticketMarcado : x));
+    if (detalle?.id === ticket.id) setDetalle(ticketMarcado);
+    setDoc(doc(db, "tickets", String(ticket.id)), ticketToFirestore(ticketMarcado))
+      .catch(e => console.error("Error marcando eliminación:", e));
+    // Notificar a todos los administradores
+    USUARIOS.filter(u => u.rol === "administrador" || u.rol === "director").forEach(admin => {
+      if (admin.id !== usuarioId) {
+        addNotif({
+          usuarioDestinoId: admin.id,
+          tipo: "eliminacion",
+          ticketId: ticket.id,
+          texto: `⚠️ Solicitud de eliminación: el ticket "${ticket.titulo}" está pendiente de tu aprobación.`
+        });
+      }
+    });
+  };
+
+  // ── Aprobar eliminación (administrador / director) ──
+  const aprobarEliminacion = (ticket) => {
+    if (!window.confirm(`¿Confirmar la eliminación definitiva del ticket "${ticket.titulo}"? Esta acción no se puede deshacer.`)) return;
+    setTickets(ts => ts.filter(x => x.id !== ticket.id));
+    if (detalle?.id === ticket.id) setDetalle(null);
+    deleteDoc(doc(db, "tickets", String(ticket.id)))
+      .catch(e => console.error("Error eliminando ticket:", e));
+    // Notificar al encargado que solicitó la eliminación
+    if (ticket.solicitadoPor && ticket.solicitadoPor !== usuarioId) {
+      addNotif({
+        usuarioDestinoId: ticket.solicitadoPor,
+        tipo: "eliminacion_aprobada",
+        ticketId: ticket.id,
+        texto: `✅ El ticket "${ticket.titulo}" ha sido eliminado por un administrador.`
+      });
+    }
+  };
+
+  // ── Rechazar eliminación (administrador / director) ──
+  const rechazarEliminacion = (ticket) => {
+    if (!window.confirm(`¿Rechazar la solicitud de eliminación del ticket "${ticket.titulo}"?`)) return;
+    const ticketRestaurado = { ...ticket, pendienteEliminacion: false, solicitadoPor: null, fechaSolicitudEliminacion: null };
+    setTickets(ts => ts.map(x => x.id === ticket.id ? ticketRestaurado : x));
+    if (detalle?.id === ticket.id) setDetalle(ticketRestaurado);
+    setDoc(doc(db, "tickets", String(ticket.id)), ticketToFirestore(ticketRestaurado))
+      .catch(e => console.error("Error rechazando eliminación:", e));
+    // Notificar al encargado
+    if (ticket.solicitadoPor && ticket.solicitadoPor !== usuarioId) {
+      addNotif({
+        usuarioDestinoId: ticket.solicitadoPor,
+        tipo: "eliminacion_rechazada",
+        ticketId: ticket.id,
+        texto: `❌ La solicitud de eliminación del ticket "${ticket.titulo}" ha sido rechazada por un administrador.`
+      });
+    }
+  };
+
   const guardarTicketPersonal = (t) => {
     const nuevos = [t, ...misTicketsPersonales];
     setMisTicketsPersonales(nuevos);
@@ -2634,7 +2750,7 @@ export default function App() {
       </div>
 
       {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
-      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
+      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} onSolicitarEliminacion={solicitarEliminacion} onAprobarEliminacion={aprobarEliminacion} onRechazarEliminacion={rechazarEliminacion} />}
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
       {modalAdmin && <ModalAdministracion onClose={() => setModalAdmin(false)} />}
