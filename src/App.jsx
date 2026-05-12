@@ -1086,11 +1086,13 @@ function TarjetaTicket({ ticket, onClick }) {
       {/* Barra de progreso con checks */}
       {(() => {
         const estado = ticket.estado;
-        const completado = estado === "Completado";
-        const enProgreso = estado === "En progreso" || estado === "Asignado";
-        const colProgreso   = "#3182CE";
+        const completado  = estado === "Completado";
+        const enProgreso  = estado === "En progreso";
+        const asignado    = estado === "Asignado" || enProgreso || completado;
+        const colAsignado   = "#3182CE";
+        const colProgreso   = "#DD6B20";
         const colCompletado = "#38A169";
-        const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : "#475569";
+        const colActivo     = completado ? colCompletado : enProgreso ? colProgreso : asignado ? colAsignado : "#475569";
 
         const Check = ({ activo, color }) => (
           <div style={{
@@ -1113,16 +1115,20 @@ function TarjetaTicket({ ticket, onClick }) {
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {/* Check 1: Creado — siempre activo */}
               <Check activo={true} color={colActivo} />
+              <Line activo={asignado} color={enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado} />
+              {/* Check 2: Asignado */}
+              <Check activo={asignado} color={enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado} />
               <Line activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
-              {/* Check 2: En progreso */}
+              {/* Check 3: En progreso */}
               <Check activo={enProgreso || completado} color={completado ? colCompletado : colProgreso} />
               <Line activo={completado} color={colCompletado} />
-              {/* Check 3: Completado */}
+              {/* Check 4: Completado */}
               <Check activo={completado} color={colCompletado} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
               <span style={{ color: darkMode ? "#334155" : "#94A3B8", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Creado</span>
-              <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Asignado</span>
+              <span style={{ color: asignado ? (enProgreso || completado ? (completado ? colCompletado : colProgreso) : colAsignado) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Asignado</span>
+              <span style={{ color: enProgreso || completado ? (completado ? colCompletado : colProgreso) : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>En progreso</span>
               <span style={{ color: completado ? colCompletado : darkMode ? "#2E3A55" : "#CBD5E1", fontSize: 9, fontWeight: 700, textTransform: "uppercase" }}>Completado</span>
             </div>
           </div>
