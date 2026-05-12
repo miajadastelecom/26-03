@@ -966,8 +966,8 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onSolicita
           const esAdminODir = esAdmin || esDirector;
           const pendiente   = ticket.pendienteEliminacion === true;
 
-          // Encargado puede solicitar eliminación si no está ya pendiente
-          if (esEncargado && !pendiente && !["Completado","Cancelado"].includes(ticket.estado)) {
+          // Encargado puede solicitar eliminación en cualquier ticket ya creado
+          if (esEncargado && !pendiente) {
             return (
               <div style={{ marginBottom: 14 }}>
                 <button onClick={() => onSolicitarEliminacion(ticket)}
