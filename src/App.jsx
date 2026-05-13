@@ -128,15 +128,17 @@ function fmtFecha(iso) {
 function ticketToFirestore(t) {
   return {
     ...t,
-    imagenes: JSON.stringify(t.imagenes || []),
-    comentarios: JSON.stringify(t.comentarios || []),
+    imagenes:              JSON.stringify(t.imagenes   || []),
+    comentarios:           JSON.stringify(t.comentarios|| []),
+    completadoPorEmpresa:  JSON.stringify(t.completadoPorEmpresa || {}),
   };
 }
 function ticketFromFirestore(t) {
   return {
     ...t,
-    imagenes: typeof t.imagenes === "string" ? JSON.parse(t.imagenes) : (t.imagenes || []),
-    comentarios: typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
+    imagenes:             typeof t.imagenes    === "string" ? JSON.parse(t.imagenes)    : (t.imagenes    || []),
+    comentarios:          typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
+    completadoPorEmpresa: typeof t.completadoPorEmpresa === "string" ? JSON.parse(t.completadoPorEmpresa) : (t.completadoPorEmpresa || {}),
   };
 }
 
@@ -552,7 +554,29 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
           duracion = r.trim() || duracion;
         }
       }
-      onActualizar({ ...ticket, estado, fechaFin, horaFin, duracion, fechaCompletado: ahora.toISOString() });
+
+      // ── Lógica multi-empresa: marcar solo la empresa del usuario actual ──
+      const empresasDestino = ticket.empresasDestino || [];
+      const miEmpresaId     = usuarioActual.empresaId;
+      const completadoPorEmpresa = {
+        ...(ticket.completadoPorEmpresa || {}),
+        [miEmpresaId]: true,
+      };
+
+      // Solo cuentan las empresas que tienen al menos un trabajador asignado
+      const asignaciones    = ticket.asignacionesPorEmpresa || {};
+      const empresasActivas = empresasDestino.filter(id => (asignaciones[id] || []).length > 0);
+      // Si ninguna tiene asignados aún, usamos todas las empresas destino
+      const empresasQueCuentan = empresasActivas.length > 0 ? empresasActivas : empresasDestino;
+      const todasCompletan     = empresasQueCuentan.every(id => completadoPorEmpresa[id] === true);
+
+      if (todasCompletan) {
+        // TODAS las empresas han completado → completar el ticket globalmente
+        onActualizar({ ...ticket, estado: "Completado", fechaFin, horaFin, duracion, fechaCompletado: ahora.toISOString(), completadoPorEmpresa });
+      } else {
+        // Aún quedan empresas pendientes → marcar esta empresa y dejar en "En progreso"
+        onActualizar({ ...ticket, estado: "En progreso", completadoPorEmpresa });
+      }
     } else {
       onActualizar({ ...ticket, estado });
     }
@@ -673,14 +697,21 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
             {empresasDestino.map(empId => {
               const emp = EMPRESAS.find(e => e.id === empId);
               const asignadosEmp = (asignaciones[empId] || []).map(id => USUARIOS.find(u => u.id === id)).filter(Boolean);
+              const haCompletado = (ticket.completadoPorEmpresa || {})[empId] === true;
               return (
                 <div key={empId} style={{ background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 8, padding: "10px 14px", border: `1px solid ${emp?.color || "#2E3A55"}33` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: asignadosEmp.length > 0 ? 8 : 0 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: emp?.color, flexShrink: 0 }} />
-                    <span style={{ color: emp?.color, fontSize: 12, fontWeight: 700 }}>{emp?.nombre}</span>
-                    {asignadosEmp.length === 0
-                      ? <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 11, fontStyle: "italic" }}>— pendiente de asignación</span>
-                      : <span style={{ color: darkMode ? "#64748B" : "#475569", fontSize: 11 }}>{asignadosEmp.length} persona{asignadosEmp.length > 1 ? "s" : ""} asignada{asignadosEmp.length > 1 ? "s" : ""}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: asignadosEmp.length > 0 ? 8 : 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: emp?.color, flexShrink: 0 }} />
+                      <span style={{ color: emp?.color, fontSize: 12, fontWeight: 700 }}>{emp?.nombre}</span>
+                      {asignadosEmp.length === 0
+                        ? <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 11, fontStyle: "italic" }}>— pendiente de asignación</span>
+                        : <span style={{ color: darkMode ? "#64748B" : "#475569", fontSize: 11 }}>{asignadosEmp.length} persona{asignadosEmp.length > 1 ? "s" : ""} asignada{asignadosEmp.length > 1 ? "s" : ""}</span>
+                      }
+                    </div>
+                    {haCompletado
+                      ? <span style={{ background: "#38A16922", color: "#38A169", border: "1px solid #38A16955", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>✓ Completado</span>
+                      : ticket.estado !== "Pendiente" && <span style={{ background: "#D4A01722", color: "#D4A017", border: "1px solid #D4A01755", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>⏳ En curso</span>
                     }
                   </div>
                   {asignadosEmp.length > 0 && (
@@ -938,20 +969,32 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
 
         {/* Cambiar estado — flujo ordenado con permisos */}
         {!["Completado", "Cancelado"].includes(ticket.estado) && (() => {
-          const puedeCancelar = esEncargadoDest || esCreadoPor || esDirector;
-          const puedeAvanzar  = esEncargadoDest || esAsignado  || esDirector;
-          const estadoActual  = ticket.estado;
-          // Trabajador solo puede avanzar si ticket está Asignado o En progreso
+          const puedeCancelar  = esEncargadoDest || esCreadoPor || esDirector;
+          const puedeAvanzar   = esEncargadoDest || esAsignado  || esDirector;
+          const estadoActual   = ticket.estado;
           const puedeProgreso  = puedeAvanzar && estadoActual === "Asignado";
-          const puedeCompletar = puedeAvanzar && (estadoActual === "En progreso" || (esEncargadoDest && estadoActual === "Asignado"));
+          // Trabajador y encargado pueden completar desde Asignado o En progreso
+          const puedeCompletar = puedeAvanzar && (estadoActual === "En progreso" || estadoActual === "Asignado");
+
+          // Comprobar si la empresa del usuario ya marcó completado
+          const miEmpresaId         = usuarioActual.empresaId;
+          const yaCompleteMiEmpresa = (ticket.completadoPorEmpresa || {})[miEmpresaId] === true;
+          const hayVariasEmpresas   = (ticket.empresasDestino || []).length > 1;
+          const labelCompletar      = hayVariasEmpresas
+            ? (yaCompleteMiEmpresa ? "✓ Tu empresa ya completó" : "✓ Completar mi parte")
+            : "✓ Completado";
+
           if (!puedeAvanzar && !puedeCancelar) return null;
           return (
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
               {puedeProgreso && (
                 <button onClick={() => cambiarEstado("En progreso")} style={{ ...btnS, background: "#D4A01722", color: "#D4A017", border: "1px solid #D4A01755" }}>▶ En progreso</button>
               )}
-              {puedeCompletar && (
-                <button onClick={() => cambiarEstado("Completado")} style={{ ...btnS, background: "#38A16922", color: "#38A169", border: "1px solid #38A16955" }}>✓ Completado</button>
+              {puedeCompletar && !yaCompleteMiEmpresa && (
+                <button onClick={() => cambiarEstado("Completado")} style={{ ...btnS, background: "#38A16922", color: "#38A169", border: "1px solid #38A16955" }}>{labelCompletar}</button>
+              )}
+              {puedeCompletar && yaCompleteMiEmpresa && (
+                <span style={{ ...btnS, background: "#38A16911", color: "#38A16988", border: "1px solid #38A16933", cursor: "default" }}>{labelCompletar}</span>
               )}
               {puedeCancelar && (
                 <button onClick={() => cambiarEstado("Cancelado")} style={{ ...btnS, background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E55" }}>✕ Cancelar</button>
