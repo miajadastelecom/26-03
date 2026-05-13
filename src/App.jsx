@@ -2555,12 +2555,26 @@ export default function App() {
                   </div>
                   {misNotifs.length === 0
                     ? <p style={{ padding: 16, color: darkMode ? "#475569" : "#64748B", fontSize: 13, margin: 0 }}>Sin notificaciones</p>
-                    : misNotifs.slice(0, 20).map(n => (
-                      <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid #0D1424", background: n.leida ? "transparent" : darkMode ? "#1A2235" : "#F8FAFC" }}>
-                        <p style={{ margin: "0 0 3px", color: "#CBD5E1", fontSize: 12 }}>{n.texto}</p>
-                        <p style={{ margin: 0, color: darkMode ? "#475569" : "#64748B", fontSize: 10 }}>{fmtFecha(n.fecha)}</p>
-                      </div>
-                    ))
+                    : misNotifs.slice(0, 20).map(n => {
+                      const esEliminacion = n.tipo === "eliminacion";
+                      const ticketRelacionado = esEliminacion && n.ticketId ? tickets.find(t => t.id === n.ticketId) : null;
+                      return (
+                        <div key={n.id} style={{ padding: "10px 16px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#F1F5F9"}`, background: n.leida ? "transparent" : darkMode ? "#1A2235" : "#F8FAFC" }}>
+                          <p style={{ margin: "0 0 3px", color: darkMode ? "#CBD5E1" : "#334155", fontSize: 12 }}>{n.texto}</p>
+                          <p style={{ margin: "0 0 6px", color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>{fmtFecha(n.fecha)}</p>
+                          {esEliminacion && ticketRelacionado && (
+                            <button
+                              onClick={() => {
+                                setDetalle(ticketRelacionado);
+                                setVerNotifs(false);
+                              }}
+                              style={{ background: "#E53E3E22", border: "1px solid #E53E3E55", borderRadius: 6, padding: "4px 10px", color: "#E53E3E", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              🗑️ Ver ticket y gestionar eliminación →
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
                   }
                 </div>
               )}
