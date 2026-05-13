@@ -99,6 +99,12 @@ const loadConfig = async () => {
         if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
           ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v));
         }
+        if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
+          EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v));
+        }
+        if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
+          USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
+        }
       } catch {}
     });
   } catch {}
@@ -2081,6 +2087,8 @@ export default function App() {
 
   // ── Firebase: config (categorías, estados) en tiempo real ──
   const [, forceUpdate] = useState(0);
+  // Callbacks para propagar cambios del admin a toda la app en tiempo real
+  const [configVersion, setConfigVersion] = useState(0);
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "config"), (snapshot) => {
       let changed = false;
@@ -2093,9 +2101,22 @@ export default function App() {
           if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
             ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v)); changed = true;
           }
+          if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
+            EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v)); changed = true;
+          }
+          if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
+            USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
+            setPins(prev => {
+              const updated = { ...prev };
+              USUARIOS.forEach(u => { if (!(u.id in updated)) updated[u.id] = "1234"; });
+              return updated;
+            });
+            changed = true;
+          }
         } catch {}
       });
-      if (changed) forceUpdate(n => n + 1);
+      // Incrementar configVersion fuerza re-render en App y re-inicialización del modal
+      if (changed) { forceUpdate(n => n + 1); setConfigVersion(v => v + 1); }
     });
     return () => unsub();
   }, []);
@@ -2637,7 +2658,7 @@ export default function App() {
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
-      {modalAdmin && <ModalAdministracion onClose={() => setModalAdmin(false)} />}
+      {modalAdmin && <ModalAdministracion key={configVersion} onClose={() => setModalAdmin(false)} />}
     </div>
   );
 }
