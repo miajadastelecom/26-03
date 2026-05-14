@@ -131,6 +131,7 @@ function ticketToFirestore(t) {
     imagenes:              JSON.stringify(t.imagenes   || []),
     comentarios:           JSON.stringify(t.comentarios|| []),
     completadoPorEmpresa:  JSON.stringify(t.completadoPorEmpresa || {}),
+    fechaLimite:           t.fechaLimite ?? null,
   };
 }
 function ticketFromFirestore(t) {
@@ -139,6 +140,7 @@ function ticketFromFirestore(t) {
     imagenes:             typeof t.imagenes    === "string" ? JSON.parse(t.imagenes)    : (t.imagenes    || []),
     comentarios:          typeof t.comentarios === "string" ? JSON.parse(t.comentarios) : (t.comentarios || []),
     completadoPorEmpresa: typeof t.completadoPorEmpresa === "string" ? JSON.parse(t.completadoPorEmpresa) : (t.completadoPorEmpresa || {}),
+    fechaLimite:          t.fechaLimite ?? null,
   };
 }
 
@@ -187,9 +189,10 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [empresasDestino, setEmps]  = useState([]);
   const [comercialAsignados, setComercialAsignados] = useState([]);
   const [origenId, setOrigenId]     = useState(usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1);
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [horaInicio, setHoraInicio]   = useState("");
-  const [duracion, setDuracion]       = useState("");
+  const [fechaInicio,  setFechaInicio]  = useState("");
+  const [horaInicio,   setHoraInicio]   = useState("");
+  const [duracion,     setDuracion]     = useState("");
+  const [fechaLimite,  setFechaLimite]  = useState("");
   const [ubicacion, setUbicacion]     = useState("");
   const [geoLoading, setGeoLoading]   = useState(false);
   const [geoError, setGeoError]       = useState("");
@@ -264,8 +267,9 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
       fecha: new Date().toISOString(),
       fechaAsignacion: tieneAsignadosComercial ? new Date().toISOString() : null,
       fechaInicio: fechaInicio || null,
-      horaInicio: horaInicio || null,
-      duracion: duracion || null,
+      horaInicio:  horaInicio  || null,
+      duracion:    duracion    || null,
+      fechaLimite: fechaLimite || null,
       ubicacion: ubicacion.trim() || null,
       comentarios: [], imagenes,
       acopio: acopio,
@@ -302,6 +306,23 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
               <label style={labelS}>Hora de inicio</label>
               <input type="time" style={{ ...inp, colorScheme: "dark" }} value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
             </div>
+          </div>
+
+          {/* FECHA LÍMITE */}
+          <div>
+            <label style={labelS}>📅 Fecha límite de resolución</label>
+            <input
+              type="date"
+              style={{ ...inp, colorScheme: "dark", borderColor: fechaLimite ? "#E53E3E88" : undefined }}
+              value={fechaLimite}
+              onChange={e => setFechaLimite(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+            />
+            {fechaLimite && (
+              <p style={{ margin: "4px 0 0", color: "#E53E3E", fontSize: 11 }}>
+                ⚠️ Si el ticket no se completa antes de esta fecha, aparecerá como urgente en la lista.
+              </p>
+            )}
           </div>
 
           {/* UBICACIÓN */}
@@ -676,6 +697,28 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                 </div>
               </div>
             )}
+            {ticket.fechaLimite && (() => {
+              const hoyD         = new Date(); hoyD.setHours(0, 0, 0, 0);
+              const limD         = new Date(ticket.fechaLimite + "T00:00:00");
+              const yaCompletado = ["Completado", "Cancelado"].includes(ticket.estado);
+              const estaVencido  = !yaCompletado && limD < hoyD;
+              const esHoy        = !yaCompletado && limD.getTime() === hoyD.getTime();
+              const color  = yaCompletado ? "#38A169" : estaVencido || esHoy ? "#E53E3E" : "#D4A017";
+              const bgCol  = yaCompletado ? (darkMode ? "#38A16922" : "#F0FDF4") : estaVencido || esHoy ? (darkMode ? "#E53E3E22" : "#FFF5F5") : (darkMode ? "#D4A01722" : "#FFFBEB");
+              const bdCol  = yaCompletado ? (darkMode ? "#38A16944" : "#BBF7D0") : estaVencido || esHoy ? "#E53E3E55" : "#D4A01755";
+              const label  = yaCompletado ? "Fecha límite" : estaVencido ? "⚠️ VENCIDA" : esHoy ? "🔴 VENCE HOY" : "⏰ Fecha límite";
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 7, background: bgCol, borderRadius: 7, padding: "8px 12px", border: `1px solid ${bdCol}` }}>
+                  <span style={{ fontSize: 14 }}>🗓️</span>
+                  <div>
+                    <p style={{ margin: 0, color, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{label}</p>
+                    <p style={{ margin: 0, color, fontSize: 12, fontWeight: 600 }}>
+                      {limD.toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
             {ticket.ubicacion && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, background: darkMode ? "#1A2235" : "#F8FAFC", borderRadius: 7, padding: "8px 12px", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, flex: 1, minWidth: 180 }}>
                 <span style={{ fontSize: 14 }}>📍</span>
@@ -1073,16 +1116,38 @@ function TarjetaTicket({ ticket, onClick }) {
   const asignadosArr      = USUARIOS.filter(u => todosAsignadosIds.includes(u.id));
   const empOrigen         = EMPRESAS.find(e => e.id === ticket.empresaOrigenId);
 
+  // ── Lógica de fecha límite ──
+  const completado    = ["Completado", "Cancelado"].includes(ticket.estado);
+  const hoy           = new Date(); hoy.setHours(0, 0, 0, 0);
+  const limiteDate    = ticket.fechaLimite ? new Date(ticket.fechaLimite + "T00:00:00") : null;
+  const vencido       = !completado && limiteDate && limiteDate < hoy;
+  const venceHoy      = !completado && limiteDate && limiteDate.getTime() === hoy.getTime();
+  const venceProximo  = !completado && limiteDate && limiteDate > hoy && (limiteDate - hoy) <= 2 * 24 * 60 * 60 * 1000;
+  const alertaLimite  = vencido || venceHoy;
+
   return (
     <div onClick={onClick}
-      style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", transition: "border-color .15s, transform .15s" }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = (empOrigen?.color || "#3182CE") + "66"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E293B"; e.currentTarget.style.transform = "none"; }}>
+      style={{
+        background:   darkMode ? "#111827" : "#FFFFFF",
+        border:       alertaLimite ? "1px solid #E53E3E" : `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`,
+        borderRadius: 10,
+        padding:      "16px 18px",
+        cursor:       "pointer",
+        transition:   alertaLimite ? "none" : "border-color .15s, transform .15s",
+        animation:    alertaLimite ? "parpadeo 1.6s ease-in-out infinite" : "none",
+      }}
+      onMouseEnter={e => { if (!alertaLimite) { e.currentTarget.style.borderColor = (empOrigen?.color || "#3182CE") + "66"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
+      onMouseLeave={e => { if (!alertaLimite) { e.currentTarget.style.borderColor = darkMode ? "#1E293B" : "#E2E8F0"; e.currentTarget.style.transform = "none"; } }}>
 
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-        <EmpresaTag empresaId={ticket.empresaOrigenId} />
-        <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 12 }}>→</span>
-        {empresasDestino.map(id => <EmpresaTag key={id} empresaId={id} />)}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10, alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+          <EmpresaTag empresaId={ticket.empresaOrigenId} />
+          <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 12 }}>→</span>
+          {empresasDestino.map(id => <EmpresaTag key={id} empresaId={id} />)}
+        </div>
+        {vencido    && <span style={{ background: "#E53E3E", color: "#fff", borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 800, letterSpacing: .4 }}>⚠️ VENCIDO</span>}
+        {venceHoy   && !vencido && <span style={{ background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E88", borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 800 }}>🔴 VENCE HOY</span>}
+        {venceProximo && !venceHoy && <span style={{ background: "#D4A01722", color: "#D4A017", border: "1px solid #D4A01788", borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>⏰ Vence pronto</span>}
       </div>
 
       <p style={{ margin: "0 0 10px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{ticket.titulo}</p>
@@ -2412,6 +2477,10 @@ export default function App() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes parpadeo {
+          0%, 100% { opacity: 1; border-color: #E53E3E; box-shadow: 0 0 0 0px #E53E3E44; }
+          50%       { opacity: 0.72; border-color: #E53E3EBB; box-shadow: 0 0 0 4px #E53E3E22; }
+        }
         *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }
         html { -webkit-text-size-adjust: 100%; }
         body { margin: 0; padding: 0; }
