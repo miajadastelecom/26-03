@@ -2174,6 +2174,20 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
   const [titulo,         setTitulo]         = useState("");
   const [cuerpo,         setCuerpo]         = useState("");
   const [fechaCaducidad, setFechaCaducidad] = useState("");
+  const [adjuntoPDF,     setAdjuntoPDF]     = useState(null);   // { nombre, dataUrl }
+  const [cargandoPDF,    setCargandoPDF]    = useState(false);
+
+  const handlePDF = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") { alert("Solo se permiten archivos PDF."); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("El archivo no puede superar los 5 MB."); return; }
+    setCargandoPDF(true);
+    const r = new FileReader();
+    r.onload = () => { setAdjuntoPDF({ nombre: file.name, dataUrl: r.result }); setCargandoPDF(false); };
+    r.onerror = () => { alert("Error al leer el archivo."); setCargandoPDF(false); };
+    r.readAsDataURL(file);
+  };
 
   const enviar = async () => {
     if (!titulo.trim()) return;
@@ -2186,6 +2200,7 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
       empresaId:      empresaId,
       fecha:          new Date().toISOString(),
       fechaCaducidad: fechaCaducidad || null,
+      adjuntoPDF:     adjuntoPDF || null,
     });
     onClose();
   };
@@ -2216,9 +2231,27 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
             <input type="date" style={{ ...inp, colorScheme:"dark" }} value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} min={new Date().toISOString().split("T")[0]} />
             <p style={{ margin:"4px 0 0", color: darkMode ? "#475569" : "#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines manualmente.</p>
           </div>
+          {/* Adjunto PDF */}
+          <div>
+            <label style={labelS}>📎 Adjuntar PDF (opcional, máx. 5 MB)</label>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", background: darkMode ? "#1A2235" : "#F8FAFC", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, cursor:"pointer", fontSize:12, color: darkMode ? "#94A3B8" : "#475569" }}>
+                {cargandoPDF ? "⏳ Cargando..." : adjuntoPDF ? "🔄 Cambiar PDF" : "📄 Seleccionar PDF"}
+                <input type="file" accept="application/pdf" onChange={handlePDF} style={{ display:"none" }} />
+              </label>
+              {adjuntoPDF && (
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 12px", background: darkMode ? "#1A223588" : "#EFF6FF", border:`1px solid ${darkMode ? "#2E3A5588" : "#BFDBFE"}`, borderRadius:8, flex:1 }}>
+                  <span style={{ fontSize:16 }}>📄</span>
+                  <span style={{ color: darkMode ? "#93C5FD" : "#1D4ED8", fontSize:12, fontWeight:600, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{adjuntoPDF.nombre}</span>
+                  <button onClick={() => setAdjuntoPDF(null)} style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#94A3B8", cursor:"pointer", fontSize:16, lineHeight:1, padding:0, flexShrink:0 }}>×</button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
             <button onClick={onClose} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#64748B" : "#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
-            <button onClick={enviar} disabled={!titulo.trim()} style={{ padding:"9px 20px", background: titulo.trim() ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
+            <button onClick={enviar} disabled={!titulo.trim() || cargandoPDF} style={{ padding:"9px 20px", background: titulo.trim() && !cargandoPDF ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() && !cargandoPDF ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
           </div>
         </div>
       </div>
@@ -2672,6 +2705,12 @@ export default function App() {
                             </div>
                             <p style={{ margin: "0 0 6px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>{c.titulo}</p>
                             {c.cuerpo && <p style={{ margin: "0 0 8px", color: darkMode ? "#94A3B8" : "#475569", fontSize: 12, lineHeight: 1.5 }}>{c.cuerpo}</p>}
+                            {c.adjuntoPDF && (
+                              <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre}
+                                style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", background: darkMode ? "#1A2235" : "#EFF6FF", border:`1px solid ${darkMode ? "#2E3A55" : "#BFDBFE"}`, borderRadius:7, color: darkMode ? "#93C5FD" : "#1D4ED8", fontSize:11, fontWeight:700, textDecoration:"none", marginBottom:8 }}>
+                                📄 {c.adjuntoPDF.nombre}
+                              </a>
+                            )}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>{fmtFecha(c.fecha)}</span>
                               {caducaDate && <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
