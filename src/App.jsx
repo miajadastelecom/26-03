@@ -5,7 +5,7 @@ const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } 
 let __darkMode = getDM();
 const darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
@@ -2184,6 +2184,9 @@ export default function App() {
   });
   const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
+  const [comunicados,   setComunicados] = useState([]);
+  const [verComunicados,setVerComunicados] = useState(false);
+  const [modalComun,    setModalComun]  = useState(false);
   const [darkMode, setDarkMode] = useState(getDM);
   const toggleTheme = () => setDarkMode(d => {
     const next = !d;
@@ -2251,6 +2254,19 @@ export default function App() {
       },
       (err) => console.error("Firebase tickets error:", err)
     );
+    return () => unsub();
+  }, []);
+
+  // ── Firebase: comunicados en tiempo real ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "comunicados"), snap => {
+      const ahora = new Date();
+      const activos = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => !c.fechaCaducidad || new Date(c.fechaCaducidad) >= ahora)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      setComunicados(activos);
+    });
     return () => unsub();
   }, []);
 
@@ -2555,6 +2571,63 @@ export default function App() {
             )}
             {/* Botones de acción agrupados */}
             <div className="nav-action-btns" style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            {/* Icono comunicados */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
+                style={{ background: comunicados.length > 0 ? "#1A2235" : "transparent", border: comunicados.length > 0 ? "1px solid #3182CE55" : "1px solid transparent", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 18, position: "relative" }}>
+                💬
+                {comunicados.length > 0 && (
+                  <span style={{ position: "absolute", top: 2, right: 2, background: "#3182CE", color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 9, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{comunicados.length}</span>
+                )}
+              </button>
+              {verComunicados && (
+                <div style={{ position: "fixed", right: 10, top: 58, background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, width: "min(360px, calc(100vw - 20px))", maxHeight: 480, overflowY: "auto", zIndex: 200, boxShadow: "0 16px 40px #0008" }}>
+                  <div style={{ padding: "12px 16px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: darkMode ? "#111827" : "#FFFFFF", zIndex: 1 }}>
+                    <span style={{ color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 13 }}>💬 Comunicados</span>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {(usuario?.rol === "director" || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
+                        <button onClick={() => { setModalComun(true); setVerComunicados(false); }}
+                          style={{ background: "#3182CE22", border: "1px solid #3182CE55", borderRadius: 6, padding: "3px 10px", color: "#3182CE", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                          + Nuevo
+                        </button>
+                      )}
+                      <button onClick={() => setVerComunicados(false)} style={{ background: "none", border: "none", color: darkMode ? "#475569" : "#64748B", cursor: "pointer", fontSize: 18 }}>×</button>
+                    </div>
+                  </div>
+                  {comunicados.length === 0
+                    ? <p style={{ padding: 20, color: darkMode ? "#475569" : "#64748B", fontSize: 13, margin: 0, textAlign: "center" }}>No hay comunicados activos</p>
+                    : comunicados.map(c => {
+                        const autor      = USUARIOS.find(u => u.id === c.autorId);
+                        const empresa    = EMPRESAS.find(e => e.id === c.empresaId);
+                        const caducaDate = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
+                        const puedeElim  = usuario?.id === c.autorId || usuario?.rol === "director" || usuario?.rol === "administrador";
+                        return (
+                          <div key={c.id} style={{ padding: "14px 16px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#F1F5F9"}`, borderLeft: `3px solid ${empresa?.color || "#3182CE"}` }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: empresa?.color || "#3182CE", display: "inline-block" }} />
+                                <span style={{ color: darkMode ? "#94A3B8" : "#64748B", fontSize: 11, fontWeight: 700 }}>{autor?.nombre || "Sistema"}</span>
+                                <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>· {empresa?.nombre || ""}</span>
+                              </div>
+                              {puedeElim && (
+                                <button onClick={() => deleteDoc(doc(db, "comunicados", c.id))}
+                                  style={{ background: "none", border: "none", color: darkMode ? "#475569" : "#94A3B8", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Eliminar">🗑️</button>
+                              )}
+                            </div>
+                            <p style={{ margin: "0 0 6px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>{c.titulo}</p>
+                            {c.cuerpo && <p style={{ margin: "0 0 8px", color: darkMode ? "#94A3B8" : "#475569", fontSize: 12, lineHeight: 1.5 }}>{c.cuerpo}</p>}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>{fmtFecha(c.fecha)}</span>
+                              {caducaDate && <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              )}
+            </div>
+
             {/* Campana notificaciones */}
             <div style={{ position: "relative" }}>
               <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }}
@@ -2614,6 +2687,31 @@ export default function App() {
       </nav>
 
       <div className="main-content" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px" }}>
+
+        {/* BANNER COMUNICADOS ACTIVOS */}
+        {comunicados.length > 0 && (() => {
+          // Mostrar solo el más reciente como banner
+          const c = comunicados[0];
+          const empresa = EMPRESAS.find(e => e.id === c.empresaId);
+          const autor   = USUARIOS.find(u => u.id === c.autorId);
+          return (
+            <div style={{ background: darkMode ? "#0F172A" : "#EFF6FF", border: `1px solid ${empresa?.color || "#3182CE"}55`, borderLeft: `4px solid ${empresa?.color || "#3182CE"}`, borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <span style={{ fontSize: 22, flexShrink: 0, marginTop: 1 }}>💬</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                  <span style={{ color: empresa?.color || "#3182CE", fontSize: 12, fontWeight: 800 }}>{c.titulo}</span>
+                  <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>— {autor?.nombre || "Sistema"} · {empresa?.nombre || ""}</span>
+                  {comunicados.length > 1 && (
+                    <button onClick={() => setVerComunicados(true)} style={{ background: "#3182CE22", border: "1px solid #3182CE44", borderRadius: 5, padding: "1px 8px", color: "#3182CE", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                      +{comunicados.length - 1} más
+                    </button>
+                  )}
+                </div>
+                {c.cuerpo && <p style={{ margin: 0, color: darkMode ? "#94A3B8" : "#475569", fontSize: 12, lineHeight: 1.5 }}>{c.cuerpo}</p>}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* BANNER DIRECTOR */}
         {usuario?.rol === "director" && (
@@ -2771,6 +2869,60 @@ export default function App() {
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
       {modalAdmin && <ModalAdministracion key={configVersion} onClose={() => setModalAdmin(false)} />}
+
+      {/* Modal crear comunicado */}
+      {modalComun && (() => {
+        const [titulo,        setTitulo]        = React.useState("");
+        const [cuerpo,        setCuerpo]        = React.useState("");
+        const [fechaCaducidad,setFechaCaducidad]= React.useState("");
+        const enviar = async () => {
+          if (!titulo.trim()) return;
+          const id = String(Date.now());
+          await setDoc(doc(db, "comunicados", id), {
+            id,
+            titulo:        titulo.trim(),
+            cuerpo:        cuerpo.trim() || null,
+            autorId:       usuarioId,
+            empresaId:     usuario?.empresaId ?? null,
+            fecha:         new Date().toISOString(),
+            fechaCaducidad:fechaCaducidad || null,
+          });
+          setModalComun(false);
+        };
+        const overlay = { position:"fixed",inset:0,background:"#00000088",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16 };
+        const box     = { background: darkMode ? "#111827" : "#FFFFFF", borderRadius:14, width:"100%", maxWidth:460, padding:24, boxShadow:"0 24px 60px #0008" };
+        const inp     = { width:"100%", padding:"9px 12px", background: darkMode ? "#1A2235" : "#F8FAFC", border:`1px solid ${darkMode?"#2E3A55":"#CBD5E1"}`, borderRadius:8, color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
+        const labelS  = { display:"block", color: darkMode?"#64748B":"#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:5 };
+        return (
+          <div style={overlay} onClick={e => e.target === e.currentTarget && setModalComun(false)}>
+            <div style={box}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                <h3 style={{ margin:0, color: darkMode?"#E2E8F0":"#0F172A", fontSize:16, fontWeight:800 }}>💬 Nuevo comunicado</h3>
+                <button onClick={() => setModalComun(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:20 }}>×</button>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                <div>
+                  <label style={labelS}>Título *</label>
+                  <input style={inp} placeholder="Ej: Reunión el viernes a las 10h" value={titulo} onChange={e => setTitulo(e.target.value)} maxLength={120} />
+                </div>
+                <div>
+                  <label style={labelS}>Mensaje (opcional)</label>
+                  <textarea style={{ ...inp, minHeight:90, resize:"vertical" }} placeholder="Detalle del comunicado..." value={cuerpo} onChange={e => setCuerpo(e.target.value)} maxLength={600} />
+                </div>
+                <div>
+                  <label style={labelS}>📅 Fecha de caducidad (opcional)</label>
+                  <input type="date" style={{ ...inp, colorScheme:"dark" }} value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} min={new Date().toISOString().split("T")[0]} />
+                  <p style={{ margin:"4px 0 0", color: darkMode?"#475569":"#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines manualmente.</p>
+                </div>
+                <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
+                  <button onClick={() => setModalComun(false)} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode?"#2E3A55":"#CBD5E1"}`, borderRadius:8, color: darkMode?"#64748B":"#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+                  <button onClick={enviar} disabled={!titulo.trim()} style={{ padding:"9px 20px", background: titulo.trim() ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
