@@ -2170,6 +2170,62 @@ function ModalAdministracion({ onClose }) {
   );
 }
 
+function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
+  const [titulo,         setTitulo]         = useState("");
+  const [cuerpo,         setCuerpo]         = useState("");
+  const [fechaCaducidad, setFechaCaducidad] = useState("");
+
+  const enviar = async () => {
+    if (!titulo.trim()) return;
+    const id = String(Date.now());
+    await setDoc(doc(db, "comunicados", id), {
+      id,
+      titulo:         titulo.trim(),
+      cuerpo:         cuerpo.trim() || null,
+      autorId:        usuarioId,
+      empresaId:      empresaId,
+      fecha:          new Date().toISOString(),
+      fechaCaducidad: fechaCaducidad || null,
+    });
+    onClose();
+  };
+
+  const overlay = { position:"fixed", inset:0, background:"#00000088", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 };
+  const box     = { background: darkMode ? "#111827" : "#FFFFFF", borderRadius:14, width:"100%", maxWidth:460, padding:24, boxShadow:"0 24px 60px #0008" };
+  const inp     = { width:"100%", padding:"9px 12px", background: darkMode ? "#1A2235" : "#F8FAFC", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
+  const labelS  = { display:"block", color: darkMode ? "#64748B" : "#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:5 };
+
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={box}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h3 style={{ margin:0, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:16, fontWeight:800 }}>💬 Nuevo comunicado</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#64748B", cursor:"pointer", fontSize:20 }}>×</button>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div>
+            <label style={labelS}>Título *</label>
+            <input style={inp} placeholder="Ej: Reunión el viernes a las 10h" value={titulo} onChange={e => setTitulo(e.target.value)} maxLength={120} />
+          </div>
+          <div>
+            <label style={labelS}>Mensaje (opcional)</label>
+            <textarea style={{ ...inp, minHeight:90, resize:"vertical" }} placeholder="Detalle del comunicado..." value={cuerpo} onChange={e => setCuerpo(e.target.value)} maxLength={600} />
+          </div>
+          <div>
+            <label style={labelS}>📅 Fecha de caducidad (opcional)</label>
+            <input type="date" style={{ ...inp, colorScheme:"dark" }} value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} min={new Date().toISOString().split("T")[0]} />
+            <p style={{ margin:"4px 0 0", color: darkMode ? "#475569" : "#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines manualmente.</p>
+          </div>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
+            <button onClick={onClose} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#64748B" : "#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+            <button onClick={enviar} disabled={!titulo.trim()} style={{ padding:"9px 20px", background: titulo.trim() ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tickets,       setTickets]    = useState([]);
   const [usuarioId,     setUsuarioId]  = useState(() => {
@@ -2871,58 +2927,14 @@ export default function App() {
       {modalAdmin && <ModalAdministracion key={configVersion} onClose={() => setModalAdmin(false)} />}
 
       {/* Modal crear comunicado */}
-      {modalComun && (() => {
-        const [titulo,        setTitulo]        = React.useState("");
-        const [cuerpo,        setCuerpo]        = React.useState("");
-        const [fechaCaducidad,setFechaCaducidad]= React.useState("");
-        const enviar = async () => {
-          if (!titulo.trim()) return;
-          const id = String(Date.now());
-          await setDoc(doc(db, "comunicados", id), {
-            id,
-            titulo:        titulo.trim(),
-            cuerpo:        cuerpo.trim() || null,
-            autorId:       usuarioId,
-            empresaId:     usuario?.empresaId ?? null,
-            fecha:         new Date().toISOString(),
-            fechaCaducidad:fechaCaducidad || null,
-          });
-          setModalComun(false);
-        };
-        const overlay = { position:"fixed",inset:0,background:"#00000088",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16 };
-        const box     = { background: darkMode ? "#111827" : "#FFFFFF", borderRadius:14, width:"100%", maxWidth:460, padding:24, boxShadow:"0 24px 60px #0008" };
-        const inp     = { width:"100%", padding:"9px 12px", background: darkMode ? "#1A2235" : "#F8FAFC", border:`1px solid ${darkMode?"#2E3A55":"#CBD5E1"}`, borderRadius:8, color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
-        const labelS  = { display:"block", color: darkMode?"#64748B":"#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:5 };
-        return (
-          <div style={overlay} onClick={e => e.target === e.currentTarget && setModalComun(false)}>
-            <div style={box}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-                <h3 style={{ margin:0, color: darkMode?"#E2E8F0":"#0F172A", fontSize:16, fontWeight:800 }}>💬 Nuevo comunicado</h3>
-                <button onClick={() => setModalComun(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:20 }}>×</button>
-              </div>
-              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                <div>
-                  <label style={labelS}>Título *</label>
-                  <input style={inp} placeholder="Ej: Reunión el viernes a las 10h" value={titulo} onChange={e => setTitulo(e.target.value)} maxLength={120} />
-                </div>
-                <div>
-                  <label style={labelS}>Mensaje (opcional)</label>
-                  <textarea style={{ ...inp, minHeight:90, resize:"vertical" }} placeholder="Detalle del comunicado..." value={cuerpo} onChange={e => setCuerpo(e.target.value)} maxLength={600} />
-                </div>
-                <div>
-                  <label style={labelS}>📅 Fecha de caducidad (opcional)</label>
-                  <input type="date" style={{ ...inp, colorScheme:"dark" }} value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} min={new Date().toISOString().split("T")[0]} />
-                  <p style={{ margin:"4px 0 0", color: darkMode?"#475569":"#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines manualmente.</p>
-                </div>
-                <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
-                  <button onClick={() => setModalComun(false)} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode?"#2E3A55":"#CBD5E1"}`, borderRadius:8, color: darkMode?"#64748B":"#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
-                  <button onClick={enviar} disabled={!titulo.trim()} style={{ padding:"9px 20px", background: titulo.trim() ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {modalComun && (
+        <ModalComunicado
+          darkMode={darkMode}
+          usuarioId={usuarioId}
+          empresaId={usuario?.empresaId ?? null}
+          onClose={() => setModalComun(false)}
+        />
+      )}
     </div>
   );
 }
