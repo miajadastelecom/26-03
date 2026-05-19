@@ -2170,18 +2170,20 @@ function ModalAdministracion({ onClose }) {
   );
 }
 
-function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
-  const [titulo,         setTitulo]         = useState("");
-  const [cuerpo,         setCuerpo]         = useState("");
-  const [fechaCaducidad, setFechaCaducidad] = useState("");
-  const [adjuntoPDF,     setAdjuntoPDF]     = useState(null);
+function ModalComunicado({ darkMode, usuarioId, empresaId, onClose, comunicadoInicial }) {
+  const esEdicion = Boolean(comunicadoInicial);
+
+  const [titulo,         setTitulo]         = useState(comunicadoInicial?.titulo        || "");
+  const [cuerpo,         setCuerpo]         = useState(comunicadoInicial?.cuerpo        || "");
+  const [fechaCaducidad, setFechaCaducidad] = useState(comunicadoInicial?.fechaCaducidad || "");
+  const [adjuntoPDF,     setAdjuntoPDF]     = useState(comunicadoInicial?.adjuntoPDF    || null);
   const [cargandoPDF,    setCargandoPDF]    = useState(false);
 
   // ── Destinatarios ──
-  const [tipoDestinatario, setTipoDestinatario] = useState("todos");   // "todos" | "empresas" | "usuarios"
-  const [empresasSel,      setEmpresasSel]      = useState([]);         // ids de empresas seleccionadas
-  const [usuariosSel,      setUsuariosSel]      = useState([]);         // ids de usuarios seleccionados
-  const [filtroUsuario,    setFiltroUsuario]     = useState("");        // búsqueda en lista de usuarios
+  const [tipoDestinatario, setTipoDestinatario] = useState(comunicadoInicial?.destinatarios?.tipo || "todos");
+  const [empresasSel,      setEmpresasSel]      = useState(comunicadoInicial?.destinatarios?.empresaIds || []);
+  const [usuariosSel,      setUsuariosSel]      = useState(comunicadoInicial?.destinatarios?.usuarioIds || []);
+  const [filtroUsuario,    setFiltroUsuario]     = useState("");
 
   const toggleEmpresa = (id) => setEmpresasSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleUsuario = (id) => setUsuariosSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -2213,24 +2215,38 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
 
   const enviar = async () => {
     if (!canPublicar) return;
-    const id = String(Date.now());
     const destinatarios = tipoDestinatario === "todos"
       ? { tipo: "todos" }
       : tipoDestinatario === "empresas"
         ? { tipo: "empresas", empresaIds: empresasSel }
         : { tipo: "usuarios", usuarioIds: usuariosSel };
 
-    await setDoc(doc(db, "comunicados", id), {
-      id,
-      titulo:         titulo.trim(),
-      cuerpo:         cuerpo.trim() || null,
-      autorId:        usuarioId,
-      empresaId:      empresaId,
-      fecha:          new Date().toISOString(),
-      fechaCaducidad: fechaCaducidad || null,
-      adjuntoPDF:     adjuntoPDF || null,
-      destinatarios,
-    });
+    if (esEdicion) {
+      // Editar comunicado existente — preservar id, autor y fecha original
+      await setDoc(doc(db, "comunicados", comunicadoInicial.id), {
+        ...comunicadoInicial,
+        titulo:         titulo.trim(),
+        cuerpo:         cuerpo.trim() || null,
+        fechaCaducidad: fechaCaducidad || null,
+        adjuntoPDF:     adjuntoPDF || null,
+        destinatarios,
+        fechaEditado:   new Date().toISOString(),
+      });
+    } else {
+      // Crear comunicado nuevo
+      const id = String(Date.now());
+      await setDoc(doc(db, "comunicados", id), {
+        id,
+        titulo:         titulo.trim(),
+        cuerpo:         cuerpo.trim() || null,
+        autorId:        usuarioId,
+        empresaId:      empresaId,
+        fecha:          new Date().toISOString(),
+        fechaCaducidad: fechaCaducidad || null,
+        adjuntoPDF:     adjuntoPDF || null,
+        destinatarios,
+      });
+    }
     onClose();
   };
 
@@ -2248,7 +2264,7 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
     <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={box}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-          <h3 style={{ margin:0, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:16, fontWeight:800 }}>💬 Nuevo comunicado</h3>
+          <h3 style={{ margin:0, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:16, fontWeight:800 }}>{esEdicion ? "✏️ Editar comunicado" : "💬 Nuevo comunicado"}</h3>
           <button onClick={onClose} style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#64748B", cursor:"pointer", fontSize:20 }}>×</button>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -2357,7 +2373,7 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
 
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
             <button onClick={onClose} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#64748B" : "#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
-            <button onClick={enviar} disabled={!canPublicar} style={{ padding:"9px 20px", background: canPublicar ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: canPublicar ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
+            <button onClick={enviar} disabled={!canPublicar} style={{ padding:"9px 20px", background: canPublicar ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: canPublicar ? "pointer" : "default", fontFamily:"inherit" }}>{esEdicion ? "💾 Guardar cambios" : "📤 Publicar"}</button>
           </div>
         </div>
       </div>
@@ -2379,9 +2395,10 @@ export default function App() {
   });
   const [notifs,        setNotifs]     = useState([]);
   const [verNotifs,     setVerNotifs]  = useState(false);
-  const [comunicados,   setComunicados] = useState([]);
-  const [verComunicados,setVerComunicados] = useState(false);
-  const [modalComun,    setModalComun]  = useState(false);
+  const [comunicados,     setComunicados]    = useState([]);
+  const [verComunicados,  setVerComunicados]  = useState(false);
+  const [modalComun,      setModalComun]      = useState(false);
+  const [comunicadoEditar,setComunicadoEditar] = useState(null);
   const [darkMode, setDarkMode] = useState(getDM);
   const toggleTheme = () => setDarkMode(d => {
     const next = !d;
@@ -2819,8 +2836,14 @@ export default function App() {
                                 <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>· {empresa?.nombre || ""}</span>
                               </div>
                               {puedeElim && (
-                                <button onClick={() => deleteDoc(doc(db, "comunicados", c.id))}
-                                  style={{ background: "none", border: "none", color: darkMode ? "#475569" : "#94A3B8", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }} title="Eliminar">🗑️</button>
+                                <div style={{ display:"flex", gap:4 }}>
+                                  <button
+                                    onClick={() => { setComunicadoEditar(c); setVerComunicados(false); }}
+                                    style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px", lineHeight:1 }} title="Editar">✏️</button>
+                                  <button
+                                    onClick={() => deleteDoc(doc(db, "comunicados", c.id))}
+                                    style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px", lineHeight:1 }} title="Eliminar">🗑️</button>
+                                </div>
                               )}
                             </div>
                             <p style={{ margin: "0 0 6px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>{c.titulo}</p>
@@ -2844,8 +2867,11 @@ export default function App() {
                                 📄 {c.adjuntoPDF.nombre}
                               </a>
                             )}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>{fmtFecha(c.fecha)}</span>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap:"wrap", gap:4 }}>
+                              <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>
+                                {fmtFecha(c.fecha)}
+                                {c.fechaEditado && <span style={{ color: darkMode ? "#2E3A55" : "#CBD5E1", marginLeft:6 }}>· editado {fmtFecha(c.fechaEditado)}</span>}
+                              </span>
                               {caducaDate && <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
                             </div>
                           </div>
@@ -3105,6 +3131,15 @@ export default function App() {
           usuarioId={usuarioId}
           empresaId={usuario?.empresaId ?? null}
           onClose={() => setModalComun(false)}
+        />
+      )}
+      {comunicadoEditar && (
+        <ModalComunicado
+          darkMode={darkMode}
+          usuarioId={usuarioId}
+          empresaId={usuario?.empresaId ?? null}
+          onClose={() => setComunicadoEditar(null)}
+          comunicadoInicial={comunicadoEditar}
         />
       )}
     </div>
