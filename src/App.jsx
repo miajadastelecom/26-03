@@ -2454,11 +2454,14 @@ export default function App() {
 
   // ── Firebase: comunicados en tiempo real ──
   useEffect(() => {
+    // Calcular empresaId directamente desde USUARIOS para no depender de 'usuario'
+    // que se define más abajo en el componente
+    const miEmpId = (USUARIOS.find(u => u.id === usuarioId))?.empresaId ?? null;
+    const miId    = usuarioId;
+
     const unsub = onSnapshot(collection(db, "comunicados"), snap => {
-      const ahora    = new Date();
-      const miEmpId  = usuario?.empresaId ?? null;
-      const miId     = usuarioId;
-      const activos  = snap.docs
+      const ahora   = new Date();
+      const activos = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(c => {
           // Caducidad
@@ -2474,7 +2477,7 @@ export default function App() {
       setComunicados(activos);
     });
     return () => unsub();
-  }, [usuarioId, usuario]);
+  }, [usuarioId]);
 
   // ── Firebase: notificaciones en tiempo real ──
   useEffect(() => {
