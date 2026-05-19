@@ -2174,24 +2174,52 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
   const [titulo,         setTitulo]         = useState("");
   const [cuerpo,         setCuerpo]         = useState("");
   const [fechaCaducidad, setFechaCaducidad] = useState("");
-  const [adjuntoPDF,     setAdjuntoPDF]     = useState(null);   // { nombre, dataUrl }
+  const [adjuntoPDF,     setAdjuntoPDF]     = useState(null);
   const [cargandoPDF,    setCargandoPDF]    = useState(false);
+
+  // ── Destinatarios ──
+  const [tipoDestinatario, setTipoDestinatario] = useState("todos");   // "todos" | "empresas" | "usuarios"
+  const [empresasSel,      setEmpresasSel]      = useState([]);         // ids de empresas seleccionadas
+  const [usuariosSel,      setUsuariosSel]      = useState([]);         // ids de usuarios seleccionados
+  const [filtroUsuario,    setFiltroUsuario]     = useState("");        // búsqueda en lista de usuarios
+
+  const toggleEmpresa = (id) => setEmpresasSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleUsuario = (id) => setUsuariosSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  // Seleccionar todos los usuarios de una empresa de golpe
+  const toggleEmpresaUsuarios = (empId) => {
+    const idsEmp = USUARIOS.filter(u => u.empresaId === empId).map(u => u.id);
+    const todosYa = idsEmp.every(id => usuariosSel.includes(id));
+    if (todosYa) setUsuariosSel(prev => prev.filter(id => !idsEmp.includes(id)));
+    else         setUsuariosSel(prev => [...new Set([...prev, ...idsEmp])]);
+  };
 
   const handlePDF = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.type !== "application/pdf") { alert("Solo se permiten archivos PDF."); return; }
-    if (file.size > 5 * 1024 * 1024) { alert("El archivo no puede superar los 5 MB."); return; }
+    if (file.size > 5 * 1024 * 1024)    { alert("El archivo no puede superar los 5 MB."); return; }
     setCargandoPDF(true);
     const r = new FileReader();
-    r.onload = () => { setAdjuntoPDF({ nombre: file.name, dataUrl: r.result }); setCargandoPDF(false); };
+    r.onload  = () => { setAdjuntoPDF({ nombre: file.name, dataUrl: r.result }); setCargandoPDF(false); };
     r.onerror = () => { alert("Error al leer el archivo."); setCargandoPDF(false); };
     r.readAsDataURL(file);
   };
 
+  const canPublicar = titulo.trim() && !cargandoPDF &&
+    (tipoDestinatario === "todos" ||
+    (tipoDestinatario === "empresas" && empresasSel.length > 0) ||
+    (tipoDestinatario === "usuarios" && usuariosSel.length > 0));
+
   const enviar = async () => {
-    if (!titulo.trim()) return;
+    if (!canPublicar) return;
     const id = String(Date.now());
+    const destinatarios = tipoDestinatario === "todos"
+      ? { tipo: "todos" }
+      : tipoDestinatario === "empresas"
+        ? { tipo: "empresas", empresaIds: empresasSel }
+        : { tipo: "usuarios", usuarioIds: usuariosSel };
+
     await setDoc(doc(db, "comunicados", id), {
       id,
       titulo:         titulo.trim(),
@@ -2201,14 +2229,20 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
       fecha:          new Date().toISOString(),
       fechaCaducidad: fechaCaducidad || null,
       adjuntoPDF:     adjuntoPDF || null,
+      destinatarios,
     });
     onClose();
   };
 
   const overlay = { position:"fixed", inset:0, background:"#00000088", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 };
-  const box     = { background: darkMode ? "#111827" : "#FFFFFF", borderRadius:14, width:"100%", maxWidth:460, padding:24, boxShadow:"0 24px 60px #0008" };
+  const box     = { background: darkMode ? "#111827" : "#FFFFFF", borderRadius:14, width:"100%", maxWidth:520, padding:24, boxShadow:"0 24px 60px #0008", maxHeight:"90vh", overflowY:"auto" };
   const inp     = { width:"100%", padding:"9px 12px", background: darkMode ? "#1A2235" : "#F8FAFC", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:13, fontFamily:"inherit", boxSizing:"border-box" };
   const labelS  = { display:"block", color: darkMode ? "#64748B" : "#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:5 };
+  const tabBtn  = (activo) => ({ padding:"6px 14px", borderRadius:7, border:`1px solid ${activo ? "#3182CE" : (darkMode ? "#2E3A55" : "#CBD5E1")}`, background: activo ? "#3182CE22" : "transparent", color: activo ? "#3182CE" : (darkMode ? "#64748B" : "#475569"), fontSize:12, fontWeight: activo ? 700 : 400, cursor:"pointer" });
+
+  const usuariosFiltrados = USUARIOS.filter(u =>
+    !filtroUsuario || u.nombre.toLowerCase().includes(filtroUsuario.toLowerCase())
+  );
 
   return (
     <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -2218,19 +2252,91 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
           <button onClick={onClose} style={{ background:"none", border:"none", color: darkMode ? "#475569" : "#64748B", cursor:"pointer", fontSize:20 }}>×</button>
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Título */}
           <div>
             <label style={labelS}>Título *</label>
             <input style={inp} placeholder="Ej: Reunión el viernes a las 10h" value={titulo} onChange={e => setTitulo(e.target.value)} maxLength={120} />
           </div>
+
+          {/* Mensaje */}
           <div>
             <label style={labelS}>Mensaje (opcional)</label>
             <textarea style={{ ...inp, minHeight:90, resize:"vertical" }} placeholder="Detalle del comunicado..." value={cuerpo} onChange={e => setCuerpo(e.target.value)} maxLength={600} />
           </div>
+
+          {/* ── DESTINATARIOS ── */}
+          <div>
+            <label style={labelS}>👥 Destinatarios</label>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+              <button style={tabBtn(tipoDestinatario === "todos")}    onClick={() => setTipoDestinatario("todos")}>🌐 Todos</button>
+              <button style={tabBtn(tipoDestinatario === "empresas")} onClick={() => setTipoDestinatario("empresas")}>🏢 Por empresa</button>
+              <button style={tabBtn(tipoDestinatario === "usuarios")} onClick={() => setTipoDestinatario("usuarios")}>👤 Por usuario</button>
+            </div>
+
+            {/* Selector por empresa */}
+            {tipoDestinatario === "empresas" && (
+              <div style={{ display:"flex", flexDirection:"column", gap:6, background: darkMode ? "#0F172A" : "#F8FAFC", borderRadius:8, padding:10, border:`1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
+                {EMPRESAS.map(emp => (
+                  <label key={emp.id} style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"4px 6px", borderRadius:6, background: empresasSel.includes(emp.id) ? (darkMode ? "#1A2235" : "#EFF6FF") : "transparent" }}>
+                    <input type="checkbox" checked={empresasSel.includes(emp.id)} onChange={() => toggleEmpresa(emp.id)} style={{ accentColor: emp.color }} />
+                    <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color, flexShrink:0 }} />
+                    <span style={{ color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:13, fontWeight: empresasSel.includes(emp.id) ? 700 : 400 }}>{emp.nombre}</span>
+                  </label>
+                ))}
+                {empresasSel.length === 0 && <p style={{ margin:0, color:"#E53E3E", fontSize:11 }}>Selecciona al menos una empresa.</p>}
+              </div>
+            )}
+
+            {/* Selector por usuario */}
+            {tipoDestinatario === "usuarios" && (
+              <div style={{ background: darkMode ? "#0F172A" : "#F8FAFC", borderRadius:8, padding:10, border:`1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
+                {/* Buscador */}
+                <input style={{ ...inp, marginBottom:8, fontSize:12, padding:"7px 10px" }} placeholder="🔍 Buscar usuario..." value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)} />
+                {/* Agrupados por empresa */}
+                <div style={{ maxHeight:200, overflowY:"auto", display:"flex", flexDirection:"column", gap:10 }}>
+                  {EMPRESAS.map(emp => {
+                    const usrsEmp = usuariosFiltrados.filter(u => u.empresaId === emp.id);
+                    if (usrsEmp.length === 0) return null;
+                    const todosEmpSel = usrsEmp.every(u => usuariosSel.includes(u.id));
+                    return (
+                      <div key={emp.id}>
+                        {/* Cabecera empresa — seleccionar todos */}
+                        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", marginBottom:4, paddingBottom:4, borderBottom:`1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
+                          <input type="checkbox" checked={todosEmpSel} onChange={() => toggleEmpresaUsuarios(emp.id)} style={{ accentColor: emp.color }} />
+                          <span style={{ width:8, height:8, borderRadius:"50%", background:emp.color }} />
+                          <span style={{ color: emp.color, fontSize:11, fontWeight:800, textTransform:"uppercase" }}>{emp.nombre}</span>
+                          <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize:10 }}>({usrsEmp.length})</span>
+                        </label>
+                        {/* Usuarios de la empresa */}
+                        <div style={{ display:"flex", flexDirection:"column", gap:3, paddingLeft:16 }}>
+                          {usrsEmp.map(u => (
+                            <label key={u.id} style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", padding:"3px 6px", borderRadius:5, background: usuariosSel.includes(u.id) ? (darkMode ? "#1A2235" : "#EFF6FF") : "transparent" }}>
+                              <input type="checkbox" checked={usuariosSel.includes(u.id)} onChange={() => toggleUsuario(u.id)} style={{ accentColor: emp.color }} />
+                              <span style={{ color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:12, fontWeight: usuariosSel.includes(u.id) ? 700 : 400 }}>{u.nombre}</span>
+                              <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize:10, marginLeft:"auto" }}>{u.rol}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {usuariosSel.length > 0 && (
+                  <p style={{ margin:"8px 0 0", color:"#38A169", fontSize:11, fontWeight:700 }}>✓ {usuariosSel.length} usuario{usuariosSel.length > 1 ? "s" : ""} seleccionado{usuariosSel.length > 1 ? "s" : ""}</p>
+                )}
+                {usuariosSel.length === 0 && <p style={{ margin:"8px 0 0", color:"#E53E3E", fontSize:11 }}>Selecciona al menos un usuario.</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Fecha caducidad */}
           <div>
             <label style={labelS}>📅 Fecha de caducidad (opcional)</label>
             <input type="date" style={{ ...inp, colorScheme:"dark" }} value={fechaCaducidad} onChange={e => setFechaCaducidad(e.target.value)} min={new Date().toISOString().split("T")[0]} />
             <p style={{ margin:"4px 0 0", color: darkMode ? "#475569" : "#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines manualmente.</p>
           </div>
+
           {/* Adjunto PDF */}
           <div>
             <label style={labelS}>📎 Adjuntar PDF (opcional, máx. 5 MB)</label>
@@ -2251,7 +2357,7 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose }) {
 
           <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:4 }}>
             <button onClick={onClose} style={{ padding:"9px 20px", background:"transparent", border:`1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius:8, color: darkMode ? "#64748B" : "#475569", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
-            <button onClick={enviar} disabled={!titulo.trim() || cargandoPDF} style={{ padding:"9px 20px", background: titulo.trim() && !cargandoPDF ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: titulo.trim() && !cargandoPDF ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
+            <button onClick={enviar} disabled={!canPublicar} style={{ padding:"9px 20px", background: canPublicar ? "#3182CE" : "#3182CE55", border:"none", borderRadius:8, color:"#fff", fontSize:13, fontWeight:700, cursor: canPublicar ? "pointer" : "default", fontFamily:"inherit" }}>📤 Publicar</button>
           </div>
         </div>
       </div>
@@ -2349,15 +2455,26 @@ export default function App() {
   // ── Firebase: comunicados en tiempo real ──
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "comunicados"), snap => {
-      const ahora = new Date();
-      const activos = snap.docs
+      const ahora    = new Date();
+      const miEmpId  = usuario?.empresaId ?? null;
+      const miId     = usuarioId;
+      const activos  = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => !c.fechaCaducidad || new Date(c.fechaCaducidad) >= ahora)
+        .filter(c => {
+          // Caducidad
+          if (c.fechaCaducidad && new Date(c.fechaCaducidad) < ahora) return false;
+          // Destinatarios
+          const dest = c.destinatarios;
+          if (!dest || dest.tipo === "todos") return true;
+          if (dest.tipo === "empresas") return (dest.empresaIds || []).includes(miEmpId);
+          if (dest.tipo === "usuarios") return (dest.usuarioIds || []).includes(miId);
+          return true;
+        })
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
       setComunicados(activos);
     });
     return () => unsub();
-  }, []);
+  }, [usuarioId, usuario]);
 
   // ── Firebase: notificaciones en tiempo real ──
   useEffect(() => {
@@ -2705,6 +2822,19 @@ export default function App() {
                             </div>
                             <p style={{ margin: "0 0 6px", color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>{c.titulo}</p>
                             {c.cuerpo && <p style={{ margin: "0 0 8px", color: darkMode ? "#94A3B8" : "#475569", fontSize: 12, lineHeight: 1.5 }}>{c.cuerpo}</p>}
+                            {/* Badge de destinatarios */}
+                            {c.destinatarios && c.destinatarios.tipo !== "todos" && (() => {
+                              const dest = c.destinatarios;
+                              if (dest.tipo === "empresas") {
+                                const nombres = (dest.empresaIds || []).map(id => EMPRESAS.find(e => e.id === id)?.nombre).filter(Boolean);
+                                return <p style={{ margin:"0 0 8px", color: darkMode ? "#475569" : "#64748B", fontSize:11 }}>🏢 {nombres.join(", ")}</p>;
+                              }
+                              if (dest.tipo === "usuarios") {
+                                const nombres = (dest.usuarioIds || []).map(id => USUARIOS.find(u => u.id === id)?.nombre).filter(Boolean);
+                                return <p style={{ margin:"0 0 8px", color: darkMode ? "#475569" : "#64748B", fontSize:11 }}>👤 {nombres.join(", ")}</p>;
+                              }
+                              return null;
+                            })()}
                             {c.adjuntoPDF && (
                               <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre}
                                 style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", background: darkMode ? "#1A2235" : "#EFF6FF", border:`1px solid ${darkMode ? "#2E3A55" : "#BFDBFE"}`, borderRadius:7, color: darkMode ? "#93C5FD" : "#1D4ED8", fontSize:11, fontWeight:700, textDecoration:"none", marginBottom:8 }}>
