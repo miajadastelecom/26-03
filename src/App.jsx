@@ -3547,6 +3547,41 @@ export default function App() {
     </div>
   );
 }
+// ── Constantes y helpers del módulo RRHH ─────────────────────────────────
+const DIAS_VACACIONES_ANUALES = 22;
+
+const TIPO_LABELS = {
+  vacaciones:  { label: "Vacaciones",   icon: "🏖️",  color: "#3182CE" },
+  ausencia:    { label: "Ausencia",     icon: "🤒",  color: "#D4A017" },
+  horasExtras: { label: "Horas extras", icon: "⏱️", color: "#805AD5" },
+};
+
+const ESTADO_COLORS = {
+  pendiente:  { color: "#D4A017", bg: "#D4A01722", label: "Pendiente" },
+  aprobada:   { color: "#38A169", bg: "#38A16922", label: "Aprobada"  },
+  rechazada:  { color: "#E53E3E", bg: "#E53E3E22", label: "Rechazada" },
+};
+
+function genIdRRHH() { return "rrhh_" + Date.now() + "_" + Math.floor(Math.random() * 9999); }
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function diffDiasLaborables(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  let count = 0;
+  const d = new Date(inicio);
+  const f = new Date(fin);
+  while (d <= f) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
 function GestionAdministrativa({ darkMode, usuarioActual, db, USUARIOS, EMPRESAS, addNotif, empColor }) {
   const [solicitudes, setSolicitudes]     = useState([]);
   const [vista, setVista]                 = useState("mis");          // mis | equipo | rrhh
