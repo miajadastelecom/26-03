@@ -3613,9 +3613,9 @@ export default function App() {
         {/* ── PERFIL ── */}
         {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
 
-      </div>{/* /contenido secciones */}
-      </div>{/* /contenido principal */}
-      </div>{/* /layout sidebar+contenido */}
+      </div>
+      </div>
+      </div>
 
       {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
