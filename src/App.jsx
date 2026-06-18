@@ -3121,7 +3121,7 @@ export default function App() {
           font-family:var(--font-body); font-size:13px; transition:border-color .12s,box-shadow .12s; }
         .input:focus,.select:focus,.textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in oklab,var(--primary) 14%,transparent); }
         .textarea { min-height:88px; resize:vertical; }
-        .select { appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2354646F' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; padding-right:32px; }
+        .select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2354646F' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:32px; }
         /* Modal */
         .modal-overlay { position:fixed; inset:0; background:rgba(15,30,40,.5); backdrop-filter:blur(2px);
           display:grid; place-items:start center; padding:48px 20px 40px; z-index:200; overflow:auto; }
