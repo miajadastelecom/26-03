@@ -78,8 +78,6 @@ const USUARIOS = [
   { id: 39, nombre: "Yolanda Jiménez",          empresaId: 6, rol: "trabajador" },
   { id: 40, nombre: "Laura Hernández",          empresaId: 6, rol: "trabajador" },
   { id: 41, nombre: "Iratxe Plaza",             empresaId: 6, rol: "trabajador" },
-  // RRHH
-  { id: 42, nombre: "Daniel Pizarro",           empresaId: 0, rol: "rrhh"       },
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
@@ -116,7 +114,7 @@ const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso
 
 // PINs por defecto (4 dígitos) — clave: userId, valor: pin string
 const PINS_DEFAULT = {};
-for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42]) {
+for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]) {
   PINS_DEFAULT[u] = "1234";
 }
 
@@ -2655,6 +2653,7 @@ export default function App() {
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
   const [sidebarOpen,   setSidebarOpen] = useState(true);   // sidebar visible en escritorio
+  const [theme, setTheme]                = useState(() => { try { return localStorage.getItem("app_theme") || "corporativo"; } catch { return "corporativo"; } });
   // ── Fichaje ──
   const [fichajes,      setFichajes]   = useState([]);
   const [fichajeActivo, setFichajeActivo] = useState(null); // { id, entrada }
@@ -2967,10 +2966,229 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: darkMode ? "#0A0F1C" : "#F1F5F9", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: darkMode ? "#E2E8F0" : "#0F172A", transition: "background .2s, color .2s" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <div className={`app${darkMode ? " dark" : ""}${theme === "vibrante" ? " vibrante" : ""}${theme === "minimal" ? " minimal" : ""}`}>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
       <style>{`
+        /* ── Sistema de diseño Grupo Laura Otero ── */
+        :root {
+          --blue:   #1683BE; --blue-d: #0F6798;
+          --green:  #5BA31A; --green-d:#478114;
+          --yellow: #E7A50C; --yellow-d:#C98A00;
+          --red:    #D71F35; --red-d:  #B01629;
+          --primary:      #1683BE;
+          --primary-d:    #0F6798;
+          --primary-ink:  #ffffff;
+          --primary-soft: color-mix(in oklab, var(--primary) 12%, #fff);
+          --primary-soft2:color-mix(in oklab, var(--primary) 7%, #fff);
+          --bg:        #EBEFF3; --surface: #FFFFFF; --surface-2: #F5F8FA; --surface-3: #EEF2F6;
+          --border:    #E0E6EC; --border-2: #ECF0F4;
+          --ink:       #17252F; --ink-2: #54646F; --ink-3: #8593A0;
+          --ok-soft:   color-mix(in oklab, #5BA31A 14%, #fff);
+          --warn-soft: color-mix(in oklab, #E7A50C 18%, #fff);
+          --danger:    #D71F35;
+          --danger-soft:color-mix(in oklab, #D71F35 12%, #fff);
+          --info-soft: color-mix(in oklab, #1683BE 12%, #fff);
+          --r-xs:4px; --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px; --r-pill:999px;
+          --sh-sm:0 1px 3px rgba(20,40,55,.06); --sh:0 2px 8px rgba(20,40,55,.08);
+          --sh-lg:0 8px 30px rgba(20,40,55,.12); --sh-pop:0 12px 40px rgba(20,40,55,.18);
+          --font-head:'Poppins',system-ui,sans-serif;
+          --font-body:'Public Sans',system-ui,sans-serif;
+          --pad:20px;
+          --nav-bg:#FFFFFF; --nav-fg:#54646F;
+          --nav-active-bg:color-mix(in oklab, #1683BE 10%, #fff);
+          --nav-active-fg:#0F6798; --nav-border:#E0E6EC;
+        }
+        /* Dark mode */
+        .dark {
+          --bg:#0D1117; --surface:#111827; --surface-2:#1A2235; --surface-3:#1E293B;
+          --border:#1E293B; --border-2:#0D1424;
+          --ink:#E2E8F0; --ink-2:#94A3B8; --ink-3:#475569;
+          --primary-soft:color-mix(in oklab, #1683BE 18%, #111827);
+          --primary-soft2:color-mix(in oklab, #1683BE 10%, #111827);
+          --ok-soft:color-mix(in oklab,#5BA31A 18%,#111827);
+          --warn-soft:color-mix(in oklab,#E7A50C 18%,#111827);
+          --danger-soft:color-mix(in oklab,#D71F35 18%,#111827);
+          --info-soft:color-mix(in oklab,#1683BE 18%,#111827);
+          --nav-bg:#111827; --nav-fg:#94A3B8;
+          --nav-active-bg:rgba(22,131,190,.18);
+          --nav-active-fg:#60A5FA; --nav-border:#1E293B;
+        }
+        /* Vibrante */
+        .vibrante {
+          --nav-bg:linear-gradient(180deg,#0F6798,#0a3a55);
+          --nav-fg:rgba(255,255,255,.82); --nav-active-bg:rgba(255,255,255,.16);
+          --nav-active-fg:#ffffff; --nav-border:transparent;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin:0; padding:0; font-family:var(--font-body); color:var(--ink); background:var(--bg);
+          -webkit-font-smoothing:antialiased; font-size:15px; line-height:1.45; }
+        h1,h2,h3,h4,h5 { font-family:var(--font-head); font-weight:600; margin:0; letter-spacing:-.01em; color:var(--ink); }
+        ::-webkit-scrollbar { width:10px; }
+        ::-webkit-scrollbar-thumb { background:#cfd8df; border-radius:99px; border:3px solid transparent; background-clip:padding-box; }
+        /* App shell */
+        .app { display:flex; height:100vh; width:100%; overflow:hidden; background:var(--bg); font-family:var(--font-body); color:var(--ink); }
+        .app-sidebar { width:248px; flex:none; display:flex; flex-direction:column; background:var(--nav-bg); border-right:1px solid var(--nav-border); transition:width .2s; overflow:hidden; height:100vh; position:sticky; top:0; }
+        .app-sidebar.collapsed { width:64px; }
+        .app-main { flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+        .app-topbar { height:60px; flex:none; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; padding:0 24px; }
+        .app-content { flex:1; overflow:auto; padding:28px 32px 60px; }
+        /* Sidebar head */
+        .sidebar-head { padding:18px 16px 10px; border-bottom:1px solid var(--nav-border); display:flex; align-items:center; justify-content:space-between; min-height:64px; }
+        .sidebar-logo { display:flex; align-items:center; gap:10px; overflow:hidden; }
+        .sidebar-logo-text { line-height:1.1; }
+        .sidebar-logo-text b { display:block; font-family:var(--font-head); font-weight:700; font-size:14px; color:var(--green-d); white-space:nowrap; }
+        .sidebar-logo-text span { display:block; font-family:var(--font-head); font-weight:700; font-size:14px; color:var(--blue-d); white-space:nowrap; margin-top:-1px; }
+        .dark .sidebar-logo-text b, .dark .sidebar-logo-text span { color:#fff; }
+        .vibrante .sidebar-logo-text b, .vibrante .sidebar-logo-text span { color:#fff; }
+        /* Nav */
+        .app-nav { display:flex; flex-direction:column; gap:2px; padding:8px 10px; flex:1; overflow-y:auto; }
+        .nav-sec-label { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+          color:var(--ink-3); padding:12px 8px 4px; white-space:nowrap; overflow:hidden; }
+        .nav-btn { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:var(--r-sm);
+          color:var(--nav-fg); font-weight:600; font-size:13.5px; cursor:pointer; border:none;
+          background:transparent; text-align:left; width:100%; white-space:nowrap; transition:background .12s,color .12s;
+          font-family:var(--font-body); position:relative; overflow:hidden; }
+        .nav-btn:hover { background:color-mix(in oklab,var(--nav-fg) 9%,transparent); }
+        .nav-btn.active { background:var(--nav-active-bg); color:var(--nav-active-fg); font-weight:700; }
+        .nav-btn .nav-label { overflow:hidden; white-space:nowrap; transition:opacity .15s,width .15s; }
+        .app-sidebar.collapsed .nav-btn { justify-content:center; padding:9px; }
+        .app-sidebar.collapsed .nav-label,
+        .app-sidebar.collapsed .nav-sec-label { opacity:0; width:0; overflow:hidden; pointer-events:none; }
+        .nav-badge { margin-left:auto; min-width:19px; height:19px; padding:0 5px; border-radius:99px;
+          background:var(--danger); color:#fff; font-size:10px; font-weight:700; display:grid; place-items:center; flex-shrink:0; }
+        .app-sidebar.collapsed .nav-badge { position:absolute; top:4px; right:4px; }
+        /* Sidebar footer */
+        .sidebar-footer { padding:10px; border-top:1px solid var(--nav-border); }
+        .sidebar-user { display:flex; align-items:center; gap:10px; padding:10px 10px; border-radius:var(--r-sm);
+          background:var(--surface-2); overflow:hidden; }
+        .sidebar-user-info { overflow:hidden; flex:1; min-width:0; }
+        .sidebar-user-info strong { display:block; font-size:12px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .sidebar-user-info span { font-size:11px; color:var(--ink-3); white-space:nowrap; }
+        .vibrante .sidebar-user { background:rgba(255,255,255,.1); }
+        .vibrante .sidebar-user-info strong, .vibrante .sidebar-user-info span { color:rgba(255,255,255,.85); }
+        .dark .sidebar-user { background:var(--surface-2); }
+        /* Sidebar actions */
+        .sidebar-actions { display:flex; align-items:center; gap:4px; padding:8px 10px; flex-wrap:wrap; }
+        .app-sidebar.collapsed .sidebar-actions { flex-direction:column; }
+        .sidebar-action-btn { background:transparent; border:1px solid transparent; border-radius:var(--r-xs);
+          padding:6px 8px; cursor:pointer; font-size:15px; color:var(--nav-fg); transition:background .12s; position:relative; }
+        .sidebar-action-btn:hover { background:color-mix(in oklab,var(--nav-fg) 10%,transparent); }
+        .action-badge { position:absolute; top:1px; right:1px; background:var(--primary); color:#fff;
+          border-radius:50%; width:13px; height:13px; font-size:8px; font-weight:900;
+          display:flex; align-items:center; justify-content:center; }
+        .toggle-btn { background:transparent; border:none; cursor:pointer; color:var(--nav-fg);
+          padding:4px; line-height:1; font-size:16px; flex-shrink:0; }
+        /* Topbar */
+        .topbar-title { font-family:var(--font-head); font-weight:700; font-size:15px; color:var(--ink); }
+        .topbar-sub { font-size:12px; font-weight:600; color:var(--primary); margin-left:8px; }
+        .topbar-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
+        /* Cards */
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--sh-sm); }
+        .card-pad { padding:var(--pad); }
+        /* KPI */
+        .kpi-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
+        .kpi-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; display:flex; flex-direction:column; gap:6px; }
+        .kpi-v { font-family:var(--font-head); font-weight:700; font-size:28px; line-height:1; letter-spacing:-.02em; }
+        .kpi-l { font-size:12px; color:var(--ink-2); font-weight:600; }
+        /* Badges */
+        .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:var(--r-pill);
+          font-size:11px; font-weight:700; letter-spacing:.02em; border:1px solid transparent; }
+        .badge-blue   { background:var(--info-soft);   color:var(--blue-d);  border-color:color-mix(in oklab,var(--blue) 25%,transparent); }
+        .badge-green  { background:var(--ok-soft);    color:var(--green-d); border-color:color-mix(in oklab,var(--green) 25%,transparent); }
+        .badge-yellow { background:var(--warn-soft);  color:var(--yellow-d);border-color:color-mix(in oklab,var(--yellow) 25%,transparent); }
+        .badge-red    { background:var(--danger-soft); color:var(--red-d);   border-color:color-mix(in oklab,var(--red) 25%,transparent); }
+        .badge-gray   { background:var(--surface-3);  color:var(--ink-2);   border-color:var(--border); }
+        .badge-pri    { background:var(--primary-soft); color:var(--primary-d); border-color:color-mix(in oklab,var(--primary) 25%,transparent); }
+        /* Buttons */
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; height:38px; padding:0 16px;
+          border-radius:var(--r-sm); border:1px solid transparent; background:var(--surface-3); color:var(--ink);
+          font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap; font-family:var(--font-body);
+          transition:background .12s,box-shadow .12s; }
+        .btn-pri { background:var(--primary); color:#fff; border-color:var(--primary-d); }
+        .btn-pri:hover { background:var(--primary-d); }
+        .btn-outline { background:transparent; border-color:var(--border); color:var(--ink-2); }
+        .btn-outline:hover { border-color:var(--primary); color:var(--primary-d); }
+        .btn-ghost { background:transparent; border-color:transparent; color:var(--ink-2); }
+        .btn-ghost:hover { background:var(--surface-3); }
+        .btn-sm { height:32px; padding:0 12px; font-size:12px; }
+        .btn-icon { width:38px; padding:0; }
+        .btn-danger { background:var(--danger); color:#fff; border-color:var(--red-d); }
+        /* Inputs */
+        .field { display:flex; flex-direction:column; gap:6px; }
+        .field > label { font-size:12px; font-weight:600; color:var(--ink-2); }
+        .input,.select,.textarea { width:100%; min-height:40px; padding:9px 12px; background:var(--surface);
+          border:1px solid var(--border); border-radius:var(--r-sm); color:var(--ink); outline:none;
+          font-family:var(--font-body); font-size:13px; transition:border-color .12s,box-shadow .12s; }
+        .input:focus,.select:focus,.textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in oklab,var(--primary) 14%,transparent); }
+        .textarea { min-height:88px; resize:vertical; }
+        .select { appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2354646F' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; padding-right:32px; }
+        /* Modal */
+        .modal-overlay { position:fixed; inset:0; background:rgba(15,30,40,.5); backdrop-filter:blur(2px);
+          display:grid; place-items:start center; padding:48px 20px 40px; z-index:200; overflow:auto; }
+        .modal-card { width:100%; background:var(--surface); border-radius:var(--r-xl); box-shadow:var(--sh-pop); border:1px solid var(--border); }
+        .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+        .modal-body { padding:20px; display:flex; flex-direction:column; gap:16px; }
+        .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid var(--border); }
+        /* Tabs */
+        .tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:18px; }
+        .tab { padding:9px 14px; font-weight:600; font-size:13px; color:var(--ink-2); cursor:pointer;
+          border:none; background:transparent; border-bottom:2px solid transparent; margin-bottom:-1px;
+          transition:color .12s,border-color .12s; font-family:var(--font-body); white-space:nowrap; }
+        .tab:hover { color:var(--ink); }
+        .tab.active { color:var(--primary-d); border-bottom-color:var(--primary); }
+        /* Table */
+        .tbl { width:100%; border-collapse:collapse; }
+        .tbl th { text-align:left; font-size:11px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.04em; padding:0 14px 10px; }
+        .tbl td { padding:12px 14px; border-top:1px solid var(--border-2); font-size:13px; }
+        .tbl tbody tr { cursor:pointer; transition:background .1s; }
+        .tbl tbody tr:hover { background:var(--surface-2); }
+        /* Chips */
+        .chip { display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 13px;
+          border-radius:var(--r-pill); border:1px solid var(--border); background:var(--surface);
+          font-size:12px; font-weight:600; color:var(--ink-2); cursor:pointer; white-space:nowrap;
+          font-family:var(--font-body); transition:all .12s; }
+        .chip:hover { border-color:var(--primary); color:var(--primary-d); }
+        .chip.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+        /* Progress bar */
+        .bar { height:7px; border-radius:99px; background:var(--surface-3); overflow:hidden; }
+        .bar > i { display:block; height:100%; border-radius:99px; background:var(--primary); }
+        /* Seg */
+        .seg { display:inline-flex; background:var(--surface-3); border-radius:var(--r-sm); padding:3px; gap:2px; }
+        .seg button { border:none; background:transparent; padding:6px 12px; border-radius:var(--r-xs);
+          font-weight:600; font-size:12px; color:var(--ink-2); cursor:pointer; font-family:var(--font-body);
+          display:inline-flex; align-items:center; gap:5px; }
+        .seg button.active { background:var(--surface); color:var(--primary-d); box-shadow:var(--sh-sm); }
+        /* Search */
+        .search-wrap { position:relative; display:flex; align-items:center; }
+        .search-wrap input { padding-left:36px; height:38px; border-radius:var(--r-sm); min-width:220px; }
+        .search-icon { position:absolute; left:10px; color:var(--ink-3); pointer-events:none; }
+        /* Stripe */
+        .stripe4 { display:flex; height:4px; border-radius:99px; overflow:hidden; width:48px; }
+        .stripe4 i { flex:1; }
+        .stripe4 .sy { background:var(--yellow); } .stripe4 .sr { background:var(--red); }
+        .stripe4 .sg { background:var(--green); } .stripe4 .sb { background:var(--blue); }
+        /* Utils */
+        .row { display:flex; align-items:center; }
+        .col { display:flex; flex-direction:column; }
+        .gap-1{gap:4px} .gap-2{gap:8px} .gap-3{gap:12px} .gap-4{gap:16px}
+        .grow{flex:1} .wrap{flex-wrap:wrap} .muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
+        .center{align-items:center} .between{justify-content:space-between}
+        .t-xs{font-size:12px} .t-sm{font-size:13px} .b6{font-weight:600} .b7{font-weight:700}
+        .nowrap{white-space:nowrap} .mono{font-family:'IBM Plex Mono',monospace}
+        /* Page layout */
+        .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+        .page-title { font-family:var(--font-head); font-size:22px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+        .page-sub { color:var(--ink-2); font-size:13px; margin-top:2px; }
+        /* Animations */
+        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .fade-up { animation:fadeUp .28s cubic-bezier(.2,.7,.3,1) both; }
+        .fade-in { animation:fadeIn .2s ease both; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes parpadeo {
+          0%,100% { opacity:1; border-color:#D71F35; box-shadow:0 0 0 0px #D71F3544; }
+          50%      { opacity:0.72; border-color:#D71F35BB; box-shadow:0 0 0 4px #D71F3522; }
+        }
         @keyframes parpadeo {
           0%, 100% { opacity: 1; border-color: #E53E3E; box-shadow: 0 0 0 0px #E53E3E44; }
           50%       { opacity: 0.72; border-color: #E53E3EBB; box-shadow: 0 0 0 4px #E53E3E22; }
@@ -3018,250 +3236,142 @@ export default function App() {
         }
       `}</style>
 
-      {/* NAV */}
-      {/* ═══════════════════════════════════════════
-          LAYOUT: SIDEBAR + CONTENIDO
-      ═══════════════════════════════════════════ */}
-      <div style={{ display:"flex", minHeight:"100vh" }}>
+      {/* ── LAYOUT PRINCIPAL ── */}
+      <div style={{ display:"contents" }}>
 
         {/* ── SIDEBAR ── */}
-        {/* Overlay móvil para cerrar sidebar */}
-        {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:109, display:"none" }} className="sidebar-overlay" />}
 
-        <aside className={`sidebar-aside${sidebarOpen ? " open" : ""}`} style={{
-          width:          sidebarOpen ? 240 : 64,
-          minWidth:       sidebarOpen ? 240 : 64,
-          background:     darkMode ? "#0A0F1E" : "#0F172A",
-          display:        "flex",
-          flexDirection:  "column",
-          position:       "sticky",
-          top:            0,
-          height:         "100vh",
-          overflowY:      "auto",
-          overflowX:      "hidden",
-          transition:     "width .25s ease",
-          zIndex:         110,
-          flexShrink:     0,
-        }}>
+        <aside className={`app-sidebar${!sidebarOpen ? " collapsed" : ""}${darkMode ? "" : ""}${theme === "vibrante" ? " vibrante" : ""}`}>
+
           {/* Logo + toggle */}
-          <div style={{ padding: sidebarOpen ? "20px 16px 12px" : "20px 10px 12px", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", borderBottom:"1px solid #ffffff11" }}>
+          <div className="sidebar-head">
             {sidebarOpen && (
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:8, background: empColor, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", fontSize:15, flexShrink:0 }}>
-                  {(EMPRESAS.find(e=>e.id===usuario?.empresaId)?.inicial || "T")}
+              <div className="sidebar-logo">
+                <div style={{ width:36, height:36, borderRadius:9, background: empColor, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", fontSize:14, flexShrink:0 }}>
+                  {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.inicial || "G"}
                 </div>
-                <div>
-                  <p style={{ margin:0, color:"#fff", fontSize:13, fontWeight:800, lineHeight:1.2 }}>Tickets</p>
-                  <p style={{ margin:0, color:"#ffffff55", fontSize:10 }}>Sistema interempresarial</p>
+                <div className="sidebar-logo-text">
+                  <b>Grupo</b>
+                  <span>Laura Otero</span>
                 </div>
               </div>
             )}
-            <button onClick={() => setSidebarOpen(v => !v)}
-              style={{ background:"none", border:"none", color:"#ffffff66", cursor:"pointer", fontSize:18, padding:4, lineHeight:1, flexShrink:0 }}>
+            <button onClick={() => setSidebarOpen(v => !v)} className="toggle-btn" title={sidebarOpen ? "Colapsar" : "Expandir"}>
               {sidebarOpen ? "◀" : "▶"}
             </button>
           </div>
 
-          {/* Avatar usuario */}
-          <div style={{ padding: sidebarOpen ? "16px 16px 8px" : "16px 10px 8px", borderBottom:"1px solid #ffffff11" }}>
-            {sidebarOpen ? (
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:38, height:38, borderRadius:"50%", background: empColor + "44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:14, flexShrink:0 }}>
-                  {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "U"}
-                </div>
-                <div style={{ overflow:"hidden" }}>
-                  <p style={{ margin:0, color:"#fff", fontSize:12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usuario?.nombre}</p>
-                  <span style={{ background: empColor + "44", color: empColor, borderRadius:4, padding:"1px 7px", fontSize:9, fontWeight:800, textTransform:"uppercase" }}>{usuario?.rol}</span>
-                </div>
-              </div>
-            ) : (
-              <div style={{ width:38, height:38, borderRadius:"50%", background: empColor + "44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:14, margin:"0 auto" }}>
-                {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "U"}
-              </div>
-            )}
-          </div>
-
-          {/* Menú de navegación */}
-          <nav style={{ flex:1, padding:"8px 8px", display:"flex", flexDirection:"column", gap:2 }}>
+          {/* Navegación */}
+          <nav className="app-nav">
             {[
-              { id:"tickets",    icon:"🎫", label:"Tickets" },
-              { id:"historial",  icon:"🗂️", label:"Historial" },
+              { id:"tickets",    icon:"🎫", label:"Tickets",              badge: tickets.filter(t=>t.estado==="Pendiente"||t.estado==="Asignado"||t.estado==="En progreso").length || null },
+              { id:"historial",  icon:"🗂️",  label:"Historial" },
               { id:"calendario", icon:"📅", label:"Calendario" },
               ...( ["director","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
               { id:"fichaje",    icon:"🕐", label:"Fichaje" },
               { id:"nominas",    icon:"💰", label:"Nóminas" },
+              { separator: true, label: "RRHH" },
               { id:"rrhh",       icon:"👔", label:"Gest. Administrativa" },
+              { separator: true, label: "Perfil" },
               { id:"perfil",     icon:"👤", label:"Perfil" },
-            ].map(item => {
+            ].map((item, idx) => {
+              if (item.separator) return (
+                <div key={idx} className="nav-sec-label">{sidebarOpen ? item.label : ""}</div>
+              );
               const activo = seccion === item.id;
               return (
                 <button key={item.id} onClick={() => setSeccion(item.id)}
                   title={!sidebarOpen ? item.label : ""}
-                  style={{
-                    display:        "flex",
-                    alignItems:     "center",
-                    gap:            10,
-                    padding:        sidebarOpen ? "10px 12px" : "10px",
-                    justifyContent: sidebarOpen ? "flex-start" : "center",
-                    borderRadius:   8,
-                    border:         "none",
-                    cursor:         "pointer",
-                    fontFamily:     "inherit",
-                    fontSize:       13,
-                    fontWeight:     activo ? 700 : 400,
-                    background:     activo ? empColor + "33" : "transparent",
-                    color:          activo ? empColor : "#ffffff66",
-                    borderLeft:     activo ? `3px solid ${empColor}` : "3px solid transparent",
-                    transition:     "all .15s",
-                    width:          "100%",
-                    whiteSpace:     "nowrap",
-                  }}
-                  onMouseEnter={e => { if(!activo) { e.currentTarget.style.background="#ffffff11"; e.currentTarget.style.color="#ffffffcc"; }}}
-                  onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#ffffff66"; }}}>
-                  <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
-                  {sidebarOpen && <span>{item.label}</span>}
-                  {/* Indicador fichaje activo */}
+                  className={`nav-btn${activo ? " active" : ""}`}>
+                  <span style={{ fontSize:16, flexShrink:0, lineHeight:1 }}>{item.icon}</span>
+                  <span className="nav-label">{item.label}</span>
                   {item.id === "fichaje" && fichajeActivo && (
-                    <span style={{ marginLeft:"auto", width:8, height:8, borderRadius:"50%", background:"#38A169", flexShrink:0, animation:"parpadeo 1.6s ease-in-out infinite" }} />
+                    <span style={{ marginLeft:"auto", width:7, height:7, borderRadius:"50%", background:"#5BA31A", flexShrink:0, animation:"parpadeo 1.6s ease-in-out infinite" }} />
                   )}
+                  {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
                 </button>
               );
             })}
           </nav>
 
           {/* Acciones inferiores */}
-          <div style={{ padding:"8px", borderTop:"1px solid #ffffff11", display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
-            {/* Comunicados */}
+          <div className="sidebar-actions">
             <div style={{ position:"relative" }}>
-              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
-                style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
+              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados" className="sidebar-action-btn">
                 💬
-                {comunicados.length > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#3182CE", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{comunicados.length}</span>}
+                {comunicados.length > 0 && <span className="action-badge">{comunicados.length}</span>}
               </button>
             </div>
-            {/* Notificaciones */}
             <div style={{ position:"relative" }}>
-              <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones"
-                style={{ background: notifsNoLeidas > 0 ? "#1A2235" : "transparent", border: notifsNoLeidas > 0 ? "1px solid #2E3A55" : "1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
+              <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones" className="sidebar-action-btn">
                 🔔
-                {notifsNoLeidas > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#E53E3E", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{notifsNoLeidas}</span>}
+                {notifsNoLeidas > 0 && <span className="action-badge">{notifsNoLeidas}</span>}
               </button>
             </div>
-            {/* Tema */}
-            <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"}
-              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, color:"#ffffff88" }}>
+            <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"} className="sidebar-action-btn">
               {darkMode ? "☀️" : "🌙"}
             </button>
-            {/* Admin */}
             {(usuario?.rol === "director" || usuario?.rol === "administrador") && (
-              <button onClick={() => setModalAdmin(true)} title="Administración"
-                style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#F6AD55" }}>⚙️</button>
+              <button onClick={() => setModalAdmin(true)} title="Administración" className="sidebar-action-btn">⚙️</button>
             )}
-            {/* Logout */}
-            <button onClick={handleLogout} title="Cerrar sesión"
-              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#ffffff44" }}>🚪</button>
+            <button onClick={handleLogout} title="Cerrar sesión" className="sidebar-action-btn">🚪</button>
           </div>
 
-          {/* Paneles flotantes comunicados y notificaciones */}
+          {/* Usuario */}
+          {sidebarOpen && (
+            <div className="sidebar-footer">
+              <div className="sidebar-user">
+                <div style={{ width:34, height:34, borderRadius:"50%", background:empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:13, flexShrink:0 }}>
+                  {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
+                </div>
+                <div className="sidebar-user-info">
+                  <strong>{usuario?.nombre}</strong>
+                  <span>{usuario?.rol} · {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Paneles flotantes */}
           {verComunicados && (
-            <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode ? "#111827" : "#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(360px,calc(100vw - 80px))", maxHeight:480, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
-              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background: darkMode?"#111827":"#FFFFFF", zIndex:1 }}>
-                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
+            <div style={{ position:"fixed", left: sidebarOpen ? 258 : 74, bottom:60, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, width:"min(360px,calc(100vw - 80px))", maxHeight:480, overflowY:"auto", zIndex:200, boxShadow:"var(--sh-pop)" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:"var(--surface)", zIndex:1 }}>
+                <span style={{ color:"var(--ink)", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
                 <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                   {(usuario?.rol === "director" || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
                     <button onClick={() => { setModalComun(true); setVerComunicados(false); }}
-                      style={{ background:"#3182CE22", border:"1px solid #3182CE55", borderRadius:6, padding:"3px 10px", color:"#3182CE", fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Nuevo</button>
+                      className="btn btn-sm btn-outline">+ Nuevo</button>
                   )}
-                  <button onClick={() => setVerComunicados(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:18 }}>×</button>
+                  <button onClick={() => setVerComunicados(false)} className="btn btn-sm btn-ghost" style={{ fontSize:16, padding:"0 8px" }}>×</button>
                 </div>
               </div>
               {comunicados.length === 0
-                ? <p style={{ padding:20, color: darkMode?"#475569":"#64748B", fontSize:13, margin:0, textAlign:"center" }}>No hay comunicados activos</p>
+                ? <p style={{ padding:20, color:"var(--ink-3)", fontSize:13, margin:0, textAlign:"center" }}>No hay comunicados activos</p>
                 : comunicados.map(c => {
                     const autor      = USUARIOS.find(u => u.id === c.autorId);
                     const empresa    = EMPRESAS.find(e => e.id === c.empresaId);
                     const caducaDate = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
-                    const puedeElim  = usuario?.id === c.autorId || usuario?.rol === "director" || usuario?.rol === "administrador";
-                    return (
-                      <div key={c.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#F1F5F9"}`, borderLeft:`3px solid ${empresa?.color||"#3182CE"}` }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <span style={{ width:8, height:8, borderRadius:"50%", background:empresa?.color||"#3182CE", display:"inline-block" }} />
-                            <span style={{ color: darkMode?"#94A3B8":"#64748B", fontSize:11, fontWeight:700 }}>{autor?.nombre||"Sistema"}</span>
-                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>· {empresa?.nombre||""}</span>
-                          </div>
-                          {puedeElim && (
-                            <div style={{ display:"flex", gap:4 }}>
-                              <button onClick={() => { setComunicadoEditar(c); setVerComunicados(false); }}
-                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Editar">✏️</button>
-                              <button onClick={() => deleteDoc(doc(db,"comunicados",c.id))}
-                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Eliminar">🗑️</button>
-                            </div>
-                          )}
-                        </div>
-                        <p style={{ margin:"0 0 6px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontWeight:600, lineHeight:1.45 }}>{c.titulo}</p>
-                        {c.cuerpo && <p style={{ margin:"0 0 8px", color: darkMode?"#94A3B8":"#475569", fontSize:12, lineHeight:1.5 }}>{c.cuerpo}</p>}
-                        {c.destinatarios && c.destinatarios.tipo !== "todos" && (() => {
-                          const dest = c.destinatarios;
-                          if (dest.tipo === "empresas") { const nombres = (dest.empresaIds||[]).map(id=>EMPRESAS.find(e=>e.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>🏢 {nombres.join(", ")}</p>; }
-                          if (dest.tipo === "usuarios") { const nombres = (dest.usuarioIds||[]).map(id=>USUARIOS.find(u=>u.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>👤 {nombres.join(", ")}</p>; }
-                          return null;
-                        })()}
-                        {c.adjuntoPDF && <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", background: darkMode?"#1A2235":"#EFF6FF", border:`1px solid ${darkMode?"#2E3A55":"#BFDBFE"}`, borderRadius:7, color: darkMode?"#93C5FD":"#1D4ED8", fontSize:11, fontWeight:700, textDecoration:"none", marginBottom:8 }}>📄 {c.adjuntoPDF.nombre}</a>}
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:4 }}>
-                          <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>{fmtFecha(c.fecha)}{c.fechaEditado && <span style={{ marginLeft:6, color: darkMode?"#2E3A55":"#CBD5E1" }}>· editado {fmtFecha(c.fechaEditado)}</span>}</span>
-                          {caducaDate && <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric"})}</span>}
-                        </div>
-                      </div>
-                    );
-                  })
-              }
-            </div>
-          )}
-          {verNotifs && (
-            <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(320px,calc(100vw-80px))", maxHeight:360, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
-              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>Notificaciones</span>
-                <button onClick={() => setVerNotifs(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:18 }}>×</button>
-              </div>
-              {misNotifs.length === 0
-                ? <p style={{ padding:16, color: darkMode?"#475569":"#64748B", fontSize:13, margin:0 }}>Sin notificaciones</p>
-                : misNotifs.slice(0,20).map(n => (
-                  <div key={n.id} style={{ padding:"10px 16px", borderBottom:"1px solid #0D1424", background: n.leida ? "transparent" : darkMode?"#1A2235":"#F8FAFC" }}>
-                    <p style={{ margin:"0 0 3px", color:"#CBD5E1", fontSize:12 }}>{n.texto}</p>
-                    <p style={{ margin:0, color: darkMode?"#475569":"#64748B", fontSize:10 }}>{fmtFecha(n.fecha)}</p>
-                  </div>
-                ))
-              }
-            </div>
-          )}
-        </aside>
 
         {/* ── CONTENIDO PRINCIPAL ── */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F8FAFC" }}>
-
-          {/* Header top bar */}
-          <div style={{ background: darkMode?"#0D1424":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, padding:"0 24px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+        <div className="app-main">
+          <header className="app-topbar">
             <div>
-              <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:15 }}>
-                {{ tickets:"🎫 Tickets", historial:"🗂️ Historial", calendario:"📅 Calendario", reportes:"📄 Reportes", fichaje:"🕐 Fichaje", nominas:"💰 Nóminas", perfil:"👤 Perfil", rrhh:"👔 Gestión Administrativa" }[seccion]}
+              <span className="topbar-title">
+                {{ tickets:"Tickets", historial:"Historial", calendario:"Calendario", reportes:"Reportes", fichaje:"Fichaje", nominas:"Nóminas", perfil:"Perfil", rrhh:"Gestión Administrativa" }[seccion]}
               </span>
-              <span style={{ marginLeft:10, color: empColor, fontSize:11, fontWeight:700 }}>· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
+              <span className="topbar-sub">· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div className="topbar-right">
               {fichajeActivo && (
-                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700 }}>
-                  🟢 Fichado desde {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
-                </span>
+                <span className="badge badge-green">🟢 Fichado desde {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}</span>
               )}
-              <div style={{ width:32, height:32, borderRadius:"50%", background: empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12 }}>
+              <div style={{ width:34, height:34, borderRadius:"50%", background:empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12, flexShrink:0 }}>
                 {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
               </div>
             </div>
-          </div>
-
-          {/* Contenido de cada sección */}
-          <div style={{ flex:1, padding:"24px 28px", overflowY:"auto" }}>
+          </header>
+          <div className="app-content">
 {/* BANNER COMUNICADOS ACTIVOS */}
         {comunicados.length > 0 && (() => {
           // Mostrar solo el más reciente como banner
@@ -3503,19 +3613,6 @@ export default function App() {
         {/* ── PERFIL ── */}
         {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
 
-        {/* ── GESTIÓN ADMINISTRATIVA (RRHH) ── */}
-        {seccion === "rrhh" && (
-          <GestionAdministrativa
-            darkMode={darkMode}
-            usuarioActual={usuario}
-            db={db}
-            USUARIOS={USUARIOS}
-            EMPRESAS={EMPRESAS}
-            addNotif={addNotif}
-            empColor={empColor}
-          />
-        )}
-
       </div>{/* /contenido secciones */}
       </div>{/* /contenido principal */}
       </div>{/* /layout sidebar+contenido */}
@@ -3547,28 +3644,23 @@ export default function App() {
     </div>
   );
 }
-// ── Constantes y helpers del módulo RRHH ─────────────────────────────────
+// ── Constantes módulo Gestión Administrativa ─────────────────────────────
 const DIAS_VACACIONES_ANUALES = 22;
-
 const TIPO_LABELS = {
   vacaciones:  { label: "Vacaciones",   icon: "🏖️",  color: "#3182CE" },
   ausencia:    { label: "Ausencia",     icon: "🤒",  color: "#D4A017" },
   horasExtras: { label: "Horas extras", icon: "⏱️", color: "#805AD5" },
 };
-
 const ESTADO_COLORS = {
   pendiente:  { color: "#D4A017", bg: "#D4A01722", label: "Pendiente" },
   aprobada:   { color: "#38A169", bg: "#38A16922", label: "Aprobada"  },
   rechazada:  { color: "#E53E3E", bg: "#E53E3E22", label: "Rechazada" },
 };
-
 function genIdRRHH() { return "rrhh_" + Date.now() + "_" + Math.floor(Math.random() * 9999); }
-
 function fmtDate(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
 }
-
 function diffDiasLaborables(inicio, fin) {
   if (!inicio || !fin) return 0;
   let count = 0;
