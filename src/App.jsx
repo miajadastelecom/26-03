@@ -3374,7 +3374,7 @@ export default function App() {
             </div>
             <Calendario tickets={tickets} ticketsPersonales={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} usuarioActual={usuario} onVerTicket={t => setDetalle(t)} onVerTicketPersonal={t => setDetalleMiTicket(t)} />
           </div>
-        ) : (
+        ) : seccion === "tickets" ? (
           <>
             {/* ESTADÍSTICAS — clicables */}
             <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
@@ -3462,7 +3462,7 @@ export default function App() {
               </div>
             )}
           </>
-        )}
+        ) : null}
 
         {/* ── FICHAJE ── */}
         {seccion === "fichaje" && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
