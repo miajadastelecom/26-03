@@ -78,6 +78,7 @@ const USUARIOS = [
   { id: 39, nombre: "Yolanda Jiménez",          empresaId: 6, rol: "trabajador" },
   { id: 40, nombre: "Laura Hernández",          empresaId: 6, rol: "trabajador" },
   { id: 41, nombre: "Iratxe Plaza",             empresaId: 6, rol: "trabajador" },
+  { id: 42, nombre: "Daniel Pizarro",           empresaId: 0, rol: "rrhh"       },
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
@@ -114,7 +115,7 @@ const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso
 
 // PINs por defecto (4 dígitos) — clave: userId, valor: pin string
 const PINS_DEFAULT = {};
-for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]) {
+for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42]) {
   PINS_DEFAULT[u] = "1234";
 }
 
@@ -2653,7 +2654,6 @@ export default function App() {
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
   const [sidebarOpen,   setSidebarOpen] = useState(true);   // sidebar visible en escritorio
-  const [theme, setTheme]                = useState(() => { try { return localStorage.getItem("app_theme") || "corporativo"; } catch { return "corporativo"; } });
   // ── Fichaje ──
   const [fichajes,      setFichajes]   = useState([]);
   const [fichajeActivo, setFichajeActivo] = useState(null); // { id, entrada }
@@ -2966,145 +2966,300 @@ export default function App() {
   }
 
   return (
-    <div className={`app${darkMode ? " dark" : ""}${theme === "vibrante" ? " vibrante" : ""}${theme === "minimal" ? " minimal" : ""}`}>
+    <div style={{ minHeight: "100vh", background: darkMode ? "#0A0F1C" : "#F1F5F9", fontFamily: "'DM Sans','Segoe UI',sans-serif", color: darkMode ? "#E2E8F0" : "#0F172A", transition: "background .2s, color .2s" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes parpadeo {
+          0%, 100% { opacity: 1; border-color: #E53E3E; box-shadow: 0 0 0 0px #E53E3E44; }
+          50%       { opacity: 0.72; border-color: #E53E3EBB; box-shadow: 0 0 0 4px #E53E3E22; }
+        }
+        *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { margin: 0; padding: 0; }
+        @media (max-width: 640px) {
+          .nav-logo-subtitle { display: none !important; }
+          .nav-user-role { display: none !important; }
+          .nav-empresa-name { display: none !important; }
+          .nav-user-nombre { display: none !important; }
+          .nav-user-tags { display: none !important; }
+          /* Sidebar responsive */
+          @media (max-width: 768px) {
+            .sidebar-aside { position: fixed !important; left: 0; top: 0; height: 100vh !important; z-index: 200 !important; transform: translateX(-100%); transition: transform .25s ease !important; }
+            .sidebar-aside.open { transform: translateX(0) !important; }
+            .sidebar-overlay { display: block !important; }
+          }
+          .sidebar-overlay { display: none; position: fixed; inset: 0; background: #00000066; z-index: 199; }
+          .nav-tab-btn { padding: 0 14px !important; font-size: 12px !important; white-space: nowrap !important; }
+          .nav-user-info { gap: 6px !important; }
+          .nav-action-btns { gap: 4px !important; }
+          .nav-action-btns button { padding: 5px 7px !important; font-size: 15px !important; }
+          .main-content { padding: 14px 10px !important; }
+          .stats-grid { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
+          .tickets-grid { grid-template-columns: 1fr !important; }
+          .filters-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+          .filters-row > * { width: 100% !important; min-width: unset !important; box-sizing: border-box; }
+          .btn-nuevo { margin-left: 0 !important; width: 100% !important; }
+          .btn-mis-tickets { width: 100% !important; }
+          .modal-overlay { padding: 0 !important; align-items: flex-end !important; }
+          .modal-box { padding: 18px 14px !important; border-radius: 16px 16px 0 0 !important; margin: 0 !important; max-width: 100% !important; width: 100% !important; max-height: 92vh; overflow-y: auto; }
+          .form-grid-3 { grid-template-columns: 1fr !important; }
+          .form-grid-2 { grid-template-columns: 1fr !important; }
+          .login-box { padding: 24px 16px !important; margin: 16px !important; border-radius: 12px !important; }
+          .banner-director { flex-direction: column !important; padding: 12px !important; }
+          .historial-subtabs { width: 100% !important; }
+          .historial-subtabs button { flex: 1 !important; }
+        }
+        @media (max-width: 380px) {
+          .nav-tab-btn { padding: 0 10px !important; font-size: 11px !important; }
+          .stats-grid { gap: 6px !important; }
+          .nav-action-btns button { padding: 4px 6px !important; }
+        }
+      `}</style>
 
-
-      {/* ── LAYOUT PRINCIPAL ── */}
-      <div style={{ display:"contents" }}>
+      {/* NAV */}
+      {/* ═══════════════════════════════════════════
+          LAYOUT: SIDEBAR + CONTENIDO
+      ═══════════════════════════════════════════ */}
+      <div style={{ display:"flex", minHeight:"100vh" }}>
 
         {/* ── SIDEBAR ── */}
-        {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", zIndex:109, display:"none" }} className="sidebar-overlay" />}
+        {/* Overlay móvil para cerrar sidebar */}
+        {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
-        <aside className={`app-sidebar${!sidebarOpen ? " collapsed" : ""}${darkMode ? "" : ""}${theme === "vibrante" ? " vibrante" : ""}`}>
-
+        <aside className={`sidebar-aside${sidebarOpen ? " open" : ""}`} style={{
+          width:          sidebarOpen ? 240 : 64,
+          minWidth:       sidebarOpen ? 240 : 64,
+          background:     darkMode ? "#0A0F1E" : "#0F172A",
+          display:        "flex",
+          flexDirection:  "column",
+          position:       "sticky",
+          top:            0,
+          height:         "100vh",
+          overflowY:      "auto",
+          overflowX:      "hidden",
+          transition:     "width .25s ease",
+          zIndex:         110,
+          flexShrink:     0,
+        }}>
           {/* Logo + toggle */}
-          <div className="sidebar-head">
+          <div style={{ padding: sidebarOpen ? "20px 16px 12px" : "20px 10px 12px", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", borderBottom:"1px solid #ffffff11" }}>
             {sidebarOpen && (
-              <div className="sidebar-logo">
-                <div style={{ width:36, height:36, borderRadius:9, background: empColor, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", fontSize:14, flexShrink:0 }}>
-                  {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.inicial || "G"}
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:34, height:34, borderRadius:8, background: empColor, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", fontSize:15, flexShrink:0 }}>
+                  {(EMPRESAS.find(e=>e.id===usuario?.empresaId)?.inicial || "T")}
                 </div>
-                <div className="sidebar-logo-text">
-                  <b>Grupo</b>
-                  <span>Laura Otero</span>
+                <div>
+                  <p style={{ margin:0, color:"#fff", fontSize:13, fontWeight:800, lineHeight:1.2 }}>Tickets</p>
+                  <p style={{ margin:0, color:"#ffffff55", fontSize:10 }}>Sistema interempresarial</p>
                 </div>
               </div>
             )}
-            <button onClick={() => setSidebarOpen(v => !v)} className="toggle-btn" title={sidebarOpen ? "Colapsar" : "Expandir"}>
+            <button onClick={() => setSidebarOpen(v => !v)}
+              style={{ background:"none", border:"none", color:"#ffffff66", cursor:"pointer", fontSize:18, padding:4, lineHeight:1, flexShrink:0 }}>
               {sidebarOpen ? "◀" : "▶"}
             </button>
           </div>
 
-          {/* Navegación */}
-          <nav className="app-nav">
+          {/* Avatar usuario */}
+          <div style={{ padding: sidebarOpen ? "16px 16px 8px" : "16px 10px 8px", borderBottom:"1px solid #ffffff11" }}>
+            {sidebarOpen ? (
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:38, height:38, borderRadius:"50%", background: empColor + "44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:14, flexShrink:0 }}>
+                  {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "U"}
+                </div>
+                <div style={{ overflow:"hidden" }}>
+                  <p style={{ margin:0, color:"#fff", fontSize:12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usuario?.nombre}</p>
+                  <span style={{ background: empColor + "44", color: empColor, borderRadius:4, padding:"1px 7px", fontSize:9, fontWeight:800, textTransform:"uppercase" }}>{usuario?.rol}</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ width:38, height:38, borderRadius:"50%", background: empColor + "44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:14, margin:"0 auto" }}>
+                {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "U"}
+              </div>
+            )}
+          </div>
+
+          {/* Menú de navegación */}
+          <nav style={{ flex:1, padding:"8px 8px", display:"flex", flexDirection:"column", gap:2 }}>
             {[
-              { id:"tickets",    icon:"🎫", label:"Tickets",              badge: tickets.filter(t=>t.estado==="Pendiente"||t.estado==="Asignado"||t.estado==="En progreso").length || null },
-              { id:"historial",  icon:"🗂️",  label:"Historial" },
+              { id:"tickets",    icon:"🎫", label:"Tickets" },
+              { id:"historial",  icon:"🗂️", label:"Historial" },
               { id:"calendario", icon:"📅", label:"Calendario" },
               ...( ["director","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
               { id:"fichaje",    icon:"🕐", label:"Fichaje" },
               { id:"nominas",    icon:"💰", label:"Nóminas" },
-              { separator: true, label: "RRHH" },
-              { id:"rrhh",       icon:"👔", label:"Gest. Administrativa" },
-              { separator: true, label: "Perfil" },
               { id:"perfil",     icon:"👤", label:"Perfil" },
-            ].map((item, idx) => {
-              if (item.separator) return (
-                <div key={idx} className="nav-sec-label">{sidebarOpen ? item.label : ""}</div>
-              );
+            ].map(item => {
               const activo = seccion === item.id;
               return (
                 <button key={item.id} onClick={() => setSeccion(item.id)}
                   title={!sidebarOpen ? item.label : ""}
-                  className={`nav-btn${activo ? " active" : ""}`}>
-                  <span style={{ fontSize:16, flexShrink:0, lineHeight:1 }}>{item.icon}</span>
-                  <span className="nav-label">{item.label}</span>
+                  style={{
+                    display:        "flex",
+                    alignItems:     "center",
+                    gap:            10,
+                    padding:        sidebarOpen ? "10px 12px" : "10px",
+                    justifyContent: sidebarOpen ? "flex-start" : "center",
+                    borderRadius:   8,
+                    border:         "none",
+                    cursor:         "pointer",
+                    fontFamily:     "inherit",
+                    fontSize:       13,
+                    fontWeight:     activo ? 700 : 400,
+                    background:     activo ? empColor + "33" : "transparent",
+                    color:          activo ? empColor : "#ffffff66",
+                    borderLeft:     activo ? `3px solid ${empColor}` : "3px solid transparent",
+                    transition:     "all .15s",
+                    width:          "100%",
+                    whiteSpace:     "nowrap",
+                  }}
+                  onMouseEnter={e => { if(!activo) { e.currentTarget.style.background="#ffffff11"; e.currentTarget.style.color="#ffffffcc"; }}}
+                  onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#ffffff66"; }}}>
+                  <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
+                  {sidebarOpen && <span>{item.label}</span>}
+                  {/* Indicador fichaje activo */}
                   {item.id === "fichaje" && fichajeActivo && (
-                    <span style={{ marginLeft:"auto", width:7, height:7, borderRadius:"50%", background:"#5BA31A", flexShrink:0, animation:"parpadeo 1.6s ease-in-out infinite" }} />
+                    <span style={{ marginLeft:"auto", width:8, height:8, borderRadius:"50%", background:"#38A169", flexShrink:0, animation:"parpadeo 1.6s ease-in-out infinite" }} />
                   )}
-                  {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
                 </button>
               );
             })}
           </nav>
 
           {/* Acciones inferiores */}
-          <div className="sidebar-actions">
+          <div style={{ padding:"8px", borderTop:"1px solid #ffffff11", display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
+            {/* Comunicados */}
             <div style={{ position:"relative" }}>
-              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados" className="sidebar-action-btn">
+              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
+                style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
                 💬
-                {comunicados.length > 0 && <span className="action-badge">{comunicados.length}</span>}
+                {comunicados.length > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#3182CE", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{comunicados.length}</span>}
               </button>
             </div>
+            {/* Notificaciones */}
             <div style={{ position:"relative" }}>
-              <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones" className="sidebar-action-btn">
+              <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones"
+                style={{ background: notifsNoLeidas > 0 ? "#1A2235" : "transparent", border: notifsNoLeidas > 0 ? "1px solid #2E3A55" : "1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
                 🔔
-                {notifsNoLeidas > 0 && <span className="action-badge">{notifsNoLeidas}</span>}
+                {notifsNoLeidas > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#E53E3E", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{notifsNoLeidas}</span>}
               </button>
             </div>
-            <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"} className="sidebar-action-btn">
+            {/* Tema */}
+            <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"}
+              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, color:"#ffffff88" }}>
               {darkMode ? "☀️" : "🌙"}
             </button>
+            {/* Admin */}
             {(usuario?.rol === "director" || usuario?.rol === "administrador") && (
-              <button onClick={() => setModalAdmin(true)} title="Administración" className="sidebar-action-btn">⚙️</button>
+              <button onClick={() => setModalAdmin(true)} title="Administración"
+                style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#F6AD55" }}>⚙️</button>
             )}
-            <button onClick={handleLogout} title="Cerrar sesión" className="sidebar-action-btn">🚪</button>
+            {/* Logout */}
+            <button onClick={handleLogout} title="Cerrar sesión"
+              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#ffffff44" }}>🚪</button>
           </div>
 
-          {/* Usuario */}
-          {sidebarOpen && (
-            <div className="sidebar-footer">
-              <div className="sidebar-user">
-                <div style={{ width:34, height:34, borderRadius:"50%", background:empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:13, flexShrink:0 }}>
-                  {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
-                </div>
-                <div className="sidebar-user-info">
-                  <strong>{usuario?.nombre}</strong>
-                  <span>{usuario?.rol} · {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Paneles flotantes */}
+          {/* Paneles flotantes comunicados y notificaciones */}
           {verComunicados && (
-            <div style={{ position:"fixed", left: sidebarOpen ? 258 : 74, bottom:60, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, width:"min(360px,calc(100vw - 80px))", maxHeight:480, overflowY:"auto", zIndex:200, boxShadow:"var(--sh-pop)" }}>
-              <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background:"var(--surface)", zIndex:1 }}>
-                <span style={{ color:"var(--ink)", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
+            <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode ? "#111827" : "#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(360px,calc(100vw - 80px))", maxHeight:480, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
+              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background: darkMode?"#111827":"#FFFFFF", zIndex:1 }}>
+                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
                 <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                   {(usuario?.rol === "director" || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
                     <button onClick={() => { setModalComun(true); setVerComunicados(false); }}
-                      className="btn btn-sm btn-outline">+ Nuevo</button>
+                      style={{ background:"#3182CE22", border:"1px solid #3182CE55", borderRadius:6, padding:"3px 10px", color:"#3182CE", fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Nuevo</button>
                   )}
-                  <button onClick={() => setVerComunicados(false)} className="btn btn-sm btn-ghost" style={{ fontSize:16, padding:"0 8px" }}>×</button>
+                  <button onClick={() => setVerComunicados(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:18 }}>×</button>
                 </div>
               </div>
               {comunicados.length === 0
-                ? <p style={{ padding:20, color:"var(--ink-3)", fontSize:13, margin:0, textAlign:"center" }}>No hay comunicados activos</p>
+                ? <p style={{ padding:20, color: darkMode?"#475569":"#64748B", fontSize:13, margin:0, textAlign:"center" }}>No hay comunicados activos</p>
                 : comunicados.map(c => {
                     const autor      = USUARIOS.find(u => u.id === c.autorId);
                     const empresa    = EMPRESAS.find(e => e.id === c.empresaId);
                     const caducaDate = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
+                    const puedeElim  = usuario?.id === c.autorId || usuario?.rol === "director" || usuario?.rol === "administrador";
+                    return (
+                      <div key={c.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#F1F5F9"}`, borderLeft:`3px solid ${empresa?.color||"#3182CE"}` }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ width:8, height:8, borderRadius:"50%", background:empresa?.color||"#3182CE", display:"inline-block" }} />
+                            <span style={{ color: darkMode?"#94A3B8":"#64748B", fontSize:11, fontWeight:700 }}>{autor?.nombre||"Sistema"}</span>
+                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>· {empresa?.nombre||""}</span>
+                          </div>
+                          {puedeElim && (
+                            <div style={{ display:"flex", gap:4 }}>
+                              <button onClick={() => { setComunicadoEditar(c); setVerComunicados(false); }}
+                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Editar">✏️</button>
+                              <button onClick={() => deleteDoc(doc(db,"comunicados",c.id))}
+                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Eliminar">🗑️</button>
+                            </div>
+                          )}
+                        </div>
+                        <p style={{ margin:"0 0 6px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontWeight:600, lineHeight:1.45 }}>{c.titulo}</p>
+                        {c.cuerpo && <p style={{ margin:"0 0 8px", color: darkMode?"#94A3B8":"#475569", fontSize:12, lineHeight:1.5 }}>{c.cuerpo}</p>}
+                        {c.destinatarios && c.destinatarios.tipo !== "todos" && (() => {
+                          const dest = c.destinatarios;
+                          if (dest.tipo === "empresas") { const nombres = (dest.empresaIds||[]).map(id=>EMPRESAS.find(e=>e.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>🏢 {nombres.join(", ")}</p>; }
+                          if (dest.tipo === "usuarios") { const nombres = (dest.usuarioIds||[]).map(id=>USUARIOS.find(u=>u.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>👤 {nombres.join(", ")}</p>; }
+                          return null;
+                        })()}
+                        {c.adjuntoPDF && <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", background: darkMode?"#1A2235":"#EFF6FF", border:`1px solid ${darkMode?"#2E3A55":"#BFDBFE"}`, borderRadius:7, color: darkMode?"#93C5FD":"#1D4ED8", fontSize:11, fontWeight:700, textDecoration:"none", marginBottom:8 }}>📄 {c.adjuntoPDF.nombre}</a>}
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:4 }}>
+                          <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>{fmtFecha(c.fecha)}{c.fechaEditado && <span style={{ marginLeft:6, color: darkMode?"#2E3A55":"#CBD5E1" }}>· editado {fmtFecha(c.fechaEditado)}</span>}</span>
+                          {caducaDate && <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric"})}</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+              }
+            </div>
+          )}
+          {verNotifs && (
+            <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(320px,calc(100vw-80px))", maxHeight:360, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
+              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>Notificaciones</span>
+                <button onClick={() => setVerNotifs(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:18 }}>×</button>
+              </div>
+              {misNotifs.length === 0
+                ? <p style={{ padding:16, color: darkMode?"#475569":"#64748B", fontSize:13, margin:0 }}>Sin notificaciones</p>
+                : misNotifs.slice(0,20).map(n => (
+                  <div key={n.id} style={{ padding:"10px 16px", borderBottom:"1px solid #0D1424", background: n.leida ? "transparent" : darkMode?"#1A2235":"#F8FAFC" }}>
+                    <p style={{ margin:"0 0 3px", color:"#CBD5E1", fontSize:12 }}>{n.texto}</p>
+                    <p style={{ margin:0, color: darkMode?"#475569":"#64748B", fontSize:10 }}>{fmtFecha(n.fecha)}</p>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        </aside>
 
         {/* ── CONTENIDO PRINCIPAL ── */}
-        <div className="app-main">
-          <header className="app-topbar">
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F8FAFC" }}>
+
+          {/* Header top bar */}
+          <div style={{ background: darkMode?"#0D1424":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, padding:"0 24px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
             <div>
-              <span className="topbar-title">
-                {{ tickets:"Tickets", historial:"Historial", calendario:"Calendario", reportes:"Reportes", fichaje:"Fichaje", nominas:"Nóminas", perfil:"Perfil", rrhh:"Gestión Administrativa" }[seccion]}
+              <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:15 }}>
+                {{ tickets:"🎫 Tickets", historial:"🗂️ Historial", calendario:"📅 Calendario", reportes:"📄 Reportes", fichaje:"🕐 Fichaje", nominas:"💰 Nóminas", perfil:"👤 Perfil", rrhh:"👔 Gestión Administrativa" }[seccion]}
               </span>
-              <span className="topbar-sub">· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
+              <span style={{ marginLeft:10, color: empColor, fontSize:11, fontWeight:700 }}>· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
             </div>
-            <div className="topbar-right">
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {fichajeActivo && (
-                <span className="badge badge-green">🟢 Fichado desde {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}</span>
+                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700 }}>
+                  🟢 Fichado desde {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
+                </span>
               )}
-              <div style={{ width:34, height:34, borderRadius:"50%", background:empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12, flexShrink:0 }}>
+              <div style={{ width:32, height:32, borderRadius:"50%", background: empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12 }}>
                 {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
               </div>
             </div>
-          </header>
-          <div className="app-content">
+          </div>
+
+          {/* Contenido de cada sección */}
+          <div style={{ flex:1, padding:"24px 28px", overflowY:"auto" }}>
 {/* BANNER COMUNICADOS ACTIVOS */}
         {comunicados.length > 0 && (() => {
           // Mostrar solo el más reciente como banner
@@ -3343,12 +3498,25 @@ export default function App() {
           );
         })()}
 
+        {/* ── GESTIÓN ADMINISTRATIVA (RRHH) ── */}
+        {seccion === "rrhh" && (
+          <GestionAdministrativa
+            darkMode={darkMode}
+            usuarioActual={usuario}
+            db={db}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+            addNotif={addNotif}
+            empColor={empColor}
+          />
+        )}
+
         {/* ── PERFIL ── */}
         {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
 
-      </div>
-      </div>
-      </div>
+      </div>{/* /contenido secciones */}
+      </div>{/* /contenido principal */}
+      </div>{/* /layout sidebar+contenido */}
 
       {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
       {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
@@ -3377,23 +3545,32 @@ export default function App() {
     </div>
   );
 }
-// ── Constantes módulo Gestión Administrativa ─────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════
+// MÓDULO: Gestión Administrativa (RRHH)
+// ═══════════════════════════════════════════════════════════════════
+
 const DIAS_VACACIONES_ANUALES = 22;
+
 const TIPO_LABELS = {
   vacaciones:  { label: "Vacaciones",   icon: "🏖️",  color: "#3182CE" },
   ausencia:    { label: "Ausencia",     icon: "🤒",  color: "#D4A017" },
   horasExtras: { label: "Horas extras", icon: "⏱️", color: "#805AD5" },
 };
+
 const ESTADO_COLORS = {
   pendiente:  { color: "#D4A017", bg: "#D4A01722", label: "Pendiente" },
   aprobada:   { color: "#38A169", bg: "#38A16922", label: "Aprobada"  },
   rechazada:  { color: "#E53E3E", bg: "#E53E3E22", label: "Rechazada" },
 };
+
 function genIdRRHH() { return "rrhh_" + Date.now() + "_" + Math.floor(Math.random() * 9999); }
+
 function fmtDate(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
 }
+
 function diffDiasLaborables(inicio, fin) {
   if (!inicio || !fin) return 0;
   let count = 0;
@@ -3408,39 +3585,36 @@ function diffDiasLaborables(inicio, fin) {
 }
 
 function GestionAdministrativa({ darkMode, usuarioActual, db, USUARIOS, EMPRESAS, addNotif, empColor }) {
-  const [solicitudes, setSolicitudes]     = useState([]);
-  const [vista, setVista]                 = useState("mis");          // mis | equipo | rrhh
-  const [modalNueva, setModalNueva]       = useState(false);
-  const [detalleSol, setDetalleSol]       = useState(null);
-  const [filtroEmpresa, setFiltroEmpresa] = useState("todas");
-  const [filtroTipo, setFiltroTipo]       = useState("todos");
-  const [filtroEstado, setFiltroEstado]   = useState("todos");
-  const [filtroAnio, setFiltroAnio]       = useState(String(new Date().getFullYear()));
-  const [filtroPeriodo, setFiltroPeriodo] = useState("anual");        // anual | trimestre | mes
-  const [filtroMes, setFiltroMes]         = useState("todos");
-  const [filtroTrimestre, setFiltroTrimestre] = useState("todos");
+  const [solicitudes, setSolicitudes]       = React.useState([]);
+  const [vista, setVista]                   = React.useState("mis");
+  const [modalNueva, setModalNueva]         = React.useState(false);
+  const [detalleSol, setDetalleSol]         = React.useState(null);
+  const [filtroEmpresa, setFiltroEmpresa]   = React.useState("todas");
+  const [filtroTipo, setFiltroTipo]         = React.useState("todos");
+  const [filtroEstado, setFiltroEstado]     = React.useState("todos");
+  const [filtroAnio, setFiltroAnio]         = React.useState(String(new Date().getFullYear()));
+  const [filtroPeriodo, setFiltroPeriodo]   = React.useState("anual");
+  const [filtroMes, setFiltroMes]           = React.useState("todos");
+  const [filtroTrimestre, setFiltroTrimestre] = React.useState("todos");
 
-  const esRRHH       = usuarioActual?.rol === "rrhh";
-  const esAdmin      = ["director", "administrador", "rrhh"].includes(usuarioActual?.rol);
-  const esEncargado  = usuarioActual?.rol === "encargado";
+  const esRRHH      = usuarioActual?.rol === "rrhh";
+  const esAdmin     = ["director","administrador","rrhh"].includes(usuarioActual?.rol);
+  const esEncargado = usuarioActual?.rol === "encargado";
 
-  // ── Firestore: escuchar solicitudes ──
-  useEffect(() => {
+  React.useEffect(() => {
     const unsub = onSnapshot(collection(db, "solicitudesRRHH"), (snap) => {
       setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return unsub;
   }, [db]);
 
-  // ── Mis solicitudes ──
-  const misSolicitudes = useMemo(() =>
+  const misSolicitudes = React.useMemo(() =>
     solicitudes.filter(s => s.usuarioId === usuarioActual?.id)
       .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)),
     [solicitudes, usuarioActual]
   );
 
-  // ── Solicitudes de mi empresa (encargado) ──
-  const solicitudesEquipo = useMemo(() => {
+  const solicitudesEquipo = React.useMemo(() => {
     if (!esEncargado && !esAdmin) return [];
     return solicitudes
       .filter(s => {
@@ -3451,228 +3625,89 @@ function GestionAdministrativa({ darkMode, usuarioActual, db, USUARIOS, EMPRESAS
       .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
   }, [solicitudes, usuarioActual, esEncargado, esAdmin, USUARIOS]);
 
-  // ── Saldo de vacaciones del usuario actual ──
-  const saldoVacaciones = useMemo(() => {
+  const saldoVacaciones = React.useMemo(() => {
     const anioActual = new Date().getFullYear();
     const aprobadas  = misSolicitudes
       .filter(s => s.tipo === "vacaciones" && s.estado === "aprobada")
-      .filter(s => {
-        const anio = s.fechaInicio ? new Date(s.fechaInicio).getFullYear() : null;
-        return anio === anioActual;
-      })
+      .filter(s => s.fechaInicio ? new Date(s.fechaInicio).getFullYear() === anioActual : false)
       .reduce((acc, s) => acc + (s.diasSolicitados || 0), 0);
     return { total: DIAS_VACACIONES_ANUALES, usados: aprobadas, disponibles: DIAS_VACACIONES_ANUALES - aprobadas };
   }, [misSolicitudes]);
 
-  // ── Crear solicitud ──
   const crearSolicitud = async (data) => {
     const id  = genIdRRHH();
-    const sol = {
-      id,
-      ...data,
-      usuarioId:     usuarioActual.id,
-      empresaId:     usuarioActual.empresaId,
-      estado:        "pendiente",
-      fechaCreacion: new Date().toISOString(),
-      motivoRechazo: null,
-      encargadoId:   null,
-    };
+    const sol = { id, ...data, usuarioId: usuarioActual.id, empresaId: usuarioActual.empresaId, estado: "pendiente", fechaCreacion: new Date().toISOString(), motivoRechazo: null, encargadoId: null };
     await setDoc(doc(db, "solicitudesRRHH", id), sol);
-    // Notificar al encargado de la empresa
     const enc = USUARIOS.find(u => u.empresaId === usuarioActual.empresaId && u.rol === "encargado");
-    if (enc) {
-      addNotif({
-        usuarioDestinoId: enc.id,
-        tipo:             "rrhh_nueva",
-        texto:            `Nueva solicitud de ${TIPO_LABELS[data.tipo]?.label}: ${usuarioActual.nombre} ha solicitado ${data.tipo === "vacaciones" ? data.diasSolicitados + " días" : data.tipo === "horasExtras" ? data.horasExtra + " horas" : "ausencia"}.`,
-        solicitudId:      id,
-      });
-    }
-    // También notificar a RRHH
+    if (enc) addNotif({ usuarioDestinoId: enc.id, tipo: "rrhh_nueva", texto: `Nueva solicitud de ${TIPO_LABELS[data.tipo]?.label} de ${usuarioActual.nombre}.`, solicitudId: id });
     const rrhh = USUARIOS.find(u => u.rol === "rrhh");
-    if (rrhh) {
-      addNotif({
-        usuarioDestinoId: rrhh.id,
-        tipo:             "rrhh_nueva",
-        texto:            `Nueva solicitud de ${TIPO_LABELS[data.tipo]?.label} de ${usuarioActual.nombre} (${EMPRESAS.find(e => e.id === usuarioActual.empresaId)?.nombre}).`,
-        solicitudId:      id,
-      });
-    }
+    if (rrhh) addNotif({ usuarioDestinoId: rrhh.id, tipo: "rrhh_nueva", texto: `Nueva solicitud de ${TIPO_LABELS[data.tipo]?.label} de ${usuarioActual.nombre}.`, solicitudId: id });
   };
 
-  // ── Aprobar solicitud ──
   const aprobarSolicitud = async (sol) => {
-    await updateDoc(doc(db, "solicitudesRRHH", sol.id), {
-      estado:      "aprobada",
-      encargadoId: usuarioActual.id,
-      fechaGestion: new Date().toISOString(),
-    });
-    addNotif({
-      usuarioDestinoId: sol.usuarioId,
-      tipo:             "rrhh_aprobada",
-      texto:            `Tu solicitud de ${TIPO_LABELS[sol.tipo]?.label} ha sido aprobada ✅`,
-      solicitudId:      sol.id,
-    });
+    await updateDoc(doc(db, "solicitudesRRHH", sol.id), { estado: "aprobada", encargadoId: usuarioActual.id, fechaGestion: new Date().toISOString() });
+    addNotif({ usuarioDestinoId: sol.usuarioId, tipo: "rrhh_aprobada", texto: `Tu solicitud de ${TIPO_LABELS[sol.tipo]?.label} ha sido aprobada ✅`, solicitudId: sol.id });
     setDetalleSol(null);
   };
 
-  // ── Rechazar solicitud ──
   const rechazarSolicitud = async (sol, motivo) => {
-    await updateDoc(doc(db, "solicitudesRRHH", sol.id), {
-      estado:        "rechazada",
-      encargadoId:   usuarioActual.id,
-      motivoRechazo: motivo,
-      fechaGestion:  new Date().toISOString(),
-    });
-    addNotif({
-      usuarioDestinoId: sol.usuarioId,
-      tipo:             "rrhh_rechazada",
-      texto:            `Tu solicitud de ${TIPO_LABELS[sol.tipo]?.label} ha sido rechazada. Motivo: ${motivo}`,
-      solicitudId:      sol.id,
-    });
+    await updateDoc(doc(db, "solicitudesRRHH", sol.id), { estado: "rechazada", encargadoId: usuarioActual.id, motivoRechazo: motivo, fechaGestion: new Date().toISOString() });
+    addNotif({ usuarioDestinoId: sol.usuarioId, tipo: "rrhh_rechazada", texto: `Tu solicitud de ${TIPO_LABELS[sol.tipo]?.label} ha sido rechazada. Motivo: ${motivo}`, solicitudId: sol.id });
     setDetalleSol(null);
   };
 
-  // ── Cancelar solicitud (solo si está pendiente) ──
   const cancelarSolicitud = async (sol) => {
     await deleteDoc(doc(db, "solicitudesRRHH", sol.id));
     setDetalleSol(null);
   };
 
-  // ── Vistas disponibles ──
   const vistas = [
-    { id: "mis",    label: "Mis solicitudes",   icon: "👤" },
+    { id: "mis",   label: "Mis solicitudes", icon: "👤" },
     ...(esEncargado || esAdmin ? [{ id: "equipo", label: "Mi equipo", icon: "👥" }] : []),
     ...(esRRHH || usuarioActual?.rol === "director" ? [{ id: "rrhh", label: "Dashboard RRHH", icon: "📊" }] : []),
   ];
 
-  // ── Estilos comunes ──
+  const dm = darkMode;
   const s = {
-    card:   { background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, padding: "18px 20px" },
-    label:  { display: "block", color: darkMode ? "#64748B" : "#475569", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 5 },
-    inp:    { fontFamily: "inherit", fontSize: 13, background: darkMode ? "#1A2235" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 6, padding: "9px 12px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" },
+    card:   { background: dm ? "#111827" : "#FFFFFF", border: `1px solid ${dm ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, padding: "18px 20px" },
+    inp:    { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${dm ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 6, padding: "9px 12px", color: dm ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" },
     btnPri: { fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "9px 18px", borderRadius: 7, border: "none", cursor: "pointer", background: empColor, color: "#fff" },
-    btnOut: { fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 7, border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, cursor: "pointer", background: "transparent", color: darkMode ? "#94A3B8" : "#475569" },
-    muted:  { color: darkMode ? "#475569" : "#94A3B8", fontSize: 12 },
+    btnOut: { fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 7, border: `1px solid ${dm ? "#2E3A55" : "#CBD5E1"}`, cursor: "pointer", background: "transparent", color: dm ? "#94A3B8" : "#475569" },
+    muted:  { color: dm ? "#475569" : "#94A3B8", fontSize: 12 },
+    label:  { display: "block", color: dm ? "#64748B" : "#475569", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 5 },
   };
 
   return (
     <div style={{ maxWidth: 1100 }}>
-
-      {/* ── Cabecera ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 20 }}>
-            👔 Gestión Administrativa
-          </h2>
-          <p style={s.muted}>Vacaciones · Ausencias · Horas extras · {EMPRESAS.find(e => e.id === usuarioActual?.empresaId)?.nombre}</p>
+          <h2 style={{ margin: "0 0 4px", color: dm ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 20 }}>👔 Gestión Administrativa</h2>
+          <p style={s.muted}>Vacaciones · Ausencias · Horas extras</p>
         </div>
-        <button onClick={() => setModalNueva(true)} style={s.btnPri}>
-          + Nueva solicitud
-        </button>
+        <button onClick={() => setModalNueva(true)} style={s.btnPri}>+ Nueva solicitud</button>
       </div>
 
-      {/* ── Saldo vacaciones (si es trabajador o encargado) ── */}
-      {!esRRHH && (
-        <SaldoVacaciones saldo={saldoVacaciones} darkMode={darkMode} empColor={empColor} />
-      )}
+      {!esRRHH && <SaldoVacaciones saldo={saldoVacaciones} darkMode={dm} empColor={empColor} />}
 
-      {/* ── Tabs de vista ── */}
-      <div style={{ display: "flex", gap: 2, background: darkMode ? "#111827" : "#FFFFFF", borderRadius: 8, padding: 3, border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, marginBottom: 20, width: "fit-content" }}>
+      <div style={{ display: "flex", gap: 2, background: dm ? "#111827" : "#FFFFFF", borderRadius: 8, padding: 3, border: `1px solid ${dm ? "#1E293B" : "#E2E8F0"}`, marginBottom: 20, width: "fit-content" }}>
         {vistas.map(v => (
           <button key={v.id} onClick={() => setVista(v.id)}
-            style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 16px", borderRadius: 6, border: "none", cursor: "pointer",
-              background: vista === v.id ? empColor : "transparent",
-              color:      vista === v.id ? "#fff"   : (darkMode ? "#64748B" : "#64748B") }}>
+            style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 16px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v.id ? empColor : "transparent", color: vista === v.id ? "#fff" : (dm ? "#64748B" : "#64748B") }}>
             {v.icon} {v.label}
           </button>
         ))}
       </div>
 
-      {/* ── Vista: Mis solicitudes ── */}
-      {vista === "mis" && (
-        <ListaSolicitudes
-          solicitudes={misSolicitudes}
-          darkMode={darkMode}
-          USUARIOS={USUARIOS}
-          EMPRESAS={EMPRESAS}
-          onVer={setDetalleSol}
-          s={s}
-          titulo="Mis solicitudes"
-          sinResultadosMsg="No tienes solicitudes registradas. Pulsa '+ Nueva solicitud' para comenzar."
-        />
-      )}
+      {vista === "mis" && <ListaSolicitudesRRHH solicitudes={misSolicitudes} darkMode={dm} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={setDetalleSol} sinMsg="No tienes solicitudes. Pulsa '+ Nueva solicitud' para comenzar." />}
+      {vista === "equipo" && <VistaEquipoRRHH solicitudes={solicitudesEquipo} darkMode={dm} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={setDetalleSol} s={s} empColor={empColor} />}
+      {vista === "rrhh" && <DashboardRRHH solicitudes={solicitudes} darkMode={dm} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={setDetalleSol} s={s} empColor={empColor} filtroEmpresa={filtroEmpresa} setFiltroEmpresa={setFiltroEmpresa} filtroTipo={filtroTipo} setFiltroTipo={setFiltroTipo} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} filtroPeriodo={filtroPeriodo} setFiltroPeriodo={setFiltroPeriodo} filtroMes={filtroMes} setFiltroMes={setFiltroMes} filtroTrimestre={filtroTrimestre} setFiltroTrimestre={setFiltroTrimestre} />}
 
-      {/* ── Vista: Equipo (encargado) ── */}
-      {vista === "equipo" && (
-        <VistaEquipo
-          solicitudes={solicitudesEquipo}
-          darkMode={darkMode}
-          USUARIOS={USUARIOS}
-          EMPRESAS={EMPRESAS}
-          onVer={setDetalleSol}
-          s={s}
-          empColor={empColor}
-          filtroTipo={filtroTipo}
-          setFiltroTipo={setFiltroTipo}
-          filtroEstado={filtroEstado}
-          setFiltroEstado={setFiltroEstado}
-        />
-      )}
-
-      {/* ── Vista: Dashboard RRHH ── */}
-      {vista === "rrhh" && (
-        <DashboardRRHH
-          solicitudes={solicitudes}
-          darkMode={darkMode}
-          USUARIOS={USUARIOS}
-          EMPRESAS={EMPRESAS}
-          onVer={setDetalleSol}
-          s={s}
-          empColor={empColor}
-          filtroEmpresa={filtroEmpresa}   setFiltroEmpresa={setFiltroEmpresa}
-          filtroTipo={filtroTipo}         setFiltroTipo={setFiltroTipo}
-          filtroEstado={filtroEstado}     setFiltroEstado={setFiltroEstado}
-          filtroAnio={filtroAnio}         setFiltroAnio={setFiltroAnio}
-          filtroPeriodo={filtroPeriodo}   setFiltroPeriodo={setFiltroPeriodo}
-          filtroMes={filtroMes}           setFiltroMes={setFiltroMes}
-          filtroTrimestre={filtroTrimestre} setFiltroTrimestre={setFiltroTrimestre}
-        />
-      )}
-
-      {/* ── Modal nueva solicitud ── */}
-      {modalNueva && (
-        <ModalNuevaSolicitud
-          darkMode={darkMode}
-          usuario={usuarioActual}
-          saldo={saldoVacaciones}
-          s={s}
-          onClose={() => setModalNueva(false)}
-          onCrear={async (data) => { await crearSolicitud(data); setModalNueva(false); }}
-        />
-      )}
-
-      {/* ── Modal detalle solicitud ── */}
-      {detalleSol && (
-        <ModalDetalleSolicitud
-          sol={detalleSol}
-          darkMode={darkMode}
-          usuarioActual={usuarioActual}
-          USUARIOS={USUARIOS}
-          EMPRESAS={EMPRESAS}
-          s={s}
-          empColor={empColor}
-          onClose={() => setDetalleSol(null)}
-          onAprobar={aprobarSolicitud}
-          onRechazar={rechazarSolicitud}
-          onCancelar={cancelarSolicitud}
-        />
-      )}
+      {modalNueva && <ModalNuevaSolicitud darkMode={dm} usuario={usuarioActual} saldo={saldoVacaciones} s={s} onClose={() => setModalNueva(false)} onCrear={async (data) => { await crearSolicitud(data); setModalNueva(false); }} />}
+      {detalleSol && <ModalDetalleSolicitud sol={detalleSol} darkMode={dm} usuarioActual={usuarioActual} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} s={s} empColor={empColor} onClose={() => setDetalleSol(null)} onAprobar={aprobarSolicitud} onRechazar={rechazarSolicitud} onCancelar={cancelarSolicitud} />}
     </div>
   );
 }
 
-// ── Saldo de vacaciones ─────────────────────────────────────────────────────
 function SaldoVacaciones({ saldo, darkMode, empColor }) {
   const pct = Math.round((saldo.usados / saldo.total) * 100);
   return (
@@ -3681,62 +3716,30 @@ function SaldoVacaciones({ saldo, darkMode, empColor }) {
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 700, fontSize: 14 }}>Saldo de vacaciones {new Date().getFullYear()}</span>
-          <span style={{ color: darkMode ? "#94A3B8" : "#64748B", fontSize: 13 }}>
-            <strong style={{ color: empColor }}>{saldo.disponibles}</strong> disponibles de {saldo.total} días laborables
-          </span>
+          <span style={{ color: darkMode ? "#94A3B8" : "#64748B", fontSize: 13 }}><strong style={{ color: empColor }}>{saldo.disponibles}</strong> de {saldo.total} días</span>
         </div>
         <div style={{ height: 8, background: darkMode ? "#1E293B" : "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: pct + "%", background: pct > 80 ? "#E53E3E" : pct > 50 ? "#D4A017" : empColor, borderRadius: 99, transition: "width .4s" }} />
+          <div style={{ height: "100%", width: pct + "%", background: pct > 80 ? "#E53E3E" : pct > 50 ? "#D4A017" : empColor, borderRadius: 99 }} />
         </div>
-        <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
-          <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>✅ Usados: {saldo.usados} días</span>
-          <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>📅 Disponibles: {saldo.disponibles} días</span>
-          <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>📋 Total convenio: {saldo.total} días</span>
+        <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 11, color: darkMode ? "#475569" : "#94A3B8" }}>
+          <span>✅ Usados: {saldo.usados} días</span>
+          <span>📅 Disponibles: {saldo.disponibles} días</span>
+          <span>📋 Total: {saldo.total} días</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Lista de solicitudes (reutilizable) ────────────────────────────────────
-function ListaSolicitudes({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, titulo, sinResultadosMsg }) {
-  if (solicitudes.length === 0) {
-    return (
-      <div style={{ textAlign: "center", padding: "70px 20px" }}>
-        <p style={{ fontSize: 46, marginBottom: 10 }}>📋</p>
-        <p style={{ fontSize: 15, fontWeight: 700, color: darkMode ? "#475569" : "#64748B" }}>Sin solicitudes</p>
-        <p style={{ fontSize: 13, color: darkMode ? "#334155" : "#94A3B8", maxWidth: 360, margin: "4px auto 0" }}>{sinResultadosMsg}</p>
-      </div>
-    );
-  }
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {solicitudes.map(sol => (
-        <TarjetaSolicitud key={sol.id} sol={sol} darkMode={darkMode} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={onVer} />
-      ))}
-    </div>
-  );
-}
-
-// ── Tarjeta de solicitud ────────────────────────────────────────────────────
-function TarjetaSolicitud({ sol, darkMode, USUARIOS, EMPRESAS, onVer }) {
-  const tipo   = TIPO_LABELS[sol.tipo]   || { label: sol.tipo, icon: "📄", color: "#94A3B8" };
+function TarjetaSolicitudRRHH({ sol, darkMode, USUARIOS, EMPRESAS, onVer }) {
+  const tipo   = TIPO_LABELS[sol.tipo]    || { label: sol.tipo, icon: "📄", color: "#94A3B8" };
   const estado = ESTADO_COLORS[sol.estado] || ESTADO_COLORS.pendiente;
   const usr    = USUARIOS.find(u => u.id === sol.usuarioId);
   const emp    = EMPRESAS.find(e => e.id === sol.empresaId);
-
   return (
     <div onClick={() => onVer(sol)}
-      style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", transition: "border-color .15s" }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = tipo.color + "88"}
-      onMouseLeave={e => e.currentTarget.style.borderColor = darkMode ? "#1E293B" : "#E2E8F0"}
-    >
-      {/* Icono tipo */}
-      <div style={{ width: 44, height: 44, borderRadius: 10, background: tipo.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
-        {tipo.icon}
-      </div>
-
-      {/* Info principal */}
+      style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", marginBottom: 8 }}>
+      <div style={{ width: 44, height: 44, borderRadius: 10, background: tipo.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{tipo.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
           <span style={{ color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 700, fontSize: 14 }}>{tipo.label}</span>
@@ -3745,48 +3748,52 @@ function TarjetaSolicitud({ sol, darkMode, USUARIOS, EMPRESAS, onVer }) {
         </div>
         <div style={{ color: darkMode ? "#64748B" : "#94A3B8", fontSize: 12 }}>
           {sol.tipo === "vacaciones" && `📅 ${fmtDate(sol.fechaInicio)} → ${fmtDate(sol.fechaFin)} · ${sol.diasSolicitados} días`}
-          {sol.tipo === "ausencia"    && `📅 ${fmtDate(sol.fecha)} · ${sol.motivo || "Sin motivo especificado"}`}
+          {sol.tipo === "ausencia"    && `📅 ${fmtDate(sol.fecha)} · ${sol.motivo || "Sin motivo"}`}
           {sol.tipo === "horasExtras" && `📅 ${fmtDate(sol.fecha)} · ${sol.horasExtra}h extra`}
         </div>
-        <div style={{ marginTop: 4, color: darkMode ? "#334155" : "#CBD5E1", fontSize: 11 }}>
-          Solicitado el {fmtDate(sol.fechaCreacion)}
-          {sol.motivoRechazo && <span style={{ color: "#E53E3E", marginLeft: 8 }}>· {sol.motivoRechazo}</span>}
-        </div>
       </div>
-
-      {/* Badge estado */}
-      <div style={{ flexShrink: 0 }}>
-        <span style={{ background: estado.bg, color: estado.color, border: `1px solid ${estado.color}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700 }}>
-          {estado.estado === "pendiente" ? "⏳ " : estado.estado === "aprobada" ? "✅ " : "❌ "}
-          {estado.label}
-        </span>
-      </div>
+      <span style={{ background: estado.bg, color: estado.color, border: `1px solid ${estado.color}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+        {sol.estado === "pendiente" ? "⏳ " : sol.estado === "aprobada" ? "✅ " : "❌ "}{estado.label}
+      </span>
     </div>
   );
 }
 
-// ── Vista equipo (encargado) ────────────────────────────────────────────────
-function VistaEquipo({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, empColor, filtroTipo, setFiltroTipo, filtroEstado, setFiltroEstado }) {
-  const pendientes = solicitudes.filter(s => s.estado === "pendiente");
-
-  let filtradas = solicitudes;
-  if (filtroTipo   !== "todos") filtradas = filtradas.filter(s => s.tipo    === filtroTipo);
-  if (filtroEstado !== "todos") filtradas = filtradas.filter(s => s.estado  === filtroEstado);
-
+function ListaSolicitudesRRHH({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, sinMsg }) {
+  if (solicitudes.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "70px 20px" }}>
+        <p style={{ fontSize: 40, marginBottom: 10 }}>📋</p>
+        <p style={{ fontSize: 15, fontWeight: 700, color: darkMode ? "#475569" : "#64748B" }}>Sin solicitudes</p>
+        <p style={{ fontSize: 13, color: darkMode ? "#334155" : "#94A3B8", maxWidth: 360, margin: "4px auto 0" }}>{sinMsg}</p>
+      </div>
+    );
+  }
   return (
     <div>
-      {/* Alerta de pendientes */}
+      {solicitudes.map(sol => (
+        <TarjetaSolicitudRRHH key={sol.id} sol={sol} darkMode={darkMode} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={onVer} />
+      ))}
+    </div>
+  );
+}
+
+function VistaEquipoRRHH({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, empColor }) {
+  const [filtroTipo, setFiltroTipo]     = React.useState("todos");
+  const [filtroEstado, setFiltroEstado] = React.useState("todos");
+  const pendientes = solicitudes.filter(s => s.estado === "pendiente");
+  let filtradas = solicitudes;
+  if (filtroTipo   !== "todos") filtradas = filtradas.filter(s => s.tipo   === filtroTipo);
+  if (filtroEstado !== "todos") filtradas = filtradas.filter(s => s.estado === filtroEstado);
+  return (
+    <div>
       {pendientes.length > 0 && (
         <div style={{ background: "#D4A01722", border: "1px solid #D4A01755", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 20 }}>⏳</span>
-          <span style={{ color: "#D4A017", fontWeight: 700, fontSize: 13 }}>
-            {pendientes.length} solicitud{pendientes.length > 1 ? "es" : ""} pendiente{pendientes.length > 1 ? "s" : ""} de aprobación
-          </span>
+          <span style={{ color: "#D4A017", fontWeight: 700, fontSize: 13 }}>{pendientes.length} solicitud{pendientes.length > 1 ? "es" : ""} pendiente{pendientes.length > 1 ? "s" : ""} de aprobación</span>
         </div>
       )}
-
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <select style={{ ...s.inp, width: "auto", minWidth: 140 }} value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
           <option value="todos">Todos los tipos</option>
           <option value="vacaciones">Vacaciones</option>
@@ -3800,32 +3807,16 @@ function VistaEquipo({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, empC
           <option value="rechazada">Rechazadas</option>
         </select>
       </div>
-
-      <ListaSolicitudes
-        solicitudes={filtradas}
-        darkMode={darkMode}
-        USUARIOS={USUARIOS}
-        EMPRESAS={EMPRESAS}
-        onVer={onVer}
-        s={s}
-        titulo="Solicitudes del equipo"
-        sinResultadosMsg="No hay solicitudes de tu equipo para este filtro."
-      />
+      <ListaSolicitudesRRHH solicitudes={filtradas} darkMode={darkMode} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={onVer} sinMsg="No hay solicitudes del equipo para este filtro." />
     </div>
   );
 }
 
-// ── Dashboard RRHH ──────────────────────────────────────────────────────────
-function DashboardRRHH({
-  solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, empColor,
-  filtroEmpresa, setFiltroEmpresa, filtroTipo, setFiltroTipo,
-  filtroEstado, setFiltroEstado, filtroAnio, setFiltroAnio,
-  filtroPeriodo, setFiltroPeriodo, filtroMes, setFiltroMes,
-  filtroTrimestre, setFiltroTrimestre,
-}) {
-  const [subVista, setSubVista] = useState("resumen"); // resumen | detalle | personas
+function DashboardRRHH({ solicitudes, darkMode, USUARIOS, EMPRESAS, onVer, s, empColor, filtroEmpresa, setFiltroEmpresa, filtroTipo, setFiltroTipo, filtroEstado, setFiltroEstado, filtroAnio, setFiltroAnio, filtroPeriodo, setFiltroPeriodo, filtroMes, setFiltroMes, filtroTrimestre, setFiltroTrimestre }) {
+  const [subVista, setSubVista] = React.useState("resumen");
+  const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-  const anios = useMemo(() => {
+  const anios = React.useMemo(() => {
     const set = new Set(solicitudes.map(s => {
       const d = s.fechaInicio || s.fecha || s.fechaCreacion;
       return d ? new Date(d).getFullYear() : null;
@@ -3834,143 +3825,92 @@ function DashboardRRHH({
     return [...set].sort((a, b) => b - a);
   }, [solicitudes]);
 
-  const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-  // Filtrar solicitudes
-  const filtradas = useMemo(() => {
+  const filtradas = React.useMemo(() => {
     return solicitudes.filter(s => {
       const d = new Date(s.fechaInicio || s.fecha || s.fechaCreacion);
-      const anioSol = d.getFullYear();
-      const mesSol  = d.getMonth() + 1;
-      const trimSol = Math.ceil(mesSol / 3);
-
-      if (String(anioSol) !== filtroAnio) return false;
-
-      if (filtroPeriodo === "mes" && filtroMes !== "todos" && String(mesSol) !== filtroMes) return false;
-      if (filtroPeriodo === "trimestre" && filtroTrimestre !== "todos" && String(trimSol) !== filtroTrimestre) return false;
-
-      if (filtroEmpresa !== "todas") {
-        const usr = USUARIOS.find(u => u.id === s.usuarioId);
-        if (String(usr?.empresaId) !== filtroEmpresa) return false;
-      }
-      if (filtroTipo   !== "todos" && s.tipo    !== filtroTipo)   return false;
-      if (filtroEstado !== "todos" && s.estado  !== filtroEstado) return false;
+      if (String(d.getFullYear()) !== filtroAnio) return false;
+      if (filtroPeriodo === "mes"      && filtroMes !== "todos"      && String(d.getMonth()+1) !== filtroMes) return false;
+      if (filtroPeriodo === "trimestre" && filtroTrimestre !== "todos" && String(Math.ceil((d.getMonth()+1)/3)) !== filtroTrimestre) return false;
+      if (filtroEmpresa !== "todas") { const usr = USUARIOS.find(u => u.id === s.usuarioId); if (String(usr?.empresaId) !== filtroEmpresa) return false; }
+      if (filtroTipo   !== "todos" && s.tipo   !== filtroTipo)   return false;
+      if (filtroEstado !== "todos" && s.estado !== filtroEstado) return false;
       return true;
     });
   }, [solicitudes, filtroAnio, filtroPeriodo, filtroMes, filtroTrimestre, filtroEmpresa, filtroTipo, filtroEstado, USUARIOS]);
 
-  // KPIs globales
-  const kpis = useMemo(() => {
-    const vacaciones  = filtradas.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada");
-    const ausencias   = filtradas.filter(s => s.tipo === "ausencia"    && s.estado === "aprobada");
-    const horasExtras = filtradas.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada");
-    const pendientes  = filtradas.filter(s => s.estado === "pendiente");
-    return {
-      totalDiasVac:  vacaciones.reduce((acc, s)  => acc + (s.diasSolicitados || 0), 0),
-      totalAusencias: ausencias.length,
-      totalHoras:    horasExtras.reduce((acc, s) => acc + (s.horasExtra || 0), 0),
-      pendientes:    pendientes.length,
-    };
-  }, [filtradas]);
+  const kpis = React.useMemo(() => ({
+    totalDiasVac:   filtradas.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada").reduce((a, s) => a + (s.diasSolicitados || 0), 0),
+    totalAusencias: filtradas.filter(s => s.tipo === "ausencia"    && s.estado === "aprobada").length,
+    totalHoras:     filtradas.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada").reduce((a, s) => a + (s.horasExtra || 0), 0),
+    pendientes:     filtradas.filter(s => s.estado === "pendiente").length,
+  }), [filtradas]);
 
-  // Resumen por empresa
-  const resumenEmpresas = useMemo(() => {
-    return EMPRESAS.map(emp => {
-      const sols = filtradas.filter(s => {
-        const usr = USUARIOS.find(u => u.id === s.usuarioId);
-        return usr?.empresaId === emp.id;
-      });
-      const empleados = USUARIOS.filter(u => u.empresaId === emp.id && u.rol !== "rrhh").length;
-      return {
-        empresa: emp,
-        empleados,
-        vacaciones:  sols.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada").reduce((a, s) => a + (s.diasSolicitados || 0), 0),
-        ausencias:   sols.filter(s => s.tipo === "ausencia"    && s.estado === "aprobada").length,
-        horasExtras: sols.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada").reduce((a, s) => a + (s.horasExtra || 0), 0),
-        pendientes:  sols.filter(s => s.estado === "pendiente").length,
-        total:       sols.length,
-      };
-    }).filter(r => r.total > 0 || r.empleados > 0);
-  }, [filtradas, EMPRESAS, USUARIOS]);
+  const resumenEmpresas = React.useMemo(() =>
+    EMPRESAS.map(emp => {
+      const sols = filtradas.filter(s => { const u = USUARIOS.find(u => u.id === s.usuarioId); return u?.empresaId === emp.id; });
+      return { empresa: emp, empleados: USUARIOS.filter(u => u.empresaId === emp.id).length,
+        vacaciones: sols.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada").reduce((a,s) => a+(s.diasSolicitados||0),0),
+        ausencias:  sols.filter(s => s.tipo === "ausencia"    && s.estado === "aprobada").length,
+        horasExtras:sols.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada").reduce((a,s) => a+(s.horasExtra||0),0),
+        pendientes: sols.filter(s => s.estado === "pendiente").length, total: sols.length };
+    }).filter(r => r.total > 0 || r.empleados > 0),
+    [filtradas, EMPRESAS, USUARIOS]
+  );
 
-  // Resumen por persona
-  const resumenPersonas = useMemo(() => {
-    const trabajadores = USUARIOS.filter(u => {
-      if (filtroEmpresa !== "todas" && String(u.empresaId) !== filtroEmpresa) return false;
-      return u.rol !== "rrhh";
-    });
-    return trabajadores.map(usr => {
+  const resumenPersonas = React.useMemo(() =>
+    USUARIOS.filter(u => filtroEmpresa === "todas" || String(u.empresaId) === filtroEmpresa).map(usr => {
       const sols = filtradas.filter(s => s.usuarioId === usr.id);
       const emp  = EMPRESAS.find(e => e.id === usr.empresaId);
-      return {
-        usuario:     usr,
-        empresa:     emp,
-        vacaciones:  sols.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada").reduce((a, s) => a + (s.diasSolicitados || 0), 0),
+      return { usuario: usr, empresa: emp,
+        vacaciones:  sols.filter(s => s.tipo === "vacaciones"  && s.estado === "aprobada").reduce((a,s) => a+(s.diasSolicitados||0),0),
         ausencias:   sols.filter(s => s.tipo === "ausencia"    && s.estado === "aprobada").length,
-        horasExtras: sols.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada").reduce((a, s) => a + (s.horasExtra || 0), 0),
-        pendientes:  sols.filter(s => s.estado === "pendiente").length,
-      };
-    }).filter(r => r.vacaciones + r.ausencias + r.horasExtras + r.pendientes > 0);
-  }, [filtradas, USUARIOS, EMPRESAS, filtroEmpresa]);
+        horasExtras: sols.filter(s => s.tipo === "horasExtras" && s.estado === "aprobada").reduce((a,s) => a+(s.horasExtra||0),0),
+        pendientes:  sols.filter(s => s.estado === "pendiente").length };
+    }).filter(r => r.vacaciones+r.ausencias+r.horasExtras+r.pendientes > 0),
+    [filtradas, USUARIOS, EMPRESAS, filtroEmpresa]
+  );
+
+  const thStyle = { padding: "12px 16px", textAlign: "left", color: darkMode ? "#64748B" : "#94A3B8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: ".4px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` };
+  const tdStyle = { padding: "12px 16px", borderBottom: `1px solid ${darkMode ? "#0D1424" : "#F1F5F9"}` };
 
   return (
     <div>
-      {/* ── Filtros globales ── */}
       <div style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
-        <p style={{ margin: "0 0 12px", color: darkMode ? "#94A3B8" : "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" }}>Filtros del informe</p>
+        <p style={{ margin: "0 0 12px", color: darkMode ? "#94A3B8" : "#64748B", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Filtros del informe</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-
-          {/* Año */}
           <select style={{ ...s.inp, width: "auto", minWidth: 100 }} value={filtroAnio} onChange={e => setFiltroAnio(e.target.value)}>
             {anios.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
-
-          {/* Periodo */}
           <div style={{ display: "flex", gap: 2, background: darkMode ? "#0D1424" : "#F8FAFC", borderRadius: 7, padding: 2, border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
-            {[["anual","Anual"],["trimestre","Trimestral"],["mes","Mensual"]].map(([v, l]) => (
-              <button key={v} onClick={() => setFiltroPeriodo(v)}
-                style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 5, border: "none", cursor: "pointer",
-                  background: filtroPeriodo === v ? empColor : "transparent",
-                  color:      filtroPeriodo === v ? "#fff"   : (darkMode ? "#64748B" : "#64748B") }}>
-                {l}
-              </button>
+            {[["anual","Anual"],["trimestre","Trimestral"],["mes","Mensual"]].map(([v,l]) => (
+              <button key={v} onClick={() => setFiltroPeriodo(v)} style={{ fontFamily:"inherit", fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:5, border:"none", cursor:"pointer", background: filtroPeriodo===v ? empColor : "transparent", color: filtroPeriodo===v ? "#fff" : (darkMode ? "#64748B" : "#64748B") }}>{l}</button>
             ))}
           </div>
-
-          {/* Mes (si periodo === mes) */}
           {filtroPeriodo === "mes" && (
             <select style={{ ...s.inp, width: "auto", minWidth: 130 }} value={filtroMes} onChange={e => setFiltroMes(e.target.value)}>
               <option value="todos">Todos los meses</option>
-              {MESES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+              {MESES.map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
             </select>
           )}
-
-          {/* Trimestre (si periodo === trimestre) */}
           {filtroPeriodo === "trimestre" && (
             <select style={{ ...s.inp, width: "auto", minWidth: 140 }} value={filtroTrimestre} onChange={e => setFiltroTrimestre(e.target.value)}>
               <option value="todos">Todos los trimestres</option>
-              <option value="1">Q1 (Ene–Mar)</option>
-              <option value="2">Q2 (Abr–Jun)</option>
-              <option value="3">Q3 (Jul–Sep)</option>
-              <option value="4">Q4 (Oct–Dic)</option>
+              <option value="1">Q1 (Ene-Mar)</option>
+              <option value="2">Q2 (Abr-Jun)</option>
+              <option value="3">Q3 (Jul-Sep)</option>
+              <option value="4">Q4 (Oct-Dic)</option>
             </select>
           )}
-
-          {/* Empresa */}
           <select style={{ ...s.inp, width: "auto", minWidth: 180 }} value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)}>
             <option value="todas">Todas las empresas</option>
             {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
           </select>
-
-          {/* Tipo */}
           <select style={{ ...s.inp, width: "auto", minWidth: 140 }} value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
             <option value="todos">Todos los tipos</option>
             <option value="vacaciones">Vacaciones</option>
             <option value="ausencia">Ausencias</option>
             <option value="horasExtras">Horas extras</option>
           </select>
-
-          {/* Estado */}
           <select style={{ ...s.inp, width: "auto", minWidth: 140 }} value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
             <option value="todos">Todos los estados</option>
             <option value="pendiente">Pendientes</option>
@@ -3980,228 +3920,147 @@ function DashboardRRHH({
         </div>
       </div>
 
-      {/* ── KPIs globales ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12, marginBottom: 20 }}>
         {[
-          { icon: "🏖️", label: "Días de vacaciones",  v: kpis.totalDiasVac,   color: "#3182CE", sub: "días aprobados" },
-          { icon: "🤒", label: "Ausencias",            v: kpis.totalAusencias, color: "#D4A017", sub: "aprobadas" },
-          { icon: "⏱️", label: "Horas extras",         v: kpis.totalHoras,     color: "#805AD5", sub: "horas registradas" },
-          { icon: "⏳", label: "Pendientes de gestión",v: kpis.pendientes,     color: "#E53E3E", sub: "solicitudes" },
-        ].map((k, i) => (
+          { icon:"🏖️", label:"Días vacaciones",   v: kpis.totalDiasVac,   color:"#3182CE" },
+          { icon:"🤒", label:"Ausencias",          v: kpis.totalAusencias, color:"#D4A017" },
+          { icon:"⏱️", label:"Horas extras",       v: kpis.totalHoras,     color:"#805AD5" },
+          { icon:"⏳", label:"Pendientes",          v: kpis.pendientes,     color:"#E53E3E" },
+        ].map((k,i) => (
           <div key={i} style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, padding: "16px 18px" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 9, background: k.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 10 }}>{k.icon}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: darkMode ? "#E2E8F0" : "#0F172A", lineHeight: 1 }}>{k.v}</div>
-            <div style={{ color: k.color, fontWeight: 700, fontSize: 12, marginTop: 3 }}>{k.label}</div>
-            <div style={{ color: darkMode ? "#334155" : "#94A3B8", fontSize: 11, marginTop: 1 }}>{k.sub}</div>
+            <div style={{ width:38, height:38, borderRadius:9, background: k.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, marginBottom:10 }}>{k.icon}</div>
+            <div style={{ fontSize:26, fontWeight:900, color: darkMode ? "#E2E8F0" : "#0F172A", lineHeight:1 }}>{k.v}</div>
+            <div style={{ color: k.color, fontWeight:700, fontSize:12, marginTop:3 }}>{k.label}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Sub-vistas ── */}
-      <div style={{ display: "flex", gap: 2, background: darkMode ? "#111827" : "#FFFFFF", borderRadius: 8, padding: 3, border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, marginBottom: 20, width: "fit-content" }}>
-        {[["resumen","📊 Por empresa"],["personas","👤 Por persona"],["detalle","📋 Detalle"]].map(([v, l]) => (
-          <button key={v} onClick={() => setSubVista(v)}
-            style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 14px", borderRadius: 6, border: "none", cursor: "pointer",
-              background: subVista === v ? empColor : "transparent",
-              color:      subVista === v ? "#fff"   : (darkMode ? "#64748B" : "#64748B") }}>
-            {l}
-          </button>
+      <div style={{ display:"flex", gap:2, background: darkMode ? "#111827" : "#FFFFFF", borderRadius:8, padding:3, border:`1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, marginBottom:20, width:"fit-content" }}>
+        {[["resumen","📊 Por empresa"],["personas","👤 Por persona"],["detalle","📋 Detalle"]].map(([v,l]) => (
+          <button key={v} onClick={() => setSubVista(v)} style={{ fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"7px 14px", borderRadius:6, border:"none", cursor:"pointer", background: subVista===v ? empColor : "transparent", color: subVista===v ? "#fff" : (darkMode ? "#64748B" : "#64748B") }}>{l}</button>
         ))}
       </div>
 
-      {/* ── Resumen por empresa ── */}
       {subVista === "resumen" && (
         <div style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: darkMode ? "#0D1424" : "#F8FAFC" }}>
-                {["Empresa","Empleados","Días vacac.","Ausencias","Horas extra","Pendientes"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: darkMode ? "#64748B" : "#94A3B8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: ".4px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead><tr style={{ background: darkMode ? "#0D1424" : "#F8FAFC" }}>
+              {["Empresa","Empleados","Días vacac.","Ausencias","Horas extra","Pendientes"].map(h => <th key={h} style={thStyle}>{h}</th>)}
+            </tr></thead>
             <tbody>
-              {resumenEmpresas.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: "50px 20px", color: darkMode ? "#475569" : "#94A3B8", fontSize: 13 }}>No hay datos para este periodo</td></tr>
-              ) : resumenEmpresas.map(r => (
-                <tr key={r.empresa.id} style={{ borderBottom: `1px solid ${darkMode ? "#0D1424" : "#F1F5F9"}` }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: r.empresa.color, display: "inline-block", flexShrink: 0 }} />
-                      <span style={{ fontWeight: 700, color: darkMode ? "#E2E8F0" : "#0F172A" }}>{r.empresa.nombre}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px", color: darkMode ? "#94A3B8" : "#64748B" }}>{r.empleados}</td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#3182CE", fontWeight: 700 }}>{r.vacaciones} días</span></td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#D4A017", fontWeight: 700 }}>{r.ausencias}</span></td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#805AD5", fontWeight: 700 }}>{r.horasExtras}h</span></td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {r.pendientes > 0
-                      ? <span style={{ background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E55", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>⏳ {r.pendientes}</span>
-                      : <span style={{ color: "#38A169", fontSize: 12 }}>✅ Al día</span>
-                    }
-                  </td>
-                </tr>
-              ))}
+              {resumenEmpresas.length === 0
+                ? <tr><td colSpan={6} style={{ textAlign:"center", padding:"50px 20px", color: darkMode ? "#475569" : "#94A3B8" }}>No hay datos para este periodo</td></tr>
+                : resumenEmpresas.map(r => (
+                  <tr key={r.empresa.id}>
+                    <td style={tdStyle}><div style={{ display:"flex", alignItems:"center", gap:8 }}><span style={{ width:10, height:10, borderRadius:"50%", background:r.empresa.color, display:"inline-block" }} /><span style={{ fontWeight:700, color: darkMode ? "#E2E8F0" : "#0F172A" }}>{r.empresa.nombre}</span></div></td>
+                    <td style={{ ...tdStyle, color: darkMode ? "#94A3B8" : "#64748B" }}>{r.empleados}</td>
+                    <td style={tdStyle}><span style={{ color:"#3182CE", fontWeight:700 }}>{r.vacaciones} días</span></td>
+                    <td style={tdStyle}><span style={{ color:"#D4A017", fontWeight:700 }}>{r.ausencias}</span></td>
+                    <td style={tdStyle}><span style={{ color:"#805AD5", fontWeight:700 }}>{r.horasExtras}h</span></td>
+                    <td style={tdStyle}>{r.pendientes > 0 ? <span style={{ background:"#E53E3E22", color:"#E53E3E", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>⏳ {r.pendientes}</span> : <span style={{ color:"#38A169", fontSize:12 }}>✅ Al día</span>}</td>
+                  </tr>
+                ))
+              }
             </tbody>
           </table>
         </div>
       )}
 
-      {/* ── Resumen por persona ── */}
       {subVista === "personas" && (
         <div style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 12, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: darkMode ? "#0D1424" : "#F8FAFC" }}>
-                {["Empleado","Empresa","Días vacac.","Ausencias","Horas extra","Pendientes"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: darkMode ? "#64748B" : "#94A3B8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: ".4px", borderBottom: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead><tr style={{ background: darkMode ? "#0D1424" : "#F8FAFC" }}>
+              {["Empleado","Empresa","Días vacac.","Ausencias","Horas extra","Pendientes"].map(h => <th key={h} style={thStyle}>{h}</th>)}
+            </tr></thead>
             <tbody>
-              {resumenPersonas.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: "50px 20px", color: darkMode ? "#475569" : "#94A3B8", fontSize: 13 }}>No hay datos para este filtro</td></tr>
-              ) : resumenPersonas.map(r => (
-                <tr key={r.usuario.id} style={{ borderBottom: `1px solid ${darkMode ? "#0D1424" : "#F1F5F9"}` }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: r.empresa?.color + "44", border: `2px solid ${r.empresa?.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                        {r.usuario.nombre.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 700, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 13 }}>{r.usuario.nombre}</p>
-                        <p style={{ margin: 0, color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>{r.usuario.rol}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span style={{ background: r.empresa?.color + "18", color: r.empresa?.color, borderRadius: 4, padding: "1px 7px", fontSize: 11, fontWeight: 700 }}>{r.empresa?.nombre}</span>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#3182CE", fontWeight: 700 }}>{r.vacaciones} / {DIAS_VACACIONES_ANUALES}</span></td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#D4A017", fontWeight: 700 }}>{r.ausencias}</span></td>
-                  <td style={{ padding: "12px 16px" }}><span style={{ color: "#805AD5", fontWeight: 700 }}>{r.horasExtras}h</span></td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {r.pendientes > 0
-                      ? <span style={{ background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E55", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>⏳ {r.pendientes}</span>
-                      : <span style={{ color: "#38A169", fontSize: 12 }}>—</span>
-                    }
-                  </td>
-                </tr>
-              ))}
+              {resumenPersonas.length === 0
+                ? <tr><td colSpan={6} style={{ textAlign:"center", padding:"50px 20px", color: darkMode ? "#475569" : "#94A3B8" }}>No hay datos</td></tr>
+                : resumenPersonas.map(r => (
+                  <tr key={r.usuario.id}>
+                    <td style={tdStyle}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ width:32, height:32, borderRadius:"50%", background:(r.empresa?.color||"#888")+"44", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff", flexShrink:0 }}>{r.usuario.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}</div><div><p style={{ margin:0, fontWeight:700, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize:13 }}>{r.usuario.nombre}</p><p style={{ margin:0, color: darkMode ? "#475569" : "#94A3B8", fontSize:11 }}>{r.usuario.rol}</p></div></div></td>
+                    <td style={tdStyle}><span style={{ background:(r.empresa?.color||"#888")+"18", color:(r.empresa?.color||"#888"), borderRadius:4, padding:"1px 7px", fontSize:11, fontWeight:700 }}>{r.empresa?.nombre}</span></td>
+                    <td style={tdStyle}><span style={{ color:"#3182CE", fontWeight:700 }}>{r.vacaciones} / {DIAS_VACACIONES_ANUALES}</span></td>
+                    <td style={tdStyle}><span style={{ color:"#D4A017", fontWeight:700 }}>{r.ausencias}</span></td>
+                    <td style={tdStyle}><span style={{ color:"#805AD5", fontWeight:700 }}>{r.horasExtras}h</span></td>
+                    <td style={tdStyle}>{r.pendientes > 0 ? <span style={{ background:"#E53E3E22", color:"#E53E3E", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>⏳ {r.pendientes}</span> : <span style={{ color:"#38A169" }}>—</span>}</td>
+                  </tr>
+                ))
+              }
             </tbody>
           </table>
         </div>
       )}
 
-      {/* ── Detalle: lista completa ── */}
       {subVista === "detalle" && (
-        <ListaSolicitudes
-          solicitudes={filtradas.sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion))}
-          darkMode={darkMode}
-          USUARIOS={USUARIOS}
-          EMPRESAS={EMPRESAS}
-          onVer={onVer}
-          s={s}
-          titulo="Detalle de solicitudes"
-          sinResultadosMsg="No hay solicitudes para este filtro."
-        />
+        <ListaSolicitudesRRHH solicitudes={[...filtradas].sort((a,b) => new Date(b.fechaCreacion)-new Date(a.fechaCreacion))} darkMode={darkMode} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} onVer={onVer} sinMsg="No hay solicitudes para este filtro." />
       )}
     </div>
   );
 }
 
-// ── Modal: nueva solicitud ──────────────────────────────────────────────────
 function ModalNuevaSolicitud({ darkMode, usuario, saldo, s, onClose, onCrear }) {
-  const [tipo, setTipo]               = useState("vacaciones");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin]       = useState("");
-  const [fecha, setFecha]             = useState("");
-  const [motivo, setMotivo]           = useState("");
-  const [descripcion, setDesc]        = useState("");
-  const [horasExtra, setHoras]        = useState("");
-  const [loading, setLoading]         = useState(false);
+  const [tipo, setTipo]               = React.useState("vacaciones");
+  const [fechaInicio, setFechaInicio] = React.useState("");
+  const [fechaFin, setFechaFin]       = React.useState("");
+  const [fecha, setFecha]             = React.useState("");
+  const [motivo, setMotivo]           = React.useState("");
+  const [descripcion, setDesc]        = React.useState("");
+  const [horasExtra, setHoras]        = React.useState("");
+  const [loading, setLoading]         = React.useState(false);
 
   const diasSolicitados = tipo === "vacaciones" ? diffDiasLaborables(fechaInicio, fechaFin) : 0;
-  const sinSaldo        = tipo === "vacaciones" && diasSolicitados > saldo.disponibles;
-  const canSubmit       = tipo === "vacaciones"
-    ? fechaInicio && fechaFin && diasSolicitados > 0 && !sinSaldo
-    : tipo === "ausencia"
-    ? fecha && motivo
-    : fecha && horasExtra && Number(horasExtra) > 0;
+  const sinSaldo  = tipo === "vacaciones" && diasSolicitados > saldo.disponibles;
+  const canSubmit = tipo === "vacaciones" ? fechaInicio && fechaFin && diasSolicitados > 0 && !sinSaldo
+                  : tipo === "ausencia"   ? fecha && motivo
+                  : fecha && horasExtra && Number(horasExtra) > 0;
 
   const submit = async () => {
     if (!canSubmit) return;
     setLoading(true);
     const base = { tipo, descripcion: descripcion.trim() || null };
-    if (tipo === "vacaciones") Object.assign(base, { fechaInicio, fechaFin, diasSolicitados });
-    if (tipo === "ausencia")   Object.assign(base, { fecha, motivo });
+    if (tipo === "vacaciones")  Object.assign(base, { fechaInicio, fechaFin, diasSolicitados });
+    if (tipo === "ausencia")    Object.assign(base, { fecha, motivo });
     if (tipo === "horasExtras") Object.assign(base, { fecha, horasExtra: Number(horasExtra) });
     await onCrear(base);
     setLoading(false);
   };
 
-  const overlay = { position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" };
-  const box     = { background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 14, width: "100%", maxWidth: 520, padding: 28, boxShadow: "0 24px 80px #0008", margin: "auto" };
-
+  const dm = darkMode;
   return (
-    <div style={overlay} onMouseDown={onClose}>
-      <div style={box} onMouseDown={e => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: darkMode ? "#E2E8F0" : "#0F172A" }}>📋 Nueva solicitud</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 24, cursor: "pointer" }}>×</button>
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"flex-start", justifyContent:"center", zIndex:1000, padding:20, overflowY:"auto" }} onMouseDown={onClose}>
+      <div style={{ background: dm ? "#111827" : "#FFFFFF", border:`1px solid ${dm ? "#2E3A55" : "#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:520, padding:28, boxShadow:"0 24px 80px #0008", margin:"auto" }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color: dm ? "#E2E8F0" : "#0F172A" }}>📋 Nueva solicitud</h2>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:24, cursor:"pointer" }}>×</button>
         </div>
-
-        {/* Selector tipo */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          {Object.entries(TIPO_LABELS).map(([k, v]) => (
-            <button key={k} onClick={() => setTipo(k)}
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "10px 6px", borderRadius: 8, border: `2px solid ${tipo === k ? v.color : darkMode ? "#2E3A55" : "#E2E8F0"}`, cursor: "pointer",
-                background: tipo === k ? v.color + "22" : darkMode ? "#0D1424" : "#F8FAFC",
-                color:      tipo === k ? v.color         : darkMode ? "#64748B" : "#94A3B8" }}>
+        <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+          {Object.entries(TIPO_LABELS).map(([k,v]) => (
+            <button key={k} onClick={() => setTipo(k)} style={{ flex:1, fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"10px 6px", borderRadius:8, border:`2px solid ${tipo===k ? v.color : dm ? "#2E3A55" : "#E2E8F0"}`, cursor:"pointer", background: tipo===k ? v.color+"22" : dm ? "#0D1424" : "#F8FAFC", color: tipo===k ? v.color : dm ? "#64748B" : "#94A3B8" }}>
               {v.icon} {v.label}
             </button>
           ))}
         </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-          {/* Vacaciones */}
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
           {tipo === "vacaciones" && (
             <>
-              <div style={{ background: "#3182CE11", border: "1px solid #3182CE33", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#3182CE" }}>
-                🏖️ Tienes <strong>{saldo.disponibles} días disponibles</strong> de {saldo.total} días laborables anuales
+              <div style={{ background:"#3182CE11", border:"1px solid #3182CE33", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#3182CE" }}>
+                🏖️ Tienes <strong>{saldo.disponibles} días disponibles</strong> de {saldo.total} laborables
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={s.label}>Fecha de inicio *</label>
-                  <input type="date" style={{ ...s.inp, colorScheme: "dark" }} value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} min={new Date().toISOString().split("T")[0]} />
-                </div>
-                <div>
-                  <label style={s.label}>Fecha de fin *</label>
-                  <input type="date" style={{ ...s.inp, colorScheme: "dark" }} value={fechaFin} onChange={e => setFechaFin(e.target.value)} min={fechaInicio || new Date().toISOString().split("T")[0]} />
-                </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div><label style={s.label}>Fecha inicio *</label><input type="date" style={{ ...s.inp, colorScheme: dm ? "dark" : "light" }} value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} min={new Date().toISOString().split("T")[0]} /></div>
+                <div><label style={s.label}>Fecha fin *</label><input type="date" style={{ ...s.inp, colorScheme: dm ? "dark" : "light" }} value={fechaFin} onChange={e => setFechaFin(e.target.value)} min={fechaInicio || new Date().toISOString().split("T")[0]} /></div>
               </div>
               {fechaInicio && fechaFin && (
-                <div style={{ background: sinSaldo ? "#E53E3E11" : "#38A16911", border: `1px solid ${sinSaldo ? "#E53E3E33" : "#38A16933"}`, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: sinSaldo ? "#E53E3E" : "#38A169" }}>
-                  {sinSaldo
-                    ? `⚠️ No tienes suficiente saldo. Estás solicitando ${diasSolicitados} días pero solo tienes ${saldo.disponibles} disponibles.`
-                    : `✅ Solicitando ${diasSolicitados} día${diasSolicitados !== 1 ? "s" : ""} laborable${diasSolicitados !== 1 ? "s" : ""}. Te quedarán ${saldo.disponibles - diasSolicitados} días.`
-                  }
+                <div style={{ background: sinSaldo ? "#E53E3E11" : "#38A16911", border:`1px solid ${sinSaldo ? "#E53E3E33" : "#38A16933"}`, borderRadius:8, padding:"8px 14px", fontSize:12, color: sinSaldo ? "#E53E3E" : "#38A169" }}>
+                  {sinSaldo ? `⚠️ Sin saldo. Pides ${diasSolicitados} días pero tienes ${saldo.disponibles}.` : `✅ ${diasSolicitados} día${diasSolicitados!==1?"s":""} laborable${diasSolicitados!==1?"s":""}. Te quedarán ${saldo.disponibles-diasSolicitados}.`}
                 </div>
               )}
             </>
           )}
-
-          {/* Ausencia */}
           {tipo === "ausencia" && (
             <>
-              <div>
-                <label style={s.label}>Fecha *</label>
-                <input type="date" style={{ ...s.inp, colorScheme: "dark" }} value={fecha} onChange={e => setFecha(e.target.value)} />
-              </div>
-              <div>
-                <label style={s.label}>Motivo *</label>
+              <div><label style={s.label}>Fecha *</label><input type="date" style={{ ...s.inp, colorScheme: dm ? "dark" : "light" }} value={fecha} onChange={e => setFecha(e.target.value)} /></div>
+              <div><label style={s.label}>Motivo *</label>
                 <select style={s.inp} value={motivo} onChange={e => setMotivo(e.target.value)}>
                   <option value="">Selecciona el motivo...</option>
                   <option value="Médico">Médico / Consulta médica</option>
@@ -4213,31 +4072,16 @@ function ModalNuevaSolicitud({ darkMode, usuario, saldo, s, onClose, onCrear }) 
               </div>
             </>
           )}
-
-          {/* Horas extras */}
           {tipo === "horasExtras" && (
             <>
-              <div>
-                <label style={s.label}>Fecha *</label>
-                <input type="date" style={{ ...s.inp, colorScheme: "dark" }} value={fecha} onChange={e => setFecha(e.target.value)} />
-              </div>
-              <div>
-                <label style={s.label}>Número de horas extras *</label>
-                <input type="number" min={0.5} max={12} step={0.5} style={s.inp} value={horasExtra} onChange={e => setHoras(e.target.value)} placeholder="Ej: 2.5" />
-              </div>
+              <div><label style={s.label}>Fecha *</label><input type="date" style={{ ...s.inp, colorScheme: dm ? "dark" : "light" }} value={fecha} onChange={e => setFecha(e.target.value)} /></div>
+              <div><label style={s.label}>Horas extras *</label><input type="number" min={0.5} max={12} step={0.5} style={s.inp} value={horasExtra} onChange={e => setHoras(e.target.value)} placeholder="Ej: 2.5" /></div>
             </>
           )}
-
-          {/* Descripción opcional siempre */}
-          <div>
-            <label style={s.label}>Descripción / notas (opcional)</label>
-            <textarea style={{ ...s.inp, resize: "vertical", minHeight: 70 }} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Información adicional para el encargado..." />
-          </div>
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 8 }}>
+          <div><label style={s.label}>Notas (opcional)</label><textarea style={{ ...s.inp, resize:"vertical", minHeight:70 }} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Información adicional..." /></div>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:8 }}>
             <button onClick={onClose} style={s.btnOut}>Cancelar</button>
-            <button onClick={submit} disabled={!canSubmit || loading}
-              style={{ ...s.btnPri, opacity: (!canSubmit || loading) ? 0.5 : 1, cursor: (!canSubmit || loading) ? "not-allowed" : "pointer" }}>
+            <button onClick={submit} disabled={!canSubmit || loading} style={{ ...s.btnPri, opacity: (!canSubmit||loading) ? 0.5 : 1, cursor: (!canSubmit||loading) ? "not-allowed" : "pointer" }}>
               {loading ? "Enviando..." : "Enviar solicitud →"}
             </button>
           </div>
@@ -4247,121 +4091,80 @@ function ModalNuevaSolicitud({ darkMode, usuario, saldo, s, onClose, onCrear }) 
   );
 }
 
-// ── Modal: detalle y gestión de solicitud ───────────────────────────────────
 function ModalDetalleSolicitud({ sol, darkMode, usuarioActual, USUARIOS, EMPRESAS, s, empColor, onClose, onAprobar, onRechazar, onCancelar }) {
-  const [motivoRechazo, setMotivoRechazo] = useState("");
-  const [rechazando, setRechazando]       = useState(false);
-  const [loading, setLoading]             = useState(false);
+  const [motivoRechazo, setMotivoRechazo] = React.useState("");
+  const [rechazando, setRechazando]       = React.useState(false);
+  const [loading, setLoading]             = React.useState(false);
 
-  const tipo    = TIPO_LABELS[sol.tipo]    || { label: sol.tipo, icon: "📄", color: "#94A3B8" };
-  const estado  = ESTADO_COLORS[sol.estado] || ESTADO_COLORS.pendiente;
-  const usr     = USUARIOS.find(u => u.id  === sol.usuarioId);
-  const emp     = EMPRESAS.find(e => e.id  === sol.empresaId);
-  const gestor  = sol.encargadoId ? USUARIOS.find(u => u.id === sol.encargadoId) : null;
-
-  const puedeGestionar = (usuarioActual?.rol === "encargado" && usuarioActual?.empresaId === sol.empresaId)
-    || ["director", "administrador", "rrhh"].includes(usuarioActual?.rol);
-  const esMia          = sol.usuarioId === usuarioActual?.id;
-  const puedeCancelar  = esMia && sol.estado === "pendiente";
-
-  const overlay = { position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" };
-  const box     = { background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 14, width: "100%", maxWidth: 540, padding: 28, boxShadow: "0 24px 80px #0008", margin: "auto" };
+  const tipo   = TIPO_LABELS[sol.tipo]    || { label: sol.tipo, icon: "📄", color: "#94A3B8" };
+  const estado = ESTADO_COLORS[sol.estado] || ESTADO_COLORS.pendiente;
+  const usr    = USUARIOS.find(u => u.id  === sol.usuarioId);
+  const emp    = EMPRESAS.find(e => e.id  === sol.empresaId);
+  const gestor = sol.encargadoId ? USUARIOS.find(u => u.id === sol.encargadoId) : null;
+  const puedeGestionar = (usuarioActual?.rol === "encargado" && usuarioActual?.empresaId === sol.empresaId) || ["director","administrador","rrhh"].includes(usuarioActual?.rol);
+  const puedeCancelar  = sol.usuarioId === usuarioActual?.id && sol.estado === "pendiente";
+  const dm = darkMode;
 
   return (
-    <div style={overlay} onMouseDown={onClose}>
-      <div style={box} onMouseDown={e => e.stopPropagation()}>
-        {/* Cabecera */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: tipo.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{tipo.icon}</div>
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"flex-start", justifyContent:"center", zIndex:1000, padding:20, overflowY:"auto" }} onMouseDown={onClose}>
+      <div style={{ background: dm ? "#111827" : "#FFFFFF", border:`1px solid ${dm ? "#2E3A55" : "#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:540, padding:28, boxShadow:"0 24px 80px #0008", margin:"auto" }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:48, height:48, borderRadius:12, background: tipo.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>{tipo.icon}</div>
             <div>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: darkMode ? "#E2E8F0" : "#0F172A" }}>{tipo.label}</h2>
-              <p style={{ margin: 0, color: darkMode ? "#64748B" : "#94A3B8", fontSize: 12 }}>Solicitado el {fmtDate(sol.fechaCreacion)}</p>
+              <h2 style={{ margin:0, fontSize:17, fontWeight:800, color: dm ? "#E2E8F0" : "#0F172A" }}>{tipo.label}</h2>
+              <p style={{ margin:0, color: dm ? "#64748B" : "#94A3B8", fontSize:12 }}>Solicitado el {fmtDate(sol.fechaCreacion)}</p>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ background: estado.bg, color: estado.color, border: `1px solid ${estado.color}55`, borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 700 }}>
-              {sol.estado === "pendiente" ? "⏳ " : sol.estado === "aprobada" ? "✅ " : "❌ "}
-              {estado.label}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ background:estado.bg, color:estado.color, border:`1px solid ${estado.color}55`, borderRadius:6, padding:"4px 10px", fontSize:12, fontWeight:700 }}>
+              {sol.estado==="pendiente" ? "⏳ " : sol.estado==="aprobada" ? "✅ " : "❌ "}{estado.label}
             </span>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748B", fontSize: 22, cursor: "pointer" }}>×</button>
+            <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
           </div>
         </div>
 
-        {/* Info del solicitante */}
-        <div style={{ background: darkMode ? "#0D1424" : "#F8FAFC", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: "50%", background: emp?.color + "44", border: `2px solid ${emp?.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-            {usr?.nombre?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+        <div style={{ background: dm ? "#0D1424" : "#F8FAFC", borderRadius:10, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:38, height:38, borderRadius:"50%", background:(emp?.color||"#888")+"44", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, color:"#fff", flexShrink:0 }}>
+            {usr?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
           </div>
           <div>
-            <p style={{ margin: 0, fontWeight: 700, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 14 }}>{usr?.nombre}</p>
-            <p style={{ margin: 0, color: darkMode ? "#475569" : "#94A3B8", fontSize: 12 }}>{usr?.rol} · {emp?.nombre}</p>
+            <p style={{ margin:0, fontWeight:700, color: dm ? "#E2E8F0" : "#0F172A", fontSize:14 }}>{usr?.nombre}</p>
+            <p style={{ margin:0, color: dm ? "#475569" : "#94A3B8", fontSize:12 }}>{usr?.rol} · {emp?.nombre}</p>
           </div>
         </div>
 
-        {/* Datos de la solicitud */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-          {sol.tipo === "vacaciones" && (
-            <>
-              <Row label="Fechas" v={`${fmtDate(sol.fechaInicio)} → ${fmtDate(sol.fechaFin)}`} darkMode={darkMode} />
-              <Row label="Días laborables" v={`${sol.diasSolicitados} días`} color={tipo.color} darkMode={darkMode} />
-            </>
-          )}
-          {sol.tipo === "ausencia" && (
-            <>
-              <Row label="Fecha" v={fmtDate(sol.fecha)} darkMode={darkMode} />
-              <Row label="Motivo" v={sol.motivo} darkMode={darkMode} />
-            </>
-          )}
-          {sol.tipo === "horasExtras" && (
-            <>
-              <Row label="Fecha" v={fmtDate(sol.fecha)} darkMode={darkMode} />
-              <Row label="Horas extras" v={`${sol.horasExtra}h`} color={tipo.color} darkMode={darkMode} />
-            </>
-          )}
-          {sol.descripcion && <Row label="Notas" v={sol.descripcion} darkMode={darkMode} />}
-          {gestor && <Row label="Gestionado por" v={gestor.nombre} darkMode={darkMode} />}
-          {sol.motivoRechazo && <Row label="Motivo rechazo" v={sol.motivoRechazo} color="#E53E3E" darkMode={darkMode} />}
+        <div style={{ display:"flex", flexDirection:"column", gap:0, marginBottom:18 }}>
+          {sol.tipo === "vacaciones" && (<><FilaDetalle label="Fechas" v={`${fmtDate(sol.fechaInicio)} → ${fmtDate(sol.fechaFin)}`} dm={dm} /><FilaDetalle label="Días laborables" v={`${sol.diasSolicitados} días`} color={tipo.color} dm={dm} /></>)}
+          {sol.tipo === "ausencia"    && (<><FilaDetalle label="Fecha" v={fmtDate(sol.fecha)} dm={dm} /><FilaDetalle label="Motivo" v={sol.motivo} dm={dm} /></>)}
+          {sol.tipo === "horasExtras" && (<><FilaDetalle label="Fecha" v={fmtDate(sol.fecha)} dm={dm} /><FilaDetalle label="Horas extras" v={`${sol.horasExtra}h`} color={tipo.color} dm={dm} /></>)}
+          {sol.descripcion && <FilaDetalle label="Notas" v={sol.descripcion} dm={dm} />}
+          {gestor          && <FilaDetalle label="Gestionado por" v={gestor.nombre} dm={dm} />}
+          {sol.motivoRechazo && <FilaDetalle label="Motivo rechazo" v={sol.motivoRechazo} color="#E53E3E" dm={dm} />}
         </div>
 
-        {/* Acciones encargado */}
         {puedeGestionar && sol.estado === "pendiente" && (
-          <>
-            {!rechazando ? (
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={async () => { setLoading(true); await onAprobar(sol); }} disabled={loading}
-                  style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "11px", borderRadius: 8, border: "none", cursor: "pointer", background: "#38A169", color: "#fff", opacity: loading ? 0.6 : 1 }}>
-                  ✅ Aprobar solicitud
-                </button>
-                <button onClick={() => setRechazando(true)}
-                  style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "11px", borderRadius: 8, border: "none", cursor: "pointer", background: "#E53E3E", color: "#fff" }}>
-                  ❌ Rechazar
+          !rechazando ? (
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={async () => { setLoading(true); await onAprobar(sol); }} disabled={loading} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#38A169", color:"#fff", opacity: loading ? 0.6 : 1 }}>✅ Aprobar</button>
+              <button onClick={() => setRechazando(true)} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#E53E3E", color:"#fff" }}>❌ Rechazar</button>
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <div><label style={s.label}>Motivo del rechazo *</label><textarea style={{ ...s.inp, minHeight:80, resize:"vertical" }} value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="Explica el motivo del rechazo..." /></div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setRechazando(false)} style={{ ...s.btnOut, flex:1 }}>Volver</button>
+                <button onClick={async () => { if (!motivoRechazo.trim()) return; setLoading(true); await onRechazar(sol, motivoRechazo.trim()); }} disabled={!motivoRechazo.trim()||loading} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor: !motivoRechazo.trim() ? "not-allowed" : "pointer", background:"#E53E3E", color:"#fff", opacity: (!motivoRechazo.trim()||loading) ? 0.5 : 1 }}>
+                  {loading ? "Rechazando..." : "Confirmar rechazo"}
                 </button>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div>
-                  <label style={s.label}>Motivo del rechazo *</label>
-                  <textarea style={{ ...s.inp, minHeight: 80, resize: "vertical" }} value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="Explica el motivo del rechazo para informar al empleado..." />
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={() => setRechazando(false)} style={{ ...s.btnOut, flex: 1 }}>Volver</button>
-                  <button onClick={async () => { if (!motivoRechazo.trim()) return; setLoading(true); await onRechazar(sol, motivoRechazo.trim()); }}
-                    disabled={!motivoRechazo.trim() || loading}
-                    style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "11px", borderRadius: 8, border: "none", cursor: !motivoRechazo.trim() ? "not-allowed" : "pointer", background: "#E53E3E", color: "#fff", opacity: (!motivoRechazo.trim() || loading) ? 0.5 : 1 }}>
-                    {loading ? "Rechazando..." : "Confirmar rechazo"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+            </div>
+          )
         )}
 
-        {/* Cancelar (propio, pendiente) */}
         {puedeCancelar && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
-            <button onClick={async () => { setLoading(true); await onCancelar(sol); }}
-              style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "8px 16px", borderRadius: 7, border: `1px solid ${darkMode ? "#2E3A55" : "#E2E8F0"}`, cursor: "pointer", background: "transparent", color: darkMode ? "#475569" : "#94A3B8" }}>
+          <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${dm ? "#1E293B" : "#E2E8F0"}` }}>
+            <button onClick={async () => { setLoading(true); await onCancelar(sol); }} style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"8px 16px", borderRadius:7, border:`1px solid ${dm ? "#2E3A55" : "#E2E8F0"}`, cursor:"pointer", background:"transparent", color: dm ? "#475569" : "#94A3B8" }}>
               🗑️ Cancelar solicitud
             </button>
           </div>
@@ -4371,12 +4174,11 @@ function ModalDetalleSolicitud({ sol, darkMode, usuarioActual, USUARIOS, EMPRESA
   );
 }
 
-// ── Helper: fila de detalle ─────────────────────────────────────────────────
-function Row({ label, v, color, darkMode }) {
+function FilaDetalle({ label, v, color, dm }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "8px 0", borderBottom: `1px solid ${darkMode ? "#0D1424" : "#F1F5F9"}` }}>
-      <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: color || (darkMode ? "#E2E8F0" : "#0F172A"), fontSize: 13, fontWeight: color ? 700 : 400, textAlign: "right" }}>{v}</span>
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, padding:"8px 0", borderBottom:`1px solid ${dm ? "#0D1424" : "#F1F5F9"}` }}>
+      <span style={{ color: dm ? "#475569" : "#94A3B8", fontSize:12, fontWeight:600, flexShrink:0 }}>{label}</span>
+      <span style={{ color: color || (dm ? "#E2E8F0" : "#0F172A"), fontSize:13, fontWeight: color ? 700 : 400, textAlign:"right" }}>{v}</span>
     </div>
   );
 }
