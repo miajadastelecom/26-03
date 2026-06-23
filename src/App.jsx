@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 // Dark/Light mode — módulo nivel para acceso global
 const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } catch { return true; } };
 let __darkMode = getDM();
-const darkMode = __darkMode;
+let darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
 
@@ -2714,6 +2714,11 @@ export default function App() {
     return () => unsub();
   }, [usuarioId]);
 
+  const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
+  const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
+  const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
+  const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
+
   // ── Firebase: nóminas en tiempo real ──
   useEffect(() => {
     if (!usuarioId) return;
@@ -2736,10 +2741,6 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
-  const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
-  const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
-  const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none" };
 
   // Tickets que "pertenecen" al usuario según su rol
   const ticketsMisRol = tickets.filter(t => {
