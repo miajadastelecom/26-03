@@ -2652,7 +2652,11 @@ export default function App() {
   const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
-  const [sidebarOpen,   setSidebarOpen] = useState(true);   // sidebar visible en escritorio
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // En móvil (< 900px) el sidebar empieza cerrado
+    if (typeof window !== 'undefined') return window.innerWidth > 900;
+    return true;
+  });
   // ── Fichaje ──
   const [fichajes,      setFichajes]   = useState([]);
   const [fichajeActivo, setFichajeActivo] = useState(null); // { id, entrada }
@@ -2977,24 +2981,37 @@ export default function App() {
         *, *::before, *::after { transition: background-color .15s, border-color .15s, color .1s; }
         html { -webkit-text-size-adjust: 100%; }
         body { margin: 0; padding: 0; }
+        /* ── SIDEBAR OVERLAY (siempre en DOM, visible solo móvil) ── */
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: #00000066; z-index: 199; }
+
+        /* ── TABLET (≤ 900px): sidebar colapsado por defecto ── */
+        @media (max-width: 900px) {
+          .sidebar-aside {
+            position: fixed !important;
+            left: 0; top: 0;
+            height: 100vh !important;
+            z-index: 200 !important;
+            transform: translateX(-100%);
+            transition: transform .25s ease !important;
+            width: 240px !important;
+            min-width: 240px !important;
+          }
+          .sidebar-aside.open {
+            transform: translateX(0) !important;
+          }
+          .sidebar-overlay { display: block; }
+          .main-content { padding: 16px 18px !important; }
+          .stats-grid { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; }
+        }
+
+        /* ── MÓVIL (≤ 640px) ── */
         @media (max-width: 640px) {
           .nav-logo-subtitle { display: none !important; }
           .nav-user-role { display: none !important; }
           .nav-empresa-name { display: none !important; }
           .nav-user-nombre { display: none !important; }
           .nav-user-tags { display: none !important; }
-          /* Sidebar responsive */
-          @media (max-width: 768px) {
-            .sidebar-aside { position: fixed !important; left: 0; top: 0; height: 100vh !important; z-index: 200 !important; transform: translateX(-100%); transition: transform .25s ease !important; }
-            .sidebar-aside.open { transform: translateX(0) !important; }
-            .sidebar-overlay { display: block !important; }
-          }
-          .sidebar-overlay { display: none; position: fixed; inset: 0; background: #00000066; z-index: 199; }
-          .nav-tab-btn { padding: 0 14px !important; font-size: 12px !important; white-space: nowrap !important; }
-          .nav-user-info { gap: 6px !important; }
-          .nav-action-btns { gap: 4px !important; }
-          .nav-action-btns button { padding: 5px 7px !important; font-size: 15px !important; }
-          .main-content { padding: 14px 10px !important; }
+          .main-content { padding: 12px 10px !important; }
           .stats-grid { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
           .tickets-grid { grid-template-columns: 1fr !important; }
           .filters-row { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
@@ -3009,11 +3026,16 @@ export default function App() {
           .banner-director { flex-direction: column !important; padding: 12px !important; }
           .historial-subtabs { width: 100% !important; }
           .historial-subtabs button { flex: 1 !important; }
+          .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .page-header-actions { width: 100% !important; }
+          .page-header-actions button { width: 100% !important; }
+          .topbar-title { font-size: 14px !important; }
         }
+
+        /* ── MÓVIL PEQUEÑO (≤ 380px) ── */
         @media (max-width: 380px) {
-          .nav-tab-btn { padding: 0 10px !important; font-size: 11px !important; }
           .stats-grid { gap: 6px !important; }
-          .nav-action-btns button { padding: 4px 6px !important; }
+          .main-content { padding: 10px 8px !important; }
         }
       `}</style>
 
@@ -3021,7 +3043,7 @@ export default function App() {
       {/* ═══════════════════════════════════════════
           LAYOUT: SIDEBAR + CONTENIDO
       ═══════════════════════════════════════════ */}
-      <div style={{ display:"flex", minHeight:"100vh" }}>
+      <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
 
         {/* ── SIDEBAR ── */}
         {/* Overlay móvil para cerrar sidebar */}
@@ -3236,30 +3258,37 @@ export default function App() {
         </aside>
 
         {/* ── CONTENIDO PRINCIPAL ── */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F8FAFC" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F8FAFC", overflow:"hidden" }}>
 
           {/* Header top bar */}
-          <div style={{ background: darkMode?"#0D1424":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, padding:"0 24px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-            <div>
-              <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:15 }}>
-                {{ tickets:"🎫 Tickets", historial:"🗂️ Historial", calendario:"📅 Calendario", reportes:"📄 Reportes", fichaje:"🕐 Fichaje", nominas:"💰 Nóminas", perfil:"👤 Perfil" }[seccion]}
-              </span>
-              <span style={{ marginLeft:10, color: empColor, fontSize:11, fontWeight:700 }}>· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
+          <div className="topbar-title" style={{ background: darkMode?"#0D1424":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, padding:"0 16px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, gap:8 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {/* Botón hamburguesa - visible en móvil/tablet */}
+              <button onClick={() => setSidebarOpen(v => !v)}
+                style={{ background:"none", border:"none", cursor:"pointer", color: darkMode?"#94A3B8":"#475569", fontSize:22, padding:"4px 6px", display:"flex", alignItems:"center", flexShrink:0 }}>
+                ☰
+              </button>
+              <div>
+                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:15 }}>
+                  {{ tickets:"🎫 Tickets", historial:"🗂️ Historial", calendario:"📅 Calendario", reportes:"📄 Reportes", fichaje:"🕐 Fichaje", nominas:"💰 Nóminas", perfil:"👤 Perfil" }[seccion]}
+                </span>
+                <span style={{ marginLeft:8, color: empColor, fontSize:11, fontWeight:700 }}>· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
+              </div>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {fichajeActivo && (
-                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700 }}>
-                  🟢 Fichado desde {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
+                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
+                  🟢 {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
                 </span>
               )}
-              <div style={{ width:32, height:32, borderRadius:"50%", background: empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12 }}>
+              <div style={{ width:32, height:32, borderRadius:"50%", background: empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12, flexShrink:0 }}>
                 {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
               </div>
             </div>
           </div>
 
           {/* Contenido de cada sección */}
-          <div style={{ flex:1, padding:"24px 28px", overflowY:"auto" }}>
+          <div className="main-content" style={{ flex:1, padding:"24px 28px", overflowY:"auto", overflowX:"hidden" }}>
 {/* BANNER COMUNICADOS ACTIVOS */}
         {comunicados.length > 0 && (() => {
           // Mostrar solo el más reciente como banner
