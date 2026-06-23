@@ -3050,9 +3050,10 @@ export default function App() {
         {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
         <aside className={`sidebar-aside${sidebarOpen ? " open" : ""}`} style={{
-          width:          sidebarOpen ? 240 : 64,
-          minWidth:       sidebarOpen ? 240 : 64,
-          background:     darkMode ? "#0A0F1E" : "#0F172A",
+          width:          sidebarOpen ? 220 : 60,
+          minWidth:       sidebarOpen ? 220 : 60,
+          background:     darkMode ? "#111827" : "#FFFFFF",
+          borderRight:   `1px solid ${darkMode ? "#1E293B" : "#E8EDF2"}`,
           display:        "flex",
           flexDirection:  "column",
           position:       "sticky",
@@ -3065,15 +3066,15 @@ export default function App() {
           flexShrink:     0,
         }}>
           {/* Logo + toggle */}
-          <div style={{ padding: sidebarOpen ? "20px 16px 12px" : "20px 10px 12px", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", borderBottom:"1px solid #ffffff11" }}>
+          <div style={{ padding: sidebarOpen ? "20px 16px 12px" : "20px 10px 12px", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", borderBottom:`1px solid ${darkMode?"#1E293B":"#F0F2F5"}` }}>
             {sidebarOpen && (
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:34, height:34, borderRadius:8, background: empColor, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#fff", fontSize:15, flexShrink:0 }}>
                   {(EMPRESAS.find(e=>e.id===usuario?.empresaId)?.inicial || "T")}
                 </div>
                 <div>
-                  <p style={{ margin:0, color:"#fff", fontSize:13, fontWeight:800, lineHeight:1.2 }}>Tickets</p>
-                  <p style={{ margin:0, color:"#ffffff55", fontSize:10 }}>Sistema interempresarial</p>
+                  <p style={{ margin:0, color: darkMode?"#fff":"#1B2559", fontSize:13, fontWeight:800, lineHeight:1.2 }}>Grupo</p>
+                  <p style={{ margin:0, color: darkMode?"#94A3B8":"#68769F", fontSize:13, fontWeight:700 }}>Laura Otero</p>
                 </div>
               </div>
             )}
@@ -3084,14 +3085,14 @@ export default function App() {
           </div>
 
           {/* Avatar usuario */}
-          <div style={{ padding: sidebarOpen ? "16px 16px 8px" : "16px 10px 8px", borderBottom:"1px solid #ffffff11" }}>
+          <div style={{ padding: sidebarOpen ? "16px 16px 8px" : "16px 10px 8px", borderBottom:`1px solid ${darkMode?"#1E293B":"#F0F2F5"}` }}>
             {sidebarOpen ? (
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:38, height:38, borderRadius:"50%", background: empColor + "44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:14, flexShrink:0 }}>
                   {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase() || "U"}
                 </div>
                 <div style={{ overflow:"hidden" }}>
-                  <p style={{ margin:0, color:"#fff", fontSize:12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usuario?.nombre}</p>
+                  <p style={{ margin:0, color: darkMode?"#fff":"#1B2559", fontSize:12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usuario?.nombre}</p>
                   <span style={{ background: empColor + "44", color: empColor, borderRadius:4, padding:"1px 7px", fontSize:9, fontWeight:800, textTransform:"uppercase" }}>{usuario?.rol}</span>
                 </div>
               </div>
@@ -3129,15 +3130,15 @@ export default function App() {
                     fontFamily:     "inherit",
                     fontSize:       13,
                     fontWeight:     activo ? 700 : 400,
-                    background:     activo ? empColor + "33" : "transparent",
-                    color:          activo ? empColor : "#ffffff66",
+                    background:     activo ? (darkMode?"#1E293B":"#F4F7FE") : "transparent",
+                    color:          activo ? empColor : (darkMode?"#94A3B8":"#68769F"),
                     borderLeft:     activo ? `3px solid ${empColor}` : "3px solid transparent",
                     transition:     "all .15s",
                     width:          "100%",
                     whiteSpace:     "nowrap",
                   }}
                   onMouseEnter={e => { if(!activo) { e.currentTarget.style.background="#ffffff11"; e.currentTarget.style.color="#ffffffcc"; }}}
-                  onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#ffffff66"; }}}>
+                  onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; }}}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
                   {sidebarOpen && <span>{item.label}</span>}
                   {/* Indicador fichaje activo */}
@@ -3150,7 +3151,7 @@ export default function App() {
           </nav>
 
           {/* Acciones inferiores */}
-          <div style={{ padding:"8px", borderTop:"1px solid #ffffff11", display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
+          <div style={{ padding:"8px", borderTop:`1px solid ${darkMode?"#1E293B":"#F0F2F5"}`, display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
             {/* Comunicados */}
             <div style={{ position:"relative" }}>
               <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
@@ -3258,30 +3259,48 @@ export default function App() {
         </aside>
 
         {/* ── CONTENIDO PRINCIPAL ── */}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F8FAFC", overflow:"hidden" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, background: darkMode?"#0D1424":"#F0F3FA", overflow:"hidden" }}>
 
-          {/* Header top bar */}
-          <div className="topbar-title" style={{ background: darkMode?"#0D1424":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, padding:"0 16px", height:52, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, gap:8 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              {/* Botón hamburguesa - visible en móvil/tablet */}
-              <button onClick={() => setSidebarOpen(v => !v)}
-                style={{ background:"none", border:"none", cursor:"pointer", color: darkMode?"#94A3B8":"#475569", fontSize:22, padding:"4px 6px", display:"flex", alignItems:"center", flexShrink:0 }}>
-                ☰
-              </button>
-              <div>
-                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:15 }}>
-                  {{ tickets:"🎫 Tickets", historial:"🗂️ Historial", calendario:"📅 Calendario", reportes:"📄 Reportes", fichaje:"🕐 Fichaje", nominas:"💰 Nóminas", perfil:"👤 Perfil" }[seccion]}
-                </span>
-                <span style={{ marginLeft:8, color: empColor, fontSize:11, fontWeight:700 }}>· {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
-              </div>
+          {/* Topbar */}
+          <div style={{ background: darkMode?"#111827":"#FFFFFF", borderBottom:`1px solid ${darkMode?"#1E293B":"#E8EDF2"}`, padding:"0 20px", height:60, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+            {/* Hamburguesa móvil */}
+            <button onClick={() => setSidebarOpen(v => !v)}
+              style={{ background:"none", border:"none", cursor:"pointer", color: darkMode?"#94A3B8":"#A3AED0", fontSize:22, padding:"4px", display:"flex", alignItems:"center", flexShrink:0 }}>
+              ☰
+            </button>
+
+            {/* Selector empresa */}
+            <div style={{ display:"flex", alignItems:"center", gap:8, background: darkMode?"#1E293B":"#F4F7FE", border:`1px solid ${darkMode?"#2E3A55":"#E0E5F2"}`, borderRadius:8, padding:"6px 12px", cursor:"pointer", flexShrink:0 }}>
+              <span style={{ fontSize:14 }}>🏢</span>
+              <span style={{ color: darkMode?"#E2E8F0":"#1B2559", fontSize:13, fontWeight:600, whiteSpace:"nowrap" }}>
+                {EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre || "Todas las empresas"}
+              </span>
+              <span style={{ color: darkMode?"#64748B":"#A3AED0", fontSize:12 }}>▾</span>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+
+            {/* Buscador */}
+            <div style={{ flex:1, maxWidth:480, position:"relative" }}>
+              <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color: darkMode?"#475569":"#A3AED0", fontSize:15 }}>🔍</span>
+              <input
+                placeholder="Buscar tickets, proyectos, personas..."
+                style={{ width:"100%", height:38, paddingLeft:36, paddingRight:12, background: darkMode?"#1E293B":"#F4F7FE", border:`1px solid ${darkMode?"#2E3A55":"#E0E5F2"}`, borderRadius:8, color: darkMode?"#E2E8F0":"#1B2559", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+              />
+            </div>
+
+            {/* Acciones derecha */}
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
               {fichajeActivo && (
-                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
+                <span style={{ background:"#38A16922", color:"#38A169", border:"1px solid #38A16944", borderRadius:6, padding:"4px 10px", fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}>
                   🟢 {new Date(fichajeActivo.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
                 </span>
               )}
-              <div style={{ width:32, height:32, borderRadius:"50%", background: empColor+"44", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#fff", fontSize:12, flexShrink:0 }}>
+              {/* Switch Web */}
+              <div style={{ display:"flex", alignItems:"center", gap:4, background: darkMode?"#1E293B":"#F4F7FE", border:`1px solid ${darkMode?"#2E3A55":"#E0E5F2"}`, borderRadius:8, padding:"5px 10px", fontSize:12, fontWeight:600, color: darkMode?"#94A3B8":"#68769F" }}>
+                <span>🖥</span>
+                <span>Web</span>
+              </div>
+              {/* Avatar */}
+              <div style={{ width:36, height:36, borderRadius:"50%", background: empColor+"33", border:`2px solid ${empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color: empColor, fontSize:12, flexShrink:0, cursor:"pointer" }} onClick={() => setSeccion("perfil")}>
                 {usuario?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"U"}
               </div>
             </div>
