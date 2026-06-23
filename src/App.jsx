@@ -18,6 +18,19 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 
+// ── Constantes módulo Gestión Administrativa ─────────────────────────────
+const DIAS_VACACIONES_ANUALES = 22;
+const TIPO_LABELS = {
+  vacaciones:  { label: "Vacaciones",   icon: "🏖️",  color: "#3182CE" },
+  ausencia:    { label: "Ausencia",     icon: "🤒",  color: "#D4A017" },
+  horasExtras: { label: "Horas extras", icon: "⏱️", color: "#805AD5" },
+};
+const ESTADO_COLORS = {
+  pendiente:  { color: "#D4A017", bg: "#D4A01722", label: "Pendiente" },
+  aprobada:   { color: "#38A169", bg: "#38A16922", label: "Aprobada"  },
+  rechazada:  { color: "#E53E3E", bg: "#E53E3E22", label: "Rechazada" },
+};
+
 // ─── DATOS ────────────────────────────────────────────────────────────────────
 const EMPRESAS = [
   { id: 0, nombre: "Dirección General",         color: darkMode ? "#94A3B8" : "#334155", inicial: "DG" },
@@ -3549,20 +3562,6 @@ export default function App() {
 // ═══════════════════════════════════════════════════════════════════
 // MÓDULO: Gestión Administrativa (RRHH)
 // ═══════════════════════════════════════════════════════════════════
-
-const DIAS_VACACIONES_ANUALES = 22;
-
-const TIPO_LABELS = {
-  vacaciones:  { label: "Vacaciones",   icon: "🏖️",  color: "#3182CE" },
-  ausencia:    { label: "Ausencia",     icon: "🤒",  color: "#D4A017" },
-  horasExtras: { label: "Horas extras", icon: "⏱️", color: "#805AD5" },
-};
-
-const ESTADO_COLORS = {
-  pendiente:  { color: "#D4A017", bg: "#D4A01722", label: "Pendiente" },
-  aprobada:   { color: "#38A169", bg: "#38A16922", label: "Aprobada"  },
-  rechazada:  { color: "#E53E3E", bg: "#E53E3E22", label: "Rechazada" },
-};
 
 function genIdRRHH() { return "rrhh_" + Date.now() + "_" + Math.floor(Math.random() * 9999); }
 
