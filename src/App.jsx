@@ -3107,6 +3107,7 @@ export default function App() {
               { id:"historial",  icon:"🗂️", label:"Historial" },
               { id:"calendario", icon:"📅", label:"Calendario" },
               ...( ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
+              { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"fichaje",    icon:"🕐", label:"Fichaje" },
               { id:"nominas",    icon:"💰", label:"Nóminas" },
               { id:"perfil",     icon:"👤", label:"Perfil" },
@@ -3516,6 +3517,20 @@ export default function App() {
           </>
         ) : null}
 
+        {/* ── COMUNICACIÓN ── */}
+        {seccion === "comunicacion" && (
+          <SeccionComunicacion
+            darkMode={darkMode}
+            usuario={usuario}
+            usuarioId={usuarioId}
+            comunicados={comunicados}
+            db={db}
+            empColor={empColor}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+          />
+        )}
+
         {/* ── FICHAJE ── */}
         {seccion === "fichaje" && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
@@ -3610,6 +3625,461 @@ export default function App() {
           comunicadoInicial={comunicadoEditar}
         />
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MÓDULO: Comunicación
+// ═══════════════════════════════════════════════════════════════════
+
+const TIPOS_COMUNICADO = [
+  { id: "noticia",     label: "Noticia",      icon: "📰", color: "#3182CE", bg: "#3182CE15" },
+  { id: "informativo", label: "Informativo",  icon: "ℹ️",  color: "#38A169", bg: "#38A16915" },
+  { id: "urgente",     label: "Urgente",      icon: "🚨", color: "#E53E3E", bg: "#E53E3E15" },
+  { id: "aviso",       label: "Aviso",        icon: "⚠️",  color: "#D4A017", bg: "#D4A01715" },
+  { id: "evento",      label: "Evento",       icon: "🎉", color: "#805AD5", bg: "#805AD515" },
+];
+
+function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, empColor, USUARIOS, EMPRESAS }) {
+  const [filtroTipo, setFiltroTipo]   = React.useState("todos");
+  const [buscar, setBuscar]           = React.useState("");
+  const [modalNuevo, setModalNuevo]   = React.useState(false);
+  const [detalle, setDetalle]         = React.useState(null);
+  const [editando, setEditando]       = React.useState(null);
+
+  const puedeCrear = ["director","ceo","administrador","encargado","rrhh"].includes(usuario?.rol);
+
+  const comunicadosFiltrados = comunicados
+    .filter(c => {
+      // Filtrar por destinatario
+      if (!c.destinatarios || c.destinatarios.tipo === "todos") return true;
+      if (c.destinatarios.tipo === "empresas") return (c.destinatarios.empresaIds||[]).includes(usuario?.empresaId);
+      if (c.destinatarios.tipo === "usuarios")  return (c.destinatarios.usuarioIds||[]).includes(usuarioId);
+      return true;
+    })
+    .filter(c => filtroTipo === "todos" || c.tipo === filtroTipo)
+    .filter(c => !buscar || c.titulo?.toLowerCase().includes(buscar.toLowerCase()) || c.cuerpo?.toLowerCase().includes(buscar.toLowerCase()))
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  const dm = darkMode;
+  const cardBg    = dm ? "#111827" : "#FFFFFF";
+  const border    = dm ? "#1E293B" : "#E2E8F0";
+  const textPri   = dm ? "#E2E8F0" : "#0F172A";
+  const textMuted = dm ? "#64748B" : "#94A3B8";
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+
+      {/* Cabecera */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22, flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>📣 Comunicación</h2>
+          <p style={{ margin:0, color:textMuted, fontSize:13 }}>Canal interno del Grupo Laura Otero</p>
+        </div>
+        {puedeCrear && (
+          <button onClick={() => setModalNuevo(true)}
+            style={{ fontFamily:"inherit", fontSize:13, fontWeight:700, padding:"9px 20px", borderRadius:8, border:"none", cursor:"pointer", background:empColor, color:"#fff" }}>
+            + Nuevo comunicado
+          </button>
+        )}
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
+        {/* Buscador */}
+        <div style={{ position:"relative", minWidth:180, maxWidth:260 }}>
+          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:textMuted, pointerEvents:"none" }}>🔍</span>
+          <input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar comunicado..."
+            style={{ width:"100%", height:36, paddingLeft:30, paddingRight:10, background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} />
+        </div>
+
+        {/* Pills de tipo */}
+        {[{id:"todos",label:"Todos",icon:"📋",color:empColor}, ...TIPOS_COMUNICADO].map(t => {
+          const activo = filtroTipo === t.id;
+          return (
+            <button key={t.id} onClick={() => setFiltroTipo(t.id)}
+              style={{ fontFamily:"inherit", fontSize:11, fontWeight:600, padding:"5px 13px", borderRadius:99, border:`1px solid ${activo ? t.color : border}`, cursor:"pointer", background: activo ? t.color+"22" : "transparent", color: activo ? t.color : textMuted, transition:"all .15s", display:"flex", alignItems:"center", gap:5, whiteSpace:"nowrap" }}>
+              {t.icon} {t.label}
+              {t.id !== "todos" && <span style={{ background:dm?"#1E293B":"#F1F5F9", borderRadius:99, padding:"0 6px", fontSize:10 }}>
+                {comunicados.filter(c => c.tipo === t.id).length}
+              </span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Grid de comunicados */}
+      {comunicadosFiltrados.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"80px 20px" }}>
+          <p style={{ fontSize:48, marginBottom:12 }}>📭</p>
+          <p style={{ fontSize:15, fontWeight:700, color:textMuted }}>Sin comunicados</p>
+          <p style={{ fontSize:13, color:textMuted, opacity:.7 }}>No hay comunicados para este filtro.</p>
+        </div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:16 }}>
+          {comunicadosFiltrados.map(c => {
+            const tipo    = TIPOS_COMUNICADO.find(t => t.id === c.tipo) || TIPOS_COMUNICADO[1];
+            const autor   = USUARIOS.find(u => u.id === c.autorId);
+            const empresa = EMPRESAS.find(e => e.id === c.empresaId);
+            const puedeEditar = usuario?.id === c.autorId || ["director","ceo","administrador"].includes(usuario?.rol);
+            const caducaDate  = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
+            const caducada    = caducaDate && caducaDate < new Date();
+
+            return (
+              <div key={c.id} onClick={() => setDetalle(c)}
+                style={{ background:cardBg, border:`1px solid ${caducada ? border+"88" : tipo.color+"55"}`, borderRadius:12, padding:"16px 18px", cursor:"pointer", opacity: caducada ? .6 : 1, transition:"box-shadow .15s", position:"relative" }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow=`0 4px 20px ${tipo.color}22`}
+                onMouseLeave={e => e.currentTarget.style.boxShadow="none"}>
+
+                {/* Badge tipo */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                  <span style={{ background:tipo.bg, color:tipo.color, border:`1px solid ${tipo.color}44`, borderRadius:99, padding:"3px 10px", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", gap:5 }}>
+                    {tipo.icon} {tipo.label}
+                  </span>
+                  {puedeEditar && (
+                    <div style={{ display:"flex", gap:4 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setEditando(c); setModalNuevo(true); }}
+                        style={{ background:"none", border:"none", cursor:"pointer", color:textMuted, fontSize:14, padding:"2px 5px" }} title="Editar">✏️</button>
+                      <button onClick={() => { if(confirm("¿Eliminar este comunicado?")) deleteDoc(doc(db,"comunicados",c.id)); }}
+                        style={{ background:"none", border:"none", cursor:"pointer", color:textMuted, fontSize:14, padding:"2px 5px" }} title="Eliminar">🗑️</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Título y cuerpo */}
+                <h3 style={{ margin:"0 0 6px", color:textPri, fontSize:15, fontWeight:700, lineHeight:1.3 }}>{c.titulo}</h3>
+                {c.cuerpo && <p style={{ margin:"0 0 12px", color:textMuted, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{c.cuerpo}</p>}
+
+                {/* PDF */}
+                {c.adjuntoPDF && (
+                  <div style={{ background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:7, padding:"7px 12px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }} onClick={e => e.stopPropagation()}>
+                    <span style={{ fontSize:16 }}>📄</span>
+                    <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre} style={{ color:empColor, fontSize:12, fontWeight:600, textDecoration:"none" }}>{c.adjuntoPDF.nombre}</a>
+                  </div>
+                )}
+
+                {/* Destinatarios */}
+                <div style={{ marginBottom:10 }}>
+                  {!c.destinatarios || c.destinatarios.tipo === "todos"
+                    ? <span style={{ color:textMuted, fontSize:11 }}>🌐 Todos los usuarios</span>
+                    : c.destinatarios.tipo === "empresas"
+                    ? <span style={{ color:textMuted, fontSize:11 }}>🏢 {(c.destinatarios.empresaIds||[]).map(id => EMPRESAS.find(e=>e.id===id)?.nombre).filter(Boolean).join(", ")}</span>
+                    : <span style={{ color:textMuted, fontSize:11 }}>👤 {(c.destinatarios.usuarioIds||[]).length} usuario{(c.destinatarios.usuarioIds||[]).length !== 1 ? "s" : ""}</span>
+                  }
+                </div>
+
+                {/* Footer */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:10, borderTop:`1px solid ${border}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <div style={{ width:22, height:22, borderRadius:"50%", background:(empresa?.color||empColor)+"33", border:`1.5px solid ${empresa?.color||empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:empresa?.color||empColor }}>
+                      {autor?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+                    </div>
+                    <span style={{ color:textMuted, fontSize:11 }}>{autor?.nombre?.split(" ").slice(0,2).join(" ")}</span>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <span style={{ color:textMuted, fontSize:11 }}>{c.fecha ? new Date(c.fecha).toLocaleDateString("es-ES",{day:"2-digit",month:"short"}) : ""}</span>
+                    {caducaDate && (
+                      <span style={{ display:"block", color: caducada ? "#E53E3E" : "#D4A017", fontSize:10 }}>
+                        {caducada ? "⚠️ Caducado" : `⏰ Caduca ${new Date(c.fechaCaducidad).toLocaleDateString("es-ES",{day:"2-digit",month:"short"})}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal nuevo/editar comunicado */}
+      {modalNuevo && (
+        <ModalNuevoComunicado
+          darkMode={dm}
+          usuario={usuario}
+          usuarioId={usuarioId}
+          db={db}
+          empColor={empColor}
+          USUARIOS={USUARIOS}
+          EMPRESAS={EMPRESAS}
+          comunicadoInicial={editando}
+          onClose={() => { setModalNuevo(false); setEditando(null); }}
+        />
+      )}
+
+      {/* Modal detalle */}
+      {detalle && (
+        <DetalleComunicado
+          darkMode={dm}
+          c={detalle}
+          USUARIOS={USUARIOS}
+          EMPRESAS={EMPRESAS}
+          empColor={empColor}
+          onClose={() => setDetalle(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalNuevoComunicado({ darkMode, usuario, usuarioId, db, empColor, USUARIOS, EMPRESAS, comunicadoInicial, onClose }) {
+  const [tipo, setTipo]               = React.useState(comunicadoInicial?.tipo || "informativo");
+  const [titulo, setTitulo]           = React.useState(comunicadoInicial?.titulo || "");
+  const [cuerpo, setCuerpo]           = React.useState(comunicadoInicial?.cuerpo || "");
+  const [destTipo, setDestTipo]       = React.useState(comunicadoInicial?.destinatarios?.tipo || "todos");
+  const [destEmpresas, setDestEmpresas] = React.useState(comunicadoInicial?.destinatarios?.empresaIds || []);
+  const [destUsuarios, setDestUsuarios] = React.useState(comunicadoInicial?.destinatarios?.usuarioIds || []);
+  const [fechaCad, setFechaCad]       = React.useState(comunicadoInicial?.fechaCaducidad ? new Date(comunicadoInicial.fechaCaducidad).toISOString().split("T")[0] : "");
+  const [adjuntoPDF, setAdjuntoPDF]   = React.useState(comunicadoInicial?.adjuntoPDF || null);
+  const [loading, setLoading]         = React.useState(false);
+  const [buscarUser, setBuscarUser]   = React.useState("");
+
+  const dm = darkMode;
+  const s = {
+    inp:   { fontFamily:"inherit", fontSize:13, background:dm?"#1A2235":"#F8FAFC", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:7, padding:"9px 12px", color:dm?"#E2E8F0":"#0F172A", outline:"none", width:"100%", boxSizing:"border-box" },
+    label: { display:"block", color:dm?"#64748B":"#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".4px", marginBottom:5 },
+  };
+
+  const handlePDF = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5*1024*1024) { alert("El PDF no puede superar 5 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setAdjuntoPDF({ nombre: file.name, dataUrl: ev.target.result });
+    reader.readAsDataURL(file);
+  };
+
+  const guardar = async () => {
+    if (!titulo.trim()) return;
+    setLoading(true);
+    const empresa = EMPRESAS.find(e => e.id === usuario?.empresaId);
+    const data = {
+      tipo,
+      titulo:    titulo.trim(),
+      cuerpo:    cuerpo.trim() || null,
+      autorId:   usuarioId,
+      empresaId: usuario?.empresaId,
+      fecha:     comunicadoInicial?.fecha || new Date().toISOString(),
+      fechaCaducidad: fechaCad ? new Date(fechaCad).toISOString() : null,
+      adjuntoPDF: adjuntoPDF || null,
+      destinatarios: {
+        tipo: destTipo,
+        ...(destTipo === "empresas" && { empresaIds: destEmpresas }),
+        ...(destTipo === "usuarios" && { usuarioIds: destUsuarios }),
+      },
+    };
+    if (comunicadoInicial) {
+      await updateDoc(doc(db, "comunicados", comunicadoInicial.id), { ...data, fechaEditado: new Date().toISOString() });
+    } else {
+      const id = "com_" + Date.now();
+      await setDoc(doc(db, "comunicados", id), { ...data, id });
+    }
+    setLoading(false);
+    onClose();
+  };
+
+  const tipoActual = TIPOS_COMUNICADO.find(t => t.id === tipo);
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"flex-start", justifyContent:"center", zIndex:1000, padding:20, overflowY:"auto" }} onMouseDown={onClose}>
+      <div style={{ background:dm?"#111827":"#FFFFFF", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:560, padding:28, boxShadow:"0 24px 80px #0008", margin:"auto" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h2 style={{ margin:0, fontSize:17, fontWeight:800, color:dm?"#E2E8F0":"#0F172A" }}>
+            {comunicadoInicial ? "✏️ Editar comunicado" : "📣 Nuevo comunicado"}
+          </h2>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Selector tipo */}
+          <div>
+            <label style={s.label}>Tipo de comunicado</label>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {TIPOS_COMUNICADO.map(t => (
+                <button key={t.id} onClick={() => setTipo(t.id)}
+                  style={{ fontFamily:"inherit", fontSize:11, fontWeight:700, padding:"5px 13px", borderRadius:99, border:`2px solid ${tipo===t.id ? t.color : dm?"#2E3A55":"#E2E8F0"}`, cursor:"pointer", background: tipo===t.id ? t.color+"22" : "transparent", color: tipo===t.id ? t.color : dm?"#64748B":"#94A3B8", transition:"all .15s" }}>
+                  {t.icon} {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Título */}
+          <div>
+            <label style={s.label}>Título *</label>
+            <input style={s.inp} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ej: Reunión el viernes a las 10h" />
+          </div>
+
+          {/* Mensaje */}
+          <div>
+            <label style={s.label}>Mensaje (opcional)</label>
+            <textarea style={{ ...s.inp, minHeight:90, resize:"vertical" }} value={cuerpo} onChange={e => setCuerpo(e.target.value)} placeholder="Detalle del comunicado..." />
+          </div>
+
+          {/* Destinatarios */}
+          <div>
+            <label style={s.label}>👥 Destinatarios</label>
+            <div style={{ display:"flex", gap:4, marginBottom:10 }}>
+              {[["todos","🌐 Todos"],["empresas","🏢 Por empresa"],["usuarios","👤 Por usuario"]].map(([v,l]) => (
+                <button key={v} onClick={() => setDestTipo(v)}
+                  style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:7, border:`1px solid ${destTipo===v ? empColor : dm?"#2E3A55":"#E2E8F0"}`, cursor:"pointer", background: destTipo===v ? empColor+"22" : "transparent", color: destTipo===v ? empColor : dm?"#64748B":"#94A3B8" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {/* Selector empresas */}
+            {destTipo === "empresas" && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {EMPRESAS.map(e => {
+                  const sel = destEmpresas.includes(e.id);
+                  return (
+                    <button key={e.id} onClick={() => setDestEmpresas(prev => sel ? prev.filter(x=>x!==e.id) : [...prev,e.id])}
+                      style={{ fontFamily:"inherit", fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:99, border:`1px solid ${sel?e.color:dm?"#2E3A55":"#E2E8F0"}`, cursor:"pointer", background:sel?e.color+"22":"transparent", color:sel?e.color:dm?"#64748B":"#94A3B8", display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ width:7, height:7, borderRadius:"50%", background:e.color }} />
+                      {e.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selector usuarios */}
+            {destTipo === "usuarios" && (
+              <div>
+                <input value={buscarUser} onChange={e => setBuscarUser(e.target.value)} placeholder="Buscar usuario..."
+                  style={{ ...s.inp, marginBottom:8, height:34 }} />
+                <div style={{ maxHeight:180, overflowY:"auto", border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}`, borderRadius:8 }}>
+                  {EMPRESAS.map(emp => {
+                    const usrs = USUARIOS.filter(u => u.empresaId === emp.id && (!buscarUser || u.nombre.toLowerCase().includes(buscarUser.toLowerCase())));
+                    if (!usrs.length) return null;
+                    return (
+                      <div key={emp.id}>
+                        <div style={{ padding:"6px 12px", background:dm?"#0D1424":"#F8FAFC", fontSize:10, fontWeight:700, color:emp.color, textTransform:"uppercase", display:"flex", justifyContent:"space-between" }}>
+                          {emp.nombre}
+                          <button onClick={() => {
+                            const ids = usrs.map(u=>u.id);
+                            const allSel = ids.every(id => destUsuarios.includes(id));
+                            setDestUsuarios(prev => allSel ? prev.filter(x=>!ids.includes(x)) : [...new Set([...prev,...ids])]);
+                          }} style={{ background:"none", border:"none", cursor:"pointer", color:emp.color, fontSize:10, fontWeight:700 }}>
+                            {usrs.every(u=>destUsuarios.includes(u.id)) ? "✓ Todos" : "+ Todos"}
+                          </button>
+                        </div>
+                        {usrs.map(u => (
+                          <div key={u.id} onClick={() => setDestUsuarios(prev => prev.includes(u.id) ? prev.filter(x=>x!==u.id) : [...prev,u.id])}
+                            style={{ padding:"7px 12px", display:"flex", alignItems:"center", gap:8, cursor:"pointer", borderBottom:`1px solid ${dm?"#0D1424":"#F1F5F9"}` }}>
+                            <span style={{ width:16, height:16, borderRadius:4, border:`2px solid ${destUsuarios.includes(u.id)?empColor:dm?"#2E3A55":"#CBD5E1"}`, background:destUsuarios.includes(u.id)?empColor:"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, color:"#fff", flexShrink:0 }}>
+                              {destUsuarios.includes(u.id)?"✓":""}
+                            </span>
+                            <span style={{ fontSize:12, color:dm?"#E2E8F0":"#0F172A" }}>{u.nombre}</span>
+                            <span style={{ fontSize:10, color:dm?"#475569":"#94A3B8", marginLeft:"auto" }}>{u.rol}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+                {destUsuarios.length > 0 && <p style={{ margin:"6px 0 0", color:empColor, fontSize:11, fontWeight:600 }}>{destUsuarios.length} usuario{destUsuarios.length>1?"s":""} seleccionado{destUsuarios.length>1?"s":""}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Fecha caducidad */}
+          <div>
+            <label style={s.label}>📅 Fecha de caducidad (opcional)</label>
+            <input type="date" style={{ ...s.inp, colorScheme:dm?"dark":"light" }} value={fechaCad} onChange={e => setFechaCad(e.target.value)} />
+            <p style={{ margin:"4px 0 0", color:dm?"#334155":"#94A3B8", fontSize:11 }}>Si no indicas fecha, el comunicado permanece hasta que lo elimines.</p>
+          </div>
+
+          {/* PDF */}
+          <div>
+            <label style={s.label}>📎 Adjuntar PDF (opcional, máx. 5 MB)</label>
+            {adjuntoPDF ? (
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:dm?"#1E293B":"#F8FAFC", borderRadius:7, border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}` }}>
+                <span>📄</span>
+                <span style={{ fontSize:12, color:dm?"#E2E8F0":"#0F172A", flex:1 }}>{adjuntoPDF.nombre}</span>
+                <button onClick={() => setAdjuntoPDF(null)} style={{ background:"none", border:"none", color:"#E53E3E", cursor:"pointer", fontSize:16 }}>×</button>
+              </div>
+            ) : (
+              <label style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}`, borderRadius:7, cursor:"pointer", fontSize:12, color:dm?"#94A3B8":"#64748B" }}>
+                📎 Seleccionar PDF
+                <input type="file" accept=".pdf" style={{ display:"none" }} onChange={handlePDF} />
+              </label>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:6 }}>
+            <button onClick={onClose} style={{ fontFamily:"inherit", fontSize:13, fontWeight:600, padding:"9px 18px", borderRadius:7, border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, cursor:"pointer", background:"transparent", color:dm?"#94A3B8":"#475569" }}>Cancelar</button>
+            <button onClick={guardar} disabled={!titulo.trim() || loading}
+              style={{ fontFamily:"inherit", fontSize:13, fontWeight:700, padding:"9px 20px", borderRadius:7, border:"none", cursor: titulo.trim() ? "pointer" : "not-allowed", background: tipoActual?.color || empColor, color:"#fff", opacity: titulo.trim() ? 1 : 0.5 }}>
+              {loading ? "Publicando..." : comunicadoInicial ? "💾 Guardar cambios" : "📣 Publicar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetalleComunicado({ darkMode, c, USUARIOS, EMPRESAS, empColor, onClose }) {
+  const tipo    = TIPOS_COMUNICADO.find(t => t.id === c.tipo) || TIPOS_COMUNICADO[1];
+  const autor   = USUARIOS.find(u => u.id === c.autorId);
+  const empresa = EMPRESAS.find(e => e.id === c.empresaId);
+  const dm = darkMode;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"flex-start", justifyContent:"center", zIndex:1000, padding:20, overflowY:"auto" }} onMouseDown={onClose}>
+      <div style={{ background:dm?"#111827":"#FFFFFF", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:600, padding:28, boxShadow:"0 24px 80px #0008", margin:"auto" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Badge tipo */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <span style={{ background:tipo.bg, color:tipo.color, border:`1px solid ${tipo.color}44`, borderRadius:99, padding:"4px 12px", fontSize:12, fontWeight:700 }}>
+            {tipo.icon} {tipo.label}
+          </span>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
+        </div>
+
+        <h2 style={{ margin:"0 0 12px", color:dm?"#E2E8F0":"#0F172A", fontSize:20, fontWeight:800, lineHeight:1.3 }}>{c.titulo}</h2>
+        {c.cuerpo && <p style={{ margin:"0 0 18px", color:dm?"#94A3B8":"#475569", fontSize:14, lineHeight:1.65 }}>{c.cuerpo}</p>}
+
+        {c.adjuntoPDF && (
+          <div style={{ background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}`, borderRadius:9, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>📄</span>
+            <div style={{ flex:1 }}>
+              <p style={{ margin:0, fontWeight:700, fontSize:13, color:dm?"#E2E8F0":"#0F172A" }}>{c.adjuntoPDF.nombre}</p>
+            </div>
+            <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre}
+              style={{ background:empColor, color:"#fff", borderRadius:7, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+              ⬇️ Descargar
+            </a>
+          </div>
+        )}
+
+        <div style={{ paddingTop:14, borderTop:`1px solid ${dm?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ width:32, height:32, borderRadius:"50%", background:(empresa?.color||empColor)+"33", border:`2px solid ${empresa?.color||empColor}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:empresa?.color||empColor }}>
+              {autor?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+            </div>
+            <div>
+              <p style={{ margin:0, fontWeight:700, fontSize:13, color:dm?"#E2E8F0":"#0F172A" }}>{autor?.nombre}</p>
+              <p style={{ margin:0, fontSize:11, color:dm?"#475569":"#94A3B8" }}>{empresa?.nombre} · {c.fecha ? new Date(c.fecha).toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"}) : ""}</p>
+            </div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            {!c.destinatarios || c.destinatarios.tipo === "todos"
+              ? <span style={{ color:dm?"#475569":"#94A3B8", fontSize:12 }}>🌐 Todos los usuarios</span>
+              : c.destinatarios.tipo === "empresas"
+              ? <span style={{ color:dm?"#475569":"#94A3B8", fontSize:12 }}>🏢 {(c.destinatarios.empresaIds||[]).map(id=>EMPRESAS.find(e=>e.id===id)?.nombre).filter(Boolean).join(", ")}</span>
+              : <span style={{ color:dm?"#475569":"#94A3B8", fontSize:12 }}>👤 {(c.destinatarios.usuarioIds||[]).length} usuarios</span>
+            }
+            {c.fechaEditado && <p style={{ margin:"4px 0 0", fontSize:10, color:dm?"#334155":"#CBD5E1" }}>Editado {new Date(c.fechaEditado).toLocaleDateString("es-ES")}</p>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
