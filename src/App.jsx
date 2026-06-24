@@ -3079,7 +3079,7 @@ export default function App() {
               </div>
             )}
             <button onClick={() => setSidebarOpen(v => !v)}
-              style={{ background:"none", border:"none", color:"#ffffff66", cursor:"pointer", fontSize:18, padding:4, lineHeight:1, flexShrink:0 }}>
+              style={{ background:"none", border:"none", color: darkMode?"#94A3B8":"#A3AED0", cursor:"pointer", fontSize:18, padding:4, lineHeight:1, flexShrink:0 }}>
               {sidebarOpen ? "◀" : "▶"}
             </button>
           </div>
@@ -3137,7 +3137,7 @@ export default function App() {
                     width:          "100%",
                     whiteSpace:     "nowrap",
                   }}
-                  onMouseEnter={e => { if(!activo) { e.currentTarget.style.background="#ffffff11"; e.currentTarget.style.color="#ffffffcc"; }}}
+                  onMouseEnter={e => { if(!activo) { e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE"; e.currentTarget.style.color=darkMode?"#E2E8F0":"#1B2559"; }}}
                   onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; }}}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
                   {sidebarOpen && <span>{item.label}</span>}
@@ -3155,7 +3155,7 @@ export default function App() {
             {/* Comunicados */}
             <div style={{ position:"relative" }}>
               <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
-                style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
+                style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:darkMode?"#94A3B8":"#68769F" }}>
                 💬
                 {comunicados.length > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#3182CE", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{comunicados.length}</span>}
               </button>
@@ -3163,14 +3163,14 @@ export default function App() {
             {/* Notificaciones */}
             <div style={{ position:"relative" }}>
               <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones"
-                style={{ background: notifsNoLeidas > 0 ? "#1A2235" : "transparent", border: notifsNoLeidas > 0 ? "1px solid #2E3A55" : "1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:"#ffffff88" }}>
+                style={{ background: notifsNoLeidas > 0 ? "#1A2235" : "transparent", border: notifsNoLeidas > 0 ? "1px solid #2E3A55" : "1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:darkMode?"#94A3B8":"#68769F" }}>
                 🔔
                 {notifsNoLeidas > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#E53E3E", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{notifsNoLeidas}</span>}
               </button>
             </div>
             {/* Tema */}
             <button onClick={toggleTheme} title={darkMode ? "Modo claro" : "Modo oscuro"}
-              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, color:"#ffffff88" }}>
+              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, color:darkMode?"#94A3B8":"#68769F" }}>
               {darkMode ? "☀️" : "🌙"}
             </button>
             {/* Admin */}
@@ -3180,7 +3180,7 @@ export default function App() {
             )}
             {/* Logout */}
             <button onClick={handleLogout} title="Cerrar sesión"
-              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#ffffff44" }}>🚪</button>
+              style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:darkMode?"#64748B":"#A3AED0" }}>🚪</button>
           </div>
 
           {/* Paneles flotantes comunicados y notificaciones */}
