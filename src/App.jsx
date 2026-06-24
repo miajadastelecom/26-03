@@ -5,7 +5,7 @@ const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } 
 let __darkMode = getDM();
 let darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
@@ -2626,22 +2626,8 @@ export default function App() {
           if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
             ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v)); changed = true;
           }
-          if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
-            EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v)); changed = true;
-          }
-          if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
-            // Solo usar datos de Firestore si tienen el mismo nº de usuarios o más
-            // (evita sobrescribir con datos desactualizados)
-            if (val.length >= USUARIOS.length) {
-              USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
-            }
-            setPins(prev => {
-              const updated = { ...prev };
-              USUARIOS.forEach(u => { if (!(u.id in updated)) updated[u.id] = "1234"; });
-              return updated;
-            });
-            changed = true;
-          }
+          // EMPRESAS y USUARIOS: siempre usar los del código (no sobrescribir desde Firestore)
+          // Solo sincronizamos categorías y estados desde Firestore
         } catch {}
       });
       // Incrementar configVersion fuerza re-render en App y re-inicialización del modal
@@ -2673,28 +2659,6 @@ export default function App() {
   const [modalNomina,   setModalNomina] = useState(false);  // solo admin/director
   const [subHistorial,  setSubHistorial] = useState("completados");
 
-  // ── Sincronizar USUARIOS y EMPRESAS a Firestore si están desactualizados ──
-  useEffect(() => {
-    const syncData = async () => {
-      try {
-        // Sync USUARIOS
-        const usSnap = await getDoc(doc(db, "config", "usuarios"));
-        const usData = usSnap.exists() ? JSON.parse(usSnap.data().value) : [];
-        if (usData.length < USUARIOS.length) {
-          await setDoc(doc(db, "config", "usuarios"), { value: JSON.stringify(USUARIOS) });
-          console.log("✅ USUARIOS sincronizados a Firestore:", USUARIOS.length);
-        }
-        // Sync EMPRESAS
-        const empSnap = await getDoc(doc(db, "config", "empresas"));
-        const empData = empSnap.exists() ? JSON.parse(empSnap.data().value) : [];
-        if (empData.length < EMPRESAS.length || empData.length === 0) {
-          await setDoc(doc(db, "config", "empresas"), { value: JSON.stringify(EMPRESAS) });
-          console.log("✅ EMPRESAS sincronizadas a Firestore:", EMPRESAS.length);
-        }
-      } catch (e) { console.warn("Sync Firestore:", e); }
-    };
-    syncData();
-  }, []);
 
   // ── Firebase: tickets en tiempo real ──
   useEffect(() => {
