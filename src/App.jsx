@@ -20,64 +20,68 @@ const db = getFirestore(firebaseApp);
 
 // ─── DATOS ────────────────────────────────────────────────────────────────────
 const EMPRESAS = [
-  { id: 0, nombre: "Dirección General",         color: darkMode ? "#94A3B8" : "#334155", inicial: "DG" },
-  { id: 1, nombre: "Energía de Miajadas",        color: "#E53E3E", inicial: "EM" },
-  { id: 2, nombre: "Miajadas Telecom",           color: "#D4A017", inicial: "MT" },
-  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#2B6CB0", inicial: "LI" },
-  { id: 4, nombre: "Zaqaru",                     color: "#805AD5", inicial: "ZQ" },
-  { id: 5, nombre: "Laura Otero",                color: "#276749", inicial: "LO" },
-  { id: 6, nombre: "Comercial",                  color: "#E53E3E", inicial: "CO" },
+  { id: 0, nombre: "Independiente",             color: "#6B7280", inicial: "IN" },
+  { id: 1, nombre: "Energía de Miajadas",        color: "#cf142b", inicial: "EM" },
+  { id: 2, nombre: "Miajadas Telecom",           color: "#e0ad12", inicial: "MT" },
+  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LI" },
+  { id: 4, nombre: "Zaqaru",                     color: "#af4a85", inicial: "ZQ" },
+  { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LO" },
 ];
 
 const USUARIOS = [
-  { id: 0,  nombre: "Miguel Manzano",          empresaId: 0, rol: "director"   },
-  // Energía de Miajadas
-  { id: 1,  nombre: "Ángel Fernández",          empresaId: 1, rol: "encargado"  },
-  { id: 2,  nombre: "Jose Manuel Fuentes",      empresaId: 1, rol: "trabajador" },
-  { id: 3,  nombre: "María Manzano",            empresaId: 1, rol: "trabajador" },
-  // Miajadas Telecom
-  { id: 4,  nombre: "Valentín Pérez",           empresaId: 2, rol: "encargado"  },
-  { id: 5,  nombre: "Esther Albalá",            empresaId: 2, rol: "trabajador" },
-  { id: 6,  nombre: "Aitor Garrido",            empresaId: 2, rol: "trabajador" },
-  { id: 7,  nombre: "Carlos Cintero",           empresaId: 2, rol: "trabajador" },
-  { id: 8,  nombre: "Javier Acedo",             empresaId: 2, rol: "trabajador" },
-  { id: 9,  nombre: "Sara Márquez",             empresaId: 2, rol: "administrador" },
-  // Laura Otero Instalaciones
-  { id: 10, nombre: "Miguel Calvo",             empresaId: 3, rol: "encargado"  },
-  { id: 11, nombre: "Juan Antonio Fuentes",     empresaId: 3, rol: "trabajador" },
-  { id: 12, nombre: "Jaime Naranjo",            empresaId: 3, rol: "trabajador" },
-  { id: 13, nombre: "Jose Luis Saavedra",       empresaId: 3, rol: "trabajador" },
-  { id: 14, nombre: "Carlos P. Pajuelo",        empresaId: 3, rol: "trabajador" },
-  { id: 15, nombre: "Oscar García",             empresaId: 3, rol: "trabajador" },
-  { id: 16, nombre: "Francisco Javier Llanos",  empresaId: 3, rol: "trabajador" },
-  { id: 17, nombre: "Borja Llanos",             empresaId: 3, rol: "trabajador" },
-  { id: 18, nombre: "Luis Collado",             empresaId: 3, rol: "trabajador" },
-  { id: 19, nombre: "Félix Loro",               empresaId: 3, rol: "trabajador" },
-  { id: 20, nombre: "Ekaitz Pereira",           empresaId: 3, rol: "trabajador" },
-  { id: 21, nombre: "Jairo Miguel",             empresaId: 3, rol: "trabajador" },
-  { id: 22, nombre: "Andrés Medina",            empresaId: 3, rol: "trabajador" },
-  { id: 23, nombre: "Francisco Babiano",        empresaId: 3, rol: "trabajador" },
-  { id: 24, nombre: "Guillermo Méndez",         empresaId: 3, rol: "trabajador" },
-  { id: 25, nombre: "Antonio Díaz",             empresaId: 3, rol: "trabajador" },
-  { id: 26, nombre: "Manolo Lobo",              empresaId: 3, rol: "trabajador" },
-  { id: 27, nombre: "David López",              empresaId: 3, rol: "trabajador" },
-  // Zaqaru
-  { id: 28, nombre: "Pedro Solis",              empresaId: 4, rol: "encargado"  },
-  { id: 29, nombre: "Alberto Solis",            empresaId: 4, rol: "trabajador" },
-  { id: 30, nombre: "Jorge Martínez",           empresaId: 4, rol: "trabajador" },
-  { id: 31, nombre: "Alberto Masa",             empresaId: 4, rol: "trabajador" },
-  { id: 32, nombre: "Antonio Vellarino",        empresaId: 4, rol: "trabajador" },
-  { id: 33, nombre: "Francisco Sánchez",        empresaId: 4, rol: "trabajador" },
-  // Laura Otero
-  { id: 34, nombre: "Jose Antonio Viegas",      empresaId: 5, rol: "encargado"  },
-  { id: 35, nombre: "Belén García",             empresaId: 5, rol: "trabajador" },
-  { id: 36, nombre: "Antonio Vellarino",        empresaId: 5, rol: "trabajador" },
-  { id: 37, nombre: "Vicente Manzano",          empresaId: 5, rol: "trabajador" },
-  // Comercial (sin encargado — asignación directa)
-  { id: 38, nombre: "Jesús Salazar",            empresaId: 6, rol: "trabajador" },
-  { id: 39, nombre: "Yolanda Jiménez",          empresaId: 6, rol: "trabajador" },
-  { id: 40, nombre: "Laura Hernández",          empresaId: 6, rol: "trabajador" },
-  { id: 41, nombre: "Iratxe Plaza",             empresaId: 6, rol: "trabajador" },
+  // ── Independiente ──────────────────────────────────────────────
+  { id: 0,  nombre: "Miguel Manzano Otero",      empresaId: 0, rol: "director"      },  // Director General
+  { id: 1,  nombre: "Eugenio Manzano Otero",     empresaId: 0, rol: "ceo"           },  // CEO
+  { id: 2,  nombre: "Jesús Salazar Otero",       empresaId: 0, rol: "trabajador"    },
+  { id: 3,  nombre: "Iratxe Plaza Castaño",      empresaId: 0, rol: "trabajador"    },
+  { id: 4,  nombre: "Yolanda Jiménez Núñez",     empresaId: 0, rol: "trabajador"    },
+  { id: 5,  nombre: "Laura Hernández Hoyos",     empresaId: 0, rol: "trabajador"    },
+  { id: 6,  nombre: "Rosa Garrido Marroquí",     empresaId: 0, rol: "trabajador"    },
+  { id: 7,  nombre: "Fernando Flores Manzano",   empresaId: 0, rol: "trabajador"    },
+  // ── Energía de Miajadas ────────────────────────────────────────
+  { id: 8,  nombre: "Ángel Fernández Mogollón",  empresaId: 1, rol: "encargado"     },
+  { id: 9,  nombre: "Jose Manuel Fuentes Vicente",empresaId: 1, rol: "trabajador"   },
+  { id: 10, nombre: "María Manzano Soria",        empresaId: 1, rol: "trabajador"   },
+  // ── Miajadas Telecom ───────────────────────────────────────────
+  { id: 11, nombre: "Valentín Pérez Sánchez",    empresaId: 2, rol: "encargado"     },
+  { id: 12, nombre: "Esther Albalá Fabián",      empresaId: 2, rol: "encargado"     },
+  { id: 13, nombre: "Aitor Segador Garrido",     empresaId: 2, rol: "trabajador"    },
+  { id: 14, nombre: "Carlos Cintero Díaz",       empresaId: 2, rol: "trabajador"    },
+  { id: 15, nombre: "Javier Acedo Iñigo",        empresaId: 2, rol: "trabajador"    },
+  { id: 16, nombre: "Sara Márquez Pérez",        empresaId: 2, rol: "administrador" },
+  // ── Laura Otero Instalaciones ──────────────────────────────────
+  { id: 17, nombre: "Miguel Calvo Calvo",        empresaId: 3, rol: "encargado"     },
+  { id: 18, nombre: "Juan Antonio Fuentes Vicente",empresaId: 3, rol: "trabajador"  },
+  { id: 19, nombre: "Jaime Naranjo Sanguino",    empresaId: 3, rol: "trabajador"    },
+  { id: 20, nombre: "Pepe Saavedra Pizarro",     empresaId: 3, rol: "trabajador"    },
+  { id: 21, nombre: "Ekaitz Pereira Grande",     empresaId: 3, rol: "trabajador"    },
+  { id: 22, nombre: "Charly Llanos Lorenzo",     empresaId: 3, rol: "trabajador"    },
+  { id: 23, nombre: "Borja Llanos López",        empresaId: 3, rol: "trabajador"    },
+  { id: 24, nombre: "Oscar García Godino",       empresaId: 3, rol: "trabajador"    },
+  { id: 25, nombre: "Carlos Pablo Pajuelo",      empresaId: 3, rol: "trabajador"    },
+  { id: 26, nombre: "David López Babiano",       empresaId: 3, rol: "trabajador"    },
+  { id: 27, nombre: "Manuel Lobo Meneses",       empresaId: 3, rol: "trabajador"    },
+  { id: 28, nombre: "Luis Collado Pizarro",      empresaId: 3, rol: "trabajador"    },
+  { id: 29, nombre: "Félix Loro García",         empresaId: 3, rol: "trabajador"    },
+  { id: 30, nombre: "Andrés Medina Nieto",       empresaId: 3, rol: "trabajador"    },
+  { id: 31, nombre: "Jairo Miguel Masa",         empresaId: 3, rol: "trabajador"    },
+  { id: 32, nombre: "Francisco Babiano Ruiz",    empresaId: 3, rol: "trabajador"    },
+  { id: 33, nombre: "Antonio Díaz Álvarez",      empresaId: 3, rol: "trabajador"    },
+  { id: 34, nombre: "Guillermo Méndez Cortés",   empresaId: 3, rol: "trabajador"    },
+  // ── Zaqaru ────────────────────────────────────────────────────
+  { id: 35, nombre: "Riánsares Mañoso Blázquez", empresaId: 4, rol: "encargado"     },
+  { id: 36, nombre: "Alberto Masa Mayoral",      empresaId: 4, rol: "trabajador"    },
+  { id: 37, nombre: "Alberto Solís Loro",        empresaId: 4, rol: "trabajador"    },
+  { id: 38, nombre: "Antonio Vellarino Garrido", empresaId: 4, rol: "trabajador"    },
+  { id: 39, nombre: "Francisco Sánchez Melero",  empresaId: 4, rol: "trabajador"    },
+  { id: 40, nombre: "Jorge Martínez Orellana",   empresaId: 4, rol: "trabajador"    },
+  { id: 41, nombre: "Pedro Solís Bernardo",      empresaId: 4, rol: "trabajador"    },
+  // ── Laura Otero S.A. ──────────────────────────────────────────
+  { id: 42, nombre: "Jose Antonio Viegas Sánchez",empresaId: 5, rol: "encargado"   },
+  { id: 43, nombre: "Vicente Manzano Otero",     empresaId: 5, rol: "trabajador"    },
+  { id: 44, nombre: "Belén García Bravo",        empresaId: 5, rol: "trabajador"    },
+  { id: 45, nombre: "Antonio Vellarino Maeso",   empresaId: 5, rol: "trabajador"    },
+  { id: 46, nombre: "Daniel Pizarro Pizarro",    empresaId: 5, rol: "rrhh"          },
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
@@ -114,7 +118,7 @@ const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso
 
 // PINs por defecto (4 dígitos) — clave: userId, valor: pin string
 const PINS_DEFAULT = {};
-for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]) {
+for (const u of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46]) {
   PINS_DEFAULT[u] = "1234";
 }
 
@@ -1271,7 +1275,7 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
     const eds = t.empresasDestino || [];
     return todosAsignados.includes(usuarioActual.id) ||
            (usuarioActual.rol === "encargado" && eds.includes(usuarioActual.empresaId)) ||
-           usuarioActual.rol === "director" ||
+           (["director","ceo"].includes(usuarioActual.rol)) ||
            t.creadoPor === usuarioActual.id;
   });
 
@@ -2465,7 +2469,7 @@ function SeccionPerfil({ darkMode, usuarioId, usuario, pins, setPins, empColor, 
           <div>
             <p style={{ margin:"0 0 4px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:18, fontWeight:800 }}>{usuario?.nombre}</p>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              <span style={{ background: empColor+"33", color: empColor, borderRadius:5, padding:"2px 10px", fontSize:11, fontWeight:700 }}>{usuario?.rol?.toUpperCase()}</span>
+              <span style={{ background: empColor+"33", color: empColor, borderRadius:5, padding:"2px 10px", fontSize:11, fontWeight:700 }}>{usuario?.rol === "director" ? "DIRECTOR GENERAL" : usuario?.rol === "ceo" ? "CEO" : usuario?.rol?.toUpperCase()}</span>
               <span style={{ background: darkMode?"#1E293B":"#F1F5F9", color: darkMode?"#94A3B8":"#475569", borderRadius:5, padding:"2px 10px", fontSize:11 }}>{EMPRESAS.find(e=>e.id===usuario?.empresaId)?.nombre}</span>
             </div>
           </div>
@@ -2720,13 +2724,13 @@ export default function App() {
 
   const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
-  const empColor = usuario?.rol === "director" ? "#94A3B8" : (empresa?.color || "#E53E3E");
+  const empColor = ["director","ceo"].includes(usuario?.rol) ? "#94A3B8" : (empresa?.color || "#E53E3E");
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
 
   // ── Firebase: nóminas en tiempo real ──
   useEffect(() => {
     if (!usuarioId) return;
-    const esAdminDir = ["director","administrador"].includes(usuario?.rol);
+    const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
     const unsub = onSnapshot(collection(db, "nominas"), snap => {
       const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Admin/director ven todas; el resto solo las suyas
@@ -2845,6 +2849,12 @@ export default function App() {
     // Notificar a encargados de empresas destino
     (t.empresasDestino||[]).forEach(empId => {
       const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
+      // Empresa Independiente (id:0) no tiene encargado — notificar al director y CEO
+      if (!enc && empId === 0) {
+        USUARIOS.filter(u => ["director","ceo"].includes(u.rol)).forEach(u => {
+          if (u.id !== usuarioId) addNotif({ usuarioDestinoId: u.id, tipo: "ticket_nuevo", texto: `Nuevo ticket de empresa Independiente: "${titulo}"`, ticketId: newId });
+        });
+      }
       if (enc && enc.id !== usuarioId) addNotif({ usuarioDestinoId: enc.id, tipo: "nuevo", ticketId: t.id, texto: `Nuevo ticket para tu empresa: "${t.titulo}".` });
     });
   };
@@ -3093,7 +3103,7 @@ export default function App() {
                 </div>
                 <div style={{ overflow:"hidden" }}>
                   <p style={{ margin:0, color: darkMode?"#fff":"#1B2559", fontSize:12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usuario?.nombre}</p>
-                  <span style={{ background: empColor + "44", color: empColor, borderRadius:4, padding:"1px 7px", fontSize:9, fontWeight:800, textTransform:"uppercase" }}>{usuario?.rol}</span>
+                  <span style={{ background: empColor + "44", color: empColor, borderRadius:4, padding:"1px 7px", fontSize:9, fontWeight:800, textTransform:"uppercase" }}>{usuario?.rol === "director" ? "Director General" : usuario?.rol === "ceo" ? "CEO" : usuario?.rol === "rrhh" ? "RRHH" : usuario?.rol}</span>
                 </div>
               </div>
             ) : (
@@ -3109,7 +3119,7 @@ export default function App() {
               { id:"tickets",    icon:"🎫", label:"Tickets" },
               { id:"historial",  icon:"🗂️", label:"Historial" },
               { id:"calendario", icon:"📅", label:"Calendario" },
-              ...( ["director","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
+              ...( ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
               { id:"fichaje",    icon:"🕐", label:"Fichaje" },
               { id:"nominas",    icon:"💰", label:"Nóminas" },
               { id:"perfil",     icon:"👤", label:"Perfil" },
@@ -3174,7 +3184,7 @@ export default function App() {
               {darkMode ? "☀️" : "🌙"}
             </button>
             {/* Admin */}
-            {(usuario?.rol === "director" || usuario?.rol === "administrador") && (
+            {(["director","ceo"].includes(usuario?.rol) || usuario?.rol === "administrador") && (
               <button onClick={() => setModalAdmin(true)} title="Administración"
                 style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:"#F6AD55" }}>⚙️</button>
             )}
@@ -3189,7 +3199,7 @@ export default function App() {
               <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background: darkMode?"#111827":"#FFFFFF", zIndex:1 }}>
                 <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
                 <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                  {(usuario?.rol === "director" || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
+                  {(["director","ceo"].includes(usuario?.rol) || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
                     <button onClick={() => { setModalComun(true); setVerComunicados(false); }}
                       style={{ background:"#3182CE22", border:"1px solid #3182CE55", borderRadius:6, padding:"3px 10px", color:"#3182CE", fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Nuevo</button>
                   )}
@@ -3202,7 +3212,7 @@ export default function App() {
                     const autor      = USUARIOS.find(u => u.id === c.autorId);
                     const empresa    = EMPRESAS.find(e => e.id === c.empresaId);
                     const caducaDate = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
-                    const puedeElim  = usuario?.id === c.autorId || usuario?.rol === "director" || usuario?.rol === "administrador";
+                    const puedeElim  = usuario?.id === c.autorId || ["director","ceo"].includes(usuario?.rol) || usuario?.rol === "administrador";
                     return (
                       <div key={c.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#F1F5F9"}`, borderLeft:`3px solid ${empresa?.color||"#3182CE"}` }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
@@ -3334,7 +3344,7 @@ export default function App() {
         })()}
 
         {/* BANNER DIRECTOR */}
-        {usuario?.rol === "director" && (
+        {["director","ceo"].includes(usuario?.rol) && (
           <div className="banner-director" style={{ background: "linear-gradient(135deg, #1A2235, #2D3748)", border: "1px solid #F6AD5533", borderRadius: 12, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: "#F6AD5522", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>👑</div>
             <div>
@@ -3344,7 +3354,7 @@ export default function App() {
           </div>
         )}
 
-        {seccion === "reportes" && ["director","encargado","administrador"].includes(usuario?.rol) ? (
+        {seccion === "reportes" && ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? (
           <Reportes tickets={tickets} usuarioActual={usuario} />
         ) : seccion === "historial" ? (
           <>
@@ -3443,7 +3453,7 @@ export default function App() {
 
               {/* Segmento Mis/Todos */}
               <div style={{ display: "flex", gap: 2, background: darkMode ? "#1E293B" : "#F1F5F9", borderRadius: 8, padding: 3, flexShrink: 0 }}>
-                {(usuario?.rol === "director"
+                {(["director","ceo"].includes(usuario?.rol)
                   ? [["todos", "Todos"]]
                   : [["mis", "Mis tickets"], ["todos", "Todos"]]
                 ).map(([v, l]) => (
@@ -3524,7 +3534,7 @@ export default function App() {
 
         {/* ── NÓMINAS ── */}
         {seccion === "nominas" && (() => {
-          const esAdminDir = ["director","administrador"].includes(usuario?.rol);
+          const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
           const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
           return (
             <div style={{ maxWidth:800 }}>
