@@ -5,7 +5,7 @@ const getDM = () => { try { return localStorage.getItem("theme") !== "light"; } 
 let __darkMode = getDM();
 let darkMode = __darkMode;
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAdfYXNZBGHHCbgCIsobZoIdFPLVtAIcB0",
@@ -2630,7 +2630,11 @@ export default function App() {
             EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v)); changed = true;
           }
           if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
-            USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
+            // Solo usar datos de Firestore si tienen el mismo nº de usuarios o más
+            // (evita sobrescribir con datos desactualizados)
+            if (val.length >= USUARIOS.length) {
+              USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
+            }
             setPins(prev => {
               const updated = { ...prev };
               USUARIOS.forEach(u => { if (!(u.id in updated)) updated[u.id] = "1234"; });
@@ -2668,6 +2672,29 @@ export default function App() {
   const [nominas,       setNominas]    = useState([]);
   const [modalNomina,   setModalNomina] = useState(false);  // solo admin/director
   const [subHistorial,  setSubHistorial] = useState("completados");
+
+  // ── Sincronizar USUARIOS y EMPRESAS a Firestore si están desactualizados ──
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        // Sync USUARIOS
+        const usSnap = await getDoc(doc(db, "config", "usuarios"));
+        const usData = usSnap.exists() ? JSON.parse(usSnap.data().value) : [];
+        if (usData.length < USUARIOS.length) {
+          await setDoc(doc(db, "config", "usuarios"), { value: JSON.stringify(USUARIOS) });
+          console.log("✅ USUARIOS sincronizados a Firestore:", USUARIOS.length);
+        }
+        // Sync EMPRESAS
+        const empSnap = await getDoc(doc(db, "config", "empresas"));
+        const empData = empSnap.exists() ? JSON.parse(empSnap.data().value) : [];
+        if (empData.length < EMPRESAS.length || empData.length === 0) {
+          await setDoc(doc(db, "config", "empresas"), { value: JSON.stringify(EMPRESAS) });
+          console.log("✅ EMPRESAS sincronizadas a Firestore:", EMPRESAS.length);
+        }
+      } catch (e) { console.warn("Sync Firestore:", e); }
+    };
+    syncData();
+  }, []);
 
   // ── Firebase: tickets en tiempo real ──
   useEffect(() => {
@@ -2952,9 +2979,10 @@ export default function App() {
                 <option value="">Selecciona tu usuario...</option>
                 {EMPRESAS.map(emp => (
                   <optgroup key={emp.id} label={emp.nombre}>
-                    {USUARIOS.filter(u => u.empresaId === emp.id).map(u =>
-                      <option key={u.id} value={u.id}>{u.nombre}</option>
-                    )}
+                    {USUARIOS.filter(u => u.empresaId === emp.id && u.activo !== false).map(u => {
+                      const rolLabel = u.rol === "director" ? " · Director General" : u.rol === "ceo" ? " · CEO" : u.rol === "encargado" ? " · Encargado" : u.rol === "administrador" ? " · Admin" : u.rol === "rrhh" ? " · RRHH" : "";
+                      return <option key={u.id} value={u.id}>{u.nombre}{rolLabel}</option>;
+                    })}
                   </optgroup>
                 ))}
               </select>
