@@ -103,12 +103,7 @@ const loadConfig = async () => {
         if (d.id === "estados" && Array.isArray(val) && val.length > 0) {
           ESTADOS.length = 0; val.forEach(v => ESTADOS.push(v));
         }
-        if (d.id === "empresas" && Array.isArray(val) && val.length > 0) {
-          EMPRESAS.length = 0; val.forEach(v => EMPRESAS.push(v));
-        }
-        if (d.id === "usuarios" && Array.isArray(val) && val.length > 0) {
-          USUARIOS.length = 0; val.forEach(v => USUARIOS.push(v));
-        }
+        // EMPRESAS y USUARIOS: siempre usar los del código, no sobreescribir desde Firestore
       } catch {}
     });
   } catch {}
