@@ -3439,33 +3439,69 @@ export default function App() {
             </div>
 
             {/* FILTROS */}
-            <div className="filters-row" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", gap: 2, background: darkMode ? "#111827" : "#FFFFFF", borderRadius: 8, padding: 3, border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}` }}>
+            <div className="filters-row" style={{ display: "flex", gap: 8, marginBottom: 18, alignItems: "center", flexWrap: "wrap" }}>
+
+              {/* Segmento Mis/Todos */}
+              <div style={{ display: "flex", gap: 2, background: darkMode ? "#1E293B" : "#F1F5F9", borderRadius: 8, padding: 3, flexShrink: 0 }}>
                 {(usuario?.rol === "director"
-                  ? [["todos", "Todos los tickets"]]
+                  ? [["todos", "Todos"]]
                   : [["mis", "Mis tickets"], ["todos", "Todos"]]
                 ).map(([v, l]) => (
-                  <button key={v} onClick={() => setVista(v)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "7px 16px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : "#64748B" }}>{l}</button>
+                  <button key={v} onClick={() => setVista(v)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s" }}>{l}</button>
                 ))}
               </div>
-              <input style={{ ...inpF, minWidth: 180 }} value={filtros.buscar} onChange={e => setFiltros(f => ({ ...f, buscar: e.target.value }))} placeholder="🔍 Buscar..." />
-              <select style={inpF} value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
-                <option value="todos">Todos los estados</option>
-                {ESTADOS.filter(s => !["Completado","Cancelado"].includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select style={inpF} value={filtros.empresa} onChange={e => setFiltros(f => ({ ...f, empresa: e.target.value }))}>
-                <option value="todas">Todas las empresas</option>
-                {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-              </select>
-              <button onClick={() => setModalCrear(true)} className="btn-nuevo" style={{ ...btnS, background: empColor, color: "#fff", fontWeight: 900, marginLeft: "auto", padding: "9px 20px", fontSize: 13 }}>
-                + Nuevo Ticket
-              </button>
-              <button onClick={() => {
-                if (Notification.permission === "default") Notification.requestPermission();
-                setModalMisTickets(true);
-              }} className="btn-mis-tickets" style={{ ...btnS, background: darkMode ? "#1E293B" : "#E2E8F0", color: darkMode ? "#94A3B8" : "#334155", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, fontWeight: 700, padding: "9px 16px", fontSize: 13 }}>
-                📝 Mis Tickets {misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length > 0 && <span style={{ background: "#E53E3E", color: "#fff", borderRadius: "50%", fontSize: 10, padding: "1px 5px", marginLeft: 4 }}>{misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length}</span>}
-              </button>
+
+              {/* Buscador compacto */}
+              <div style={{ position: "relative", minWidth: 140, maxWidth: 220 }}>
+                <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: darkMode ? "#475569" : "#94A3B8", pointerEvents: "none" }}>🔍</span>
+                <input value={filtros.buscar} onChange={e => setFiltros(f => ({ ...f, buscar: e.target.value }))} placeholder="Buscar..."
+                  style={{ width: "100%", height: 32, paddingLeft: 28, paddingRight: 10, background: darkMode ? "#1E293B" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#E2E8F0"}`, borderRadius: 8, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+
+              {/* Pills de estado */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                {[["todos", "Todos", null], ["Pendiente", "Pendiente", "#D4A017"], ["Asignado", "Asignado", "#3182CE"], ["En progreso", "En progreso", "#805AD5"]].map(([v, l, color]) => {
+                  const activo = filtros.estado === v;
+                  const c = color || empColor;
+                  return (
+                    <button key={v} onClick={() => setFiltros(f => ({ ...f, estado: v }))}
+                      style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${activo ? c : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: activo ? c + "20" : "transparent", color: activo ? c : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap" }}>
+                      {activo && color && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: c, marginRight: 5, verticalAlign: "middle" }} />}
+                      {l}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Pills de empresa */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                <button onClick={() => setFiltros(f => ({ ...f, empresa: "todas" }))}
+                  style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${filtros.empresa === "todas" ? empColor : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: filtros.empresa === "todas" ? empColor + "20" : "transparent", color: filtros.empresa === "todas" ? empColor : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap" }}>
+                  Todas
+                </button>
+                {EMPRESAS.map(e => {
+                  const activo = filtros.empresa === e.id;
+                  return (
+                    <button key={e.id} onClick={() => setFiltros(f => ({ ...f, empresa: e.id }))}
+                      style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${activo ? e.color : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: activo ? e.color + "20" : "transparent", color: activo ? e.color : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
+                      {e.nombre.split(" ")[0]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Botones acción */}
+              <div style={{ display: "flex", gap: 6, marginLeft: "auto", alignItems: "center", flexShrink: 0 }}>
+                <button onClick={() => { if (Notification.permission === "default") Notification.requestPermission(); setModalMisTickets(true); }}
+                  className="btn-mis-tickets" style={{ ...btnS, background: darkMode ? "#1E293B" : "#F1F5F9", color: darkMode ? "#94A3B8" : "#475569", border: `1px solid ${darkMode ? "#2E3A55" : "#E2E8F0"}`, padding: "7px 14px", fontSize: 12 }}>
+                  📝 Mis Tickets {misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length > 0 && <span style={{ background: "#E53E3E", color: "#fff", borderRadius: 99, padding: "1px 6px", fontSize: 10, fontWeight: 700, marginLeft: 4 }}>{misTicketsPersonales.filter(t => t.creadoPor === usuarioId && t.estado !== "hecho").length}</span>}
+                </button>
+                <button onClick={() => setModalCrear(true)} className="btn-nuevo"
+                  style={{ ...btnS, background: empColor, color: "#fff", padding: "7px 16px", fontSize: 12, fontWeight: 700 }}>
+                  + Nuevo Ticket
+                </button>
+              </div>
             </div>
 
             {/* LISTA */}
