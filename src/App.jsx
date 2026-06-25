@@ -3150,14 +3150,7 @@ export default function App() {
 
           {/* Acciones inferiores */}
           <div style={{ padding:"8px", borderTop:`1px solid ${darkMode?"#1E293B":"#F0F2F5"}`, display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
-            {/* Comunicados */}
-            <div style={{ position:"relative" }}>
-              <button onClick={() => { setSeccion("comunicacion"); setVerComunicados(false); }} title="Comunicación"
-                style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:darkMode?"#94A3B8":"#68769F" }}>
-                💬
-                {comunicados.length > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#3182CE", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{comunicados.length}</span>}
-              </button>
-            </div>
+
             {/* Notificaciones */}
             <div style={{ position:"relative" }}>
               <button onClick={() => { setVerNotifs(v => !v); marcarLeidas(); }} title="Notificaciones"
@@ -3181,63 +3174,8 @@ export default function App() {
               style={{ background:"transparent", border:"1px solid transparent", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:14, color:darkMode?"#64748B":"#A3AED0" }}>🚪</button>
           </div>
 
-          {/* Paneles flotantes comunicados y notificaciones */}
-          {verComunicados && (
-            <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode ? "#111827" : "#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(360px,calc(100vw - 80px))", maxHeight:480, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
-              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, background: darkMode?"#111827":"#FFFFFF", zIndex:1 }}>
-                <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>💬 Comunicados</span>
-                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                  {(["director","ceo"].includes(usuario?.rol) || usuario?.rol === "administrador" || usuario?.rol === "encargado") && (
-                    <button onClick={() => { setModalComun(true); setVerComunicados(false); }}
-                      style={{ background:"#3182CE22", border:"1px solid #3182CE55", borderRadius:6, padding:"3px 10px", color:"#3182CE", fontSize:11, fontWeight:700, cursor:"pointer" }}>+ Nuevo</button>
-                  )}
-                  <button onClick={() => setVerComunicados(false)} style={{ background:"none", border:"none", color: darkMode?"#475569":"#64748B", cursor:"pointer", fontSize:18 }}>×</button>
-                </div>
-              </div>
-              {comunicados.length === 0
-                ? <p style={{ padding:20, color: darkMode?"#475569":"#64748B", fontSize:13, margin:0, textAlign:"center" }}>No hay comunicados activos</p>
-                : comunicados.map(c => {
-                    const autor      = USUARIOS.find(u => u.id === c.autorId);
-                    const empresa    = EMPRESAS.find(e => e.id === c.empresaId);
-                    const caducaDate = c.fechaCaducidad ? new Date(c.fechaCaducidad) : null;
-                    const puedeElim  = usuario?.id === c.autorId || ["director","ceo"].includes(usuario?.rol) || usuario?.rol === "administrador";
-                    return (
-                      <div key={c.id} style={{ padding:"14px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#F1F5F9"}`, borderLeft:`3px solid ${empresa?.color||"#3182CE"}` }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <span style={{ width:8, height:8, borderRadius:"50%", background:empresa?.color||"#3182CE", display:"inline-block" }} />
-                            <span style={{ color: darkMode?"#94A3B8":"#64748B", fontSize:11, fontWeight:700 }}>{autor?.nombre||"Sistema"}</span>
-                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>· {empresa?.nombre||""}</span>
-                          </div>
-                          {puedeElim && (
-                            <div style={{ display:"flex", gap:4 }}>
-                              <button onClick={() => { setComunicadoEditar(c); setVerComunicados(false); }}
-                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Editar">✏️</button>
-                              <button onClick={() => deleteDoc(doc(db,"comunicados",c.id))}
-                                style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:14, padding:"0 2px" }} title="Eliminar">🗑️</button>
-                            </div>
-                          )}
-                        </div>
-                        <p style={{ margin:"0 0 6px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontWeight:600, lineHeight:1.45 }}>{c.titulo}</p>
-                        {c.cuerpo && <p style={{ margin:"0 0 8px", color: darkMode?"#94A3B8":"#475569", fontSize:12, lineHeight:1.5 }}>{c.cuerpo}</p>}
-                        {c.destinatarios && c.destinatarios.tipo !== "todos" && (() => {
-                          const dest = c.destinatarios;
-                          if (dest.tipo === "empresas") { const nombres = (dest.empresaIds||[]).map(id=>EMPRESAS.find(e=>e.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>🏢 {nombres.join(", ")}</p>; }
-                          if (dest.tipo === "usuarios") { const nombres = (dest.usuarioIds||[]).map(id=>USUARIOS.find(u=>u.id===id)?.nombre).filter(Boolean); return <p style={{ margin:"0 0 8px", color: darkMode?"#475569":"#64748B", fontSize:11 }}>👤 {nombres.join(", ")}</p>; }
-                          return null;
-                        })()}
-                        {c.adjuntoPDF && <a href={c.adjuntoPDF.dataUrl} download={c.adjuntoPDF.nombre} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", background: darkMode?"#1A2235":"#EFF6FF", border:`1px solid ${darkMode?"#2E3A55":"#BFDBFE"}`, borderRadius:7, color: darkMode?"#93C5FD":"#1D4ED8", fontSize:11, fontWeight:700, textDecoration:"none", marginBottom:8 }}>📄 {c.adjuntoPDF.nombre}</a>}
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:4 }}>
-                          <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>{fmtFecha(c.fecha)}{c.fechaEditado && <span style={{ marginLeft:6, color: darkMode?"#2E3A55":"#CBD5E1" }}>· editado {fmtFecha(c.fechaEditado)}</span>}</span>
-                          {caducaDate && <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:10 }}>Caduca: {caducaDate.toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric"})}</span>}
-                        </div>
-                      </div>
-                    );
-                  })
-              }
-            </div>
-          )}
-          {verNotifs && (
+          {/* Panel de comunicados eliminado — usar sección propia */}
+                    {verNotifs && (
             <div style={{ position:"fixed", left: sidebarOpen ? 248 : 72, bottom:60, background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:12, width:"min(320px,calc(100vw-80px))", maxHeight:360, overflowY:"auto", zIndex:200, boxShadow:"0 16px 40px #0008" }}>
               <div style={{ padding:"12px 16px", borderBottom:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:13 }}>Notificaciones</span>
@@ -3325,7 +3263,7 @@ export default function App() {
                   <span style={{ color: empresa?.color || "#3182CE", fontSize: 12, fontWeight: 800 }}>{c.titulo}</span>
                   <span style={{ color: darkMode ? "#475569" : "#94A3B8", fontSize: 11 }}>— {autor?.nombre || "Sistema"} · {empresa?.nombre || ""}</span>
                   {comunicados.length > 1 && (
-                    <button onClick={() => setVerComunicados(true)} style={{ background: "#3182CE22", border: "1px solid #3182CE44", borderRadius: 5, padding: "1px 8px", color: "#3182CE", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                    <button onClick={() => setSeccion("comunicacion")} style={{ background: "#3182CE22", border: "1px solid #3182CE44", borderRadius: 5, padding: "1px 8px", color: "#3182CE", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
                       +{comunicados.length - 1} más
                     </button>
                   )}
