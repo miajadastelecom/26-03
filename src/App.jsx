@@ -3585,11 +3585,11 @@ const TIPOS_COMUNICADO = [
 ];
 
 function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, empColor, USUARIOS, EMPRESAS }) {
-  const [filtroTipo, setFiltroTipo]   = React.useState("todos");
-  const [buscar, setBuscar]           = React.useState("");
-  const [modalNuevo, setModalNuevo]   = React.useState(false);
-  const [detalle, setDetalle]         = React.useState(null);
-  const [editando, setEditando]       = React.useState(null);
+  const [filtroTipo, setFiltroTipo]   = useState("todos");
+  const [buscar, setBuscar]           = useState("");
+  const [modalNuevo, setModalNuevo]   = useState(false);
+  const [detalle, setDetalle]         = useState(null);
+  const [editando, setEditando]       = useState(null);
 
   const puedeCrear = ["director","ceo","administrador","encargado","rrhh"].includes(usuario?.rol);
 
@@ -3767,16 +3767,16 @@ function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, em
 }
 
 function ModalNuevoComunicado({ darkMode, usuario, usuarioId, db, empColor, USUARIOS, EMPRESAS, comunicadoInicial, onClose }) {
-  const [tipo, setTipo]               = React.useState(comunicadoInicial?.tipo || "informativo");
-  const [titulo, setTitulo]           = React.useState(comunicadoInicial?.titulo || "");
-  const [cuerpo, setCuerpo]           = React.useState(comunicadoInicial?.cuerpo || "");
-  const [destTipo, setDestTipo]       = React.useState(comunicadoInicial?.destinatarios?.tipo || "todos");
-  const [destEmpresas, setDestEmpresas] = React.useState(comunicadoInicial?.destinatarios?.empresaIds || []);
-  const [destUsuarios, setDestUsuarios] = React.useState(comunicadoInicial?.destinatarios?.usuarioIds || []);
-  const [fechaCad, setFechaCad]       = React.useState(comunicadoInicial?.fechaCaducidad ? new Date(comunicadoInicial.fechaCaducidad).toISOString().split("T")[0] : "");
-  const [adjuntoPDF, setAdjuntoPDF]   = React.useState(comunicadoInicial?.adjuntoPDF || null);
-  const [loading, setLoading]         = React.useState(false);
-  const [buscarUser, setBuscarUser]   = React.useState("");
+  const [tipo, setTipo]               = useState(comunicadoInicial?.tipo || "informativo");
+  const [titulo, setTitulo]           = useState(comunicadoInicial?.titulo || "");
+  const [cuerpo, setCuerpo]           = useState(comunicadoInicial?.cuerpo || "");
+  const [destTipo, setDestTipo]       = useState(comunicadoInicial?.destinatarios?.tipo || "todos");
+  const [destEmpresas, setDestEmpresas] = useState(comunicadoInicial?.destinatarios?.empresaIds || []);
+  const [destUsuarios, setDestUsuarios] = useState(comunicadoInicial?.destinatarios?.usuarioIds || []);
+  const [fechaCad, setFechaCad]       = useState(comunicadoInicial?.fechaCaducidad ? new Date(comunicadoInicial.fechaCaducidad).toISOString().split("T")[0] : "");
+  const [adjuntoPDF, setAdjuntoPDF]   = useState(comunicadoInicial?.adjuntoPDF || null);
+  const [loading, setLoading]         = useState(false);
+  const [buscarUser, setBuscarUser]   = useState("");
 
   const dm = darkMode;
   const s = {
