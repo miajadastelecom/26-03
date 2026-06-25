@@ -3399,38 +3399,6 @@ export default function App() {
                   style={{ width: "100%", height: 32, paddingLeft: 28, paddingRight: 10, background: darkMode ? "#1E293B" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#E2E8F0"}`, borderRadius: 8, color: darkMode ? "#E2E8F0" : "#0F172A", fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
               </div>
 
-              {/* Pills de estado */}
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                {[["todos", "Todos", null], ["Pendiente", "Pendiente", "#D4A017"], ["Asignado", "Asignado", "#3182CE"], ["En progreso", "En progreso", "#805AD5"]].map(([v, l, color]) => {
-                  const activo = filtros.estado === v;
-                  const c = color || empColor;
-                  return (
-                    <button key={v} onClick={() => setFiltros(f => ({ ...f, estado: v }))}
-                      style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${activo ? c : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: activo ? c + "20" : "transparent", color: activo ? c : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap" }}>
-                      {activo && color && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: c, marginRight: 5, verticalAlign: "middle" }} />}
-                      {l}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Pills de empresa */}
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                <button onClick={() => setFiltros(f => ({ ...f, empresa: "todas" }))}
-                  style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${filtros.empresa === "todas" ? empColor : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: filtros.empresa === "todas" ? empColor + "20" : "transparent", color: filtros.empresa === "todas" ? empColor : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap" }}>
-                  Todas
-                </button>
-                {EMPRESAS.map(e => {
-                  const activo = filtros.empresa === e.id;
-                  return (
-                    <button key={e.id} onClick={() => setFiltros(f => ({ ...f, empresa: e.id }))}
-                      style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 600, padding: "3px 11px", borderRadius: 99, border: `1px solid ${activo ? e.color : (darkMode ? "#2E3A55" : "#E2E8F0")}`, cursor: "pointer", background: activo ? e.color + "20" : "transparent", color: activo ? e.color : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
-                      {e.nombre.split(" ")[0]}
-                    </button>
-                  );
-                })}
-              </div>
 
               {/* Botones acción */}
               <div style={{ display: "flex", gap: 6, marginLeft: "auto", alignItems: "center", flexShrink: 0 }}>
