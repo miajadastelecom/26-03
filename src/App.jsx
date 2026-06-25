@@ -187,6 +187,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [imagenes, setImagenes]     = useState([]);
   const [empresasDestino, setEmps]  = useState([]);
   const [comercialAsignados, setComercialAsignados] = useState([]);
+  const [asignadosPorEmpresa, setAsignadosPorEmpresa] = useState({}); // para director/ceo
+  const esDirCeoCreador = ["director","ceo"].includes(usuarioActual.rol);
   const [origenId, setOrigenId]     = useState(usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1);
   const [fechaInicio,  setFechaInicio]  = useState("");
   const [horaInicio,   setHoraInicio]   = useState("");
@@ -259,7 +261,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
     onCrear({
       id: genId(), titulo: titulo.trim(), descripcion, prioridad, categoria,
       empresasDestino,
-      empresaOrigenId: usuarioActual.rol === "director" ? origenId : usuarioActual.empresaId,
+      empresaOrigenId: ["director","ceo"].includes(usuarioActual.rol) ? origenId : usuarioActual.empresaId,
       creadoPor: usuarioActual.id,
       estado: tieneAsignadosComercial ? "Asignado" : "Pendiente",
       asignacionesPorEmpresa,
@@ -404,7 +406,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             )}
           </div>
 
-          {usuarioActual.rol === "director" && (
+          {["director","ceo"].includes(usuarioActual.rol) && (
             <div>
               <label style={labelS}>Empresa origen</label>
               <select style={inp} value={origenId} onChange={e => setOrigenId(Number(e.target.value))}>
@@ -507,9 +509,9 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const asignaciones      = ticket.asignacionesPorEmpresa || {};
   const todosAsignadosIds = Object.values(asignaciones).flat();
 
-  const esDirector         = usuarioActual.rol === "director";
+  const esDirector         = ["director","ceo"].includes(usuarioActual.rol);
   const esAdmin            = usuarioActual.rol === "administrador";
-  const esEncargadoDest    = (usuarioActual.rol === "encargado" || esAdmin) && empresasDestino.includes(usuarioActual.empresaId);
+  const esEncargadoDest    = (["director","ceo"].includes(usuarioActual.rol) || usuarioActual.rol === "encargado" || esAdmin) && (["director","ceo"].includes(usuarioActual.rol) || empresasDestino.includes(usuarioActual.empresaId);
   const esAsignado         = todosAsignadosIds.includes(usuarioActual.id);
   const esCreadoPor        = ticket.creadoPor === usuarioActual.id;
   const puedeAccion        = esDirector || esEncargadoDest || esAsignado || esCreadoPor || esAdmin;
@@ -518,7 +520,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
   const empOrigen   = EMPRESAS.find(e => e.id === ticket.empresaOrigenId);
   const accentColor = empOrigen?.color || "#3182CE";
   const miEmpresa   = EMPRESAS.find(e => e.id === usuarioActual.empresaId);
-  const misTrabs    = USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && ["trabajador","encargado","administrador"].includes(u.rol));
+  const misTrabs    = esDirector ? USUARIOS.filter(u => u.rol === "trabajador" || u.rol === "encargado") : USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && ["trabajador","encargado","administrador"].includes(u.rol))
 
   const toggleSel = (id) => setSelecs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -932,13 +934,35 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
         {esEncargadoDest && !["Completado", "Cancelado"].includes(ticket.estado) && (
           <div style={{ background: "#1A2C45", borderRadius: 8, padding: 14, marginBottom: 14, border: "1px solid #2E4A70" }}>
             <p style={{ margin: "0 0 10px", color: "#93C5FD", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
-              Asignar trabajadores de {miEmpresa?.nombre}
+              {esDirector ? "Asignar trabajadores (todas las empresas)" : `Asignar trabajadores de ${miEmpresa?.nombre}`}
             </p>
             {misTrabs.length === 0
               ? <p style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 13, margin: "0 0 12px" }}>No hay trabajadores en tu empresa.</p>
               : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-                  {misTrabs.map(u => {
+                  {esDirector
+                    ? EMPRESAS.filter(e => e.id !== 0).map(emp => {
+                        const trabsEmp = USUARIOS.filter(u => u.empresaId === emp.id && ["trabajador","encargado"].includes(u.rol));
+                        if (!trabsEmp.length) return null;
+                        return (
+                          <div key={emp.id}>
+                            <p style={{ margin:"4px 0 6px", color:emp.color, fontSize:10, fontWeight:700, textTransform:"uppercase" }}>{emp.nombre}</p>
+                            {trabsEmp.map(u => {
+                              const marcado = seleccionados.includes(u.id);
+                              const col = emp.color;
+                              return (
+                                <label key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 12px", borderRadius:8, cursor:"pointer", background: marcado ? col+"18" : "transparent" }}>
+                                  <input type="checkbox" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor:col, width:14, height:14 }} />
+                                  <Avatar nombre={u.nombre} color={col} size={22} />
+                                  <span style={{ color:marcado?"#E2E8F0":"#94A3B8", fontSize:13, fontWeight:marcado?700:400 }}>{u.nombre}</span>
+                                  {marcado && <span style={{ color:col, fontSize:12 }}>✓</span>}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        );
+                      })
+                    : misTrabs.map(u => {
                     const marcado = seleccionados.includes(u.id);
                     const col = miEmpresa?.color || "#3182CE";
                     return (
@@ -950,6 +974,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                       </label>
                     );
                   })}
+                  })
                 </div>
               )
             }
@@ -1572,7 +1597,7 @@ function Reportes({ tickets, usuarioActual }) {
       </div>
 
       {/* RESUMEN STATS */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${esEncargado ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${(esEncargado || esDirCeo) ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
         {[
           ["Completados", ticketsFiltrados.length, "#38A169", "✅"],
           ["Empresas origen", [...new Set(ticketsFiltrados.map(t=>t.empresaOrigenId))].length, "#3182CE", "🏢"],
@@ -2749,125 +2774,100 @@ export default function App() {
     return asigs.includes(usuario.id) || t.creadoPor === usuario.id;
   });
 
-  const ticketsFiltrados = ticketsMisRol.filter(t => {
-    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
-    const eds   = t.empresasDestino || [];
+  const ticketsFiltrados = (() => {
+    // Base: todos los tickets del rol
+    let base = ticketsMisRol;
 
-    // ── Filtro por KPI seleccionado ──
+    const asigsFn = t => Object.values(t.asignacionesPorEmpresa || {}).flat();
+    const edsFn   = t => t.empresasDestino || [];
+
+    // ── KPI seleccionado ──
     if (filtros.estado === "kpi_total") {
-      // Total: tickets activos asignados al usuario (trabajador/encargado) o todos (dir/ceo)
-      if (["Completado","Cancelado"].includes(t.estado)) return false;
-      if (!esDirCeo) {
-        if (esEncargado) {
-          const mio = (asigs.includes(usuarioId) || t.creadoPor === usuarioId);
-          if (!mio) return false;
-        } else {
-          if (!asigs.includes(usuarioId)) return false;
-        }
-      }
+      base = base.filter(t => {
+        if (["Completado","Cancelado"].includes(t.estado)) return false;
+        if (!esDirCeo) return asigsFn(t).includes(usuarioId);
+        return asigsFn(t).includes(usuarioId); // dir/ceo: sus tickets asignados
+      });
     } else if (filtros.estado === "kpi_pendientes") {
-      // Pendientes: tickets creados por el usuario con estado Pendiente
-      if (t.estado !== "Pendiente") return false;
-      if (!esDirCeo && t.creadoPor !== usuarioId) return false;
+      base = base.filter(t => t.estado === "Pendiente" && t.creadoPor === usuarioId);
     } else if (filtros.estado === "kpi_progreso") {
-      // En progreso: tickets donde el usuario está asignado y en progreso
-      if (!["Asignado","En progreso"].includes(t.estado)) return false;
-      if (!esDirCeo && !asigs.includes(usuarioId)) return false;
+      base = base.filter(t => ["Asignado","En progreso"].includes(t.estado) && asigsFn(t).includes(usuarioId));
     } else if (filtros.estado === "kpi_completados") {
-      // Completados: historial
-      if (t.estado !== "Completado") return false;
-      if (!esDirCeo) {
-        const mio = asigs.includes(usuarioId) || t.creadoPor === usuarioId;
-        if (!mio) return false;
-      }
+      base = base.filter(t => t.estado === "Completado" && (asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId));
     } else if (filtros.estado === "kpi_sinasignar") {
-      // Sin asignar: tickets hacia mi empresa, pendientes y sin asignar en mi empresa
-      if (t.estado !== "Pendiente") return false;
-      if (!eds.includes(usuario?.empresaId)) return false;
-      if ((t.asignacionesPorEmpresa?.[usuario?.empresaId]?.length || 0) > 0) return false;
+      base = base.filter(t => {
+        if (t.estado !== "Pendiente") return false;
+        if (esDirCeo) return Object.values(t.asignacionesPorEmpresa || {}).every(a => !a.length);
+        return edsFn(t).includes(usuario?.empresaId) && !(t.asignacionesPorEmpresa?.[usuario?.empresaId]?.length > 0);
+      });
     } else {
-      // Vista normal (todos/mis)
-      if (["Completado","Cancelado"].includes(t.estado)) return false;
-      if (vista === "mis" && !esDirCeo) {
-        if (esEncargado) {
-          if (!eds.includes(usuario.empresaId) && t.creadoPor !== usuarioId) return false;
-        } else {
-          if (!asigs.includes(usuarioId) && t.creadoPor !== usuarioId) return false;
-        }
+      // Vista normal (mis/todos)
+      base = base.filter(t => !["Completado","Cancelado"].includes(t.estado));
+      if (vista === "mis") {
+        base = base.filter(t => {
+          if (esDirCeo)    return asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId;
+          if (esEncargado) return edsFn(t).includes(usuario.empresaId) || t.creadoPor === usuarioId;
+          return asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId;
+        });
       }
     }
 
-    if (filtros.buscar && !t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase())) return false;
-    return true;
-  });
+    // Filtro por empresa (para director/ceo en vista global)
+    if (filtros.empresa !== "todas") {
+      const empId = Number(filtros.empresa);
+      base = base.filter(t => edsFn(t).includes(empId) || t.empresaOrigenId === empId);
+    }
 
-  // ── Estadísticas por rol ──
+    // Buscador
+    if (filtros.buscar) {
+      base = base.filter(t => t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase()));
+    }
+
+    return base;
+  })();
+
   const esEncargado  = usuario?.rol === "encargado";
   const esTrabajador = usuario?.rol === "trabajador";
   const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
 
-  // Todos los tickets activos del usuario
   const ticketsActivos     = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
   const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
 
-  // Tickets asignados al trabajador (en sus asignaciones)
+  // Tickets donde el usuario está asignado (como trabajador)
   const misAsignados = ticketsMisRol.filter(t => {
     const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
     return asigs.includes(usuarioId);
   });
-
-  // Tickets que el trabajador creó y están pendientes
-  const misPendientes = ticketsMisRol.filter(t =>
-    t.creadoPor === usuarioId && t.estado === "Pendiente"
-  );
-
-  // Tickets que el trabajador está realizando (asignado a él y en progreso)
-  const misEnProgreso = misAsignados.filter(t => t.estado === "En progreso");
-
-  // Tickets completados del trabajador (donde estaba asignado o los creó)
+  const misPendientes  = ticketsMisRol.filter(t => t.creadoPor === usuarioId && t.estado === "Pendiente");
+  const misEnProgreso  = misAsignados.filter(t => ["Asignado","En progreso"].includes(t.estado));
   const misCompletados = ticketsMisRol.filter(t => {
     if (t.estado !== "Completado") return false;
     const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
     return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
   });
 
-  // Para encargado: tickets pendientes de asignación en su empresa
-  const sinAsignar = esEncargado ? ticketsMisRol.filter(t => {
+  // Sin asignar: tickets pendientes hacia mi empresa sin asignar (encargado y dir/ceo)
+  const sinAsignar = (esEncargado || esDirCeo) ? ticketsMisRol.filter(t => {
+    if (t.estado !== "Pendiente") return false;
     const eds = t.empresasDestino || [];
-    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
-    const tieneAsignadosEnMiEmpresa = ticketsMisRol.filter(t2 => t2.id === t.id)
-      .some(() => {
-        const empAsigs = t.asignacionesPorEmpresa?.[usuario.empresaId] || [];
-        return empAsigs.length > 0;
-      });
-    return eds.includes(usuario.empresaId) && t.estado === "Pendiente" &&
-      !(t.asignacionesPorEmpresa?.[usuario.empresaId]?.length > 0);
+    if (esDirCeo) return Object.values(t.asignacionesPorEmpresa || {}).every(a => !a.length);
+    return eds.includes(usuario.empresaId) && !(t.asignacionesPorEmpresa?.[usuario.empresaId]?.length > 0);
   }) : [];
 
-  const stats = esDirCeo ? {
-    // Director/CEO: visión global
-    total:       ticketsActivos.length,
-    pendientes:  ticketsActivos.filter(t => t.estado === "Pendiente").length,
-    enProgreso:  ticketsActivos.filter(t => ["Asignado","En progreso"].includes(t.estado)).length,
-    completados: ticketsCompletados.length,
-    sinAsignar:  0,
-  } : esEncargado ? {
-    // Encargado: sus tickets + sin asignar en su empresa
-    total:       ticketsActivos.filter(t => {
-      const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
-      return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
-    }).length,
+  const stats = {
+    // Total: mis tickets asignados (como trabajador)
+    total:       esDirCeo
+      ? misAsignados.filter(t => !["Completado","Cancelado"].includes(t.estado)).length
+      : esEncargado
+      ? ticketsActivos.filter(t => {
+          const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+          return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
+        }).length
+      : misAsignados.filter(t => !["Completado","Cancelado"].includes(t.estado)).length,
     pendientes:  misPendientes.length,
     enProgreso:  misEnProgreso.length,
     completados: misCompletados.length,
     sinAsignar:  sinAsignar.length,
-  } : {
-    // Trabajador
-    total:       misAsignados.filter(t => !["Completado","Cancelado"].includes(t.estado)).length,
-    pendientes:  misPendientes.length,
-    enProgreso:  misEnProgreso.length,
-    completados: misCompletados.length,
-    sinAsignar:  0,
   };
 
   const guardarNotifs = (nuevas) => {
@@ -3422,19 +3422,18 @@ export default function App() {
         ) : seccion === "tickets" ? (
           <>
             {/* ESTADÍSTICAS — clicables */}
-            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${esEncargado ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${(esEncargado || esDirCeo) ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
               {[
-                ["Total",        stats.total,       "#94A3B8", "🎫",  "kpi_total"],
-                ["Pendientes",   stats.pendientes,  "#718096", "⏳",  "kpi_pendientes"],
+                ["Mis tickets",  stats.total,       "#94A3B8", "🎫", "kpi_total"],
+                ["Pendientes",   stats.pendientes,  "#718096", "⏳", "kpi_pendientes"],
                 ["En progreso",  stats.enProgreso,  "#D4A017", "⚙️", "kpi_progreso"],
-                ["Completados",  stats.completados, "#38A169", "✅",  "kpi_completados"],
-                ...(esEncargado ? [["Sin asignar", stats.sinAsignar, "#E53E3E", "📋", "kpi_sinasignar"]] : []),
+                ["Completados",  stats.completados, "#38A169", "✅", "kpi_completados"],
+                ...((esEncargado || esDirCeo) ? [["Sin asignar", stats.sinAsignar, "#E53E3E", "📋", "kpi_sinasignar"]] : []),
               ].map(([l, v, c, ic, accion]) => {
                 const activo = filtros.estado === accion;
 
                 const handleClick = () => {
                   setSeccion("tickets");
-                  // Toggle: si ya está activo, volver a vista normal
                   if (activo) {
                     setFiltros(f => ({ ...f, estado: "todos" }));
                     setVista("mis");
@@ -3464,13 +3463,23 @@ export default function App() {
 
               {/* Segmento Mis/Todos */}
               <div style={{ display: "flex", gap: 2, background: darkMode ? "#1E293B" : "#F1F5F9", borderRadius: 8, padding: 3, flexShrink: 0 }}>
-                {(["director","ceo"].includes(usuario?.rol)
-                  ? [["todos", "Todos"]]
-                  : [["mis", "Mis tickets"], ["todos", "Todos"]]
-                ).map(([v, l]) => (
+                {[["mis", "Mis tickets"], ["todos", "Todos"]].map(([v, l]) => (
                   <button key={v} onClick={() => { setVista(v); setFiltros(f => ({...f, estado:"todos"})); }} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s" }}>{l}</button>
                 ))}
               </div>
+
+              {/* Selector empresa — solo para director/ceo en vista todos */}
+              {esDirCeo && vista === "todos" && (
+                <select
+                  value={filtros.empresa || "todas"}
+                  onChange={e => setFiltros(f => ({...f, empresa: e.target.value}))}
+                  style={{ height:32, paddingLeft:8, paddingRight:24, background: darkMode?"#1E293B":"#F8FAFC", border:`1px solid ${darkMode?"#2E3A55":"#E2E8F0"}`, borderRadius:8, color: darkMode?"#E2E8F0":"#0F172A", fontSize:12, outline:"none", fontFamily:"inherit", cursor:"pointer" }}>
+                  <option value="todas">Todas las empresas</option>
+                  {EMPRESAS.filter(e => e.id !== 0).map(e => (
+                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                  ))}
+                </select>
+              )}
 
               {/* Buscador compacto */}
               <div style={{ position: "relative", minWidth: 140, maxWidth: 220 }}>
