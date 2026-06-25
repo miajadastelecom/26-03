@@ -963,18 +963,18 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                         );
                       })
                     : misTrabs.map(u => {
-                    const marcado = seleccionados.includes(u.id);
-                    const col = miEmpresa?.color || "#3182CE";
-                    return (
-                      <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 7, background: marcado ? col + "22" : darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${marcado ? col + "66" : darkMode ? "#1E293B" : "#E2E8F0"}`, cursor: "pointer" }}>
-                        <input type="checkbox" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor: col, width: 15, height: 15 }} />
-                        <Avatar nombre={u.nombre} color={col} size={24} />
-                        <span style={{ color: marcado ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcado ? 700 : 400, flex: 1 }}>{u.nombre}</span>
-                        {marcado && <span style={{ color: col, fontSize: 12 }}>✓</span>}
-                      </label>
-                    );
-                  })}
-                  })
+                        const marcado = seleccionados.includes(u.id);
+                        const col = miEmpresa?.color || "#3182CE";
+                        return (
+                          <label key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:7, background: marcado ? col+"22" : darkMode?"#111827":"#FFFFFF", border:`1px solid ${marcado ? col+"66" : darkMode?"#1E293B":"#E2E8F0"}`, cursor:"pointer" }}>
+                            <input type="checkbox" checked={marcado} onChange={() => toggleSel(u.id)} style={{ accentColor:col, width:15, height:15 }} />
+                            <Avatar nombre={u.nombre} color={col} size={24} />
+                            <span style={{ color:marcado?"#E2E8F0":"#94A3B8", fontSize:13, fontWeight:marcado?700:400, flex:1 }}>{u.nombre}</span>
+                            {marcado && <span style={{ color:col, fontSize:12 }}>✓</span>}
+                          </label>
+                        );
+                      })
+                  }
                 </div>
               )
             }
