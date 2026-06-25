@@ -3152,7 +3152,7 @@ export default function App() {
           <div style={{ padding:"8px", borderTop:`1px solid ${darkMode?"#1E293B":"#F0F2F5"}`, display:"flex", flexDirection: sidebarOpen ? "row" : "column", gap:6, justifyContent:"center", alignItems:"center" }}>
             {/* Comunicados */}
             <div style={{ position:"relative" }}>
-              <button onClick={() => setVerComunicados(v => !v)} title="Comunicados"
+              <button onClick={() => { setSeccion("comunicacion"); setVerComunicados(false); }} title="Comunicación"
                 style={{ background: comunicados.length > 0 ? "#3182CE22" : "transparent", border:"1px solid #3182CE33", borderRadius:8, padding:"7px 10px", cursor:"pointer", fontSize:16, position:"relative", color:darkMode?"#94A3B8":"#68769F" }}>
                 💬
                 {comunicados.length > 0 && <span style={{ position:"absolute", top:2, right:2, background:"#3182CE", color:"#fff", borderRadius:"50%", width:14, height:14, fontSize:8, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{comunicados.length}</span>}
@@ -3266,6 +3266,11 @@ export default function App() {
               style={{ background:"none", border:"none", cursor:"pointer", color: darkMode?"#94A3B8":"#A3AED0", fontSize:22, padding:"4px", display:"flex", alignItems:"center", flexShrink:0 }}>
               ☰
             </button>
+
+            {/* Título sección */}
+            <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH"}[seccion] || ""}
+            </span>
 
             {/* Selector empresa */}
             <div style={{ display:"flex", alignItems:"center", gap:8, background: darkMode?"#1E293B":"#F4F7FE", border:`1px solid ${darkMode?"#2E3A55":"#E0E5F2"}`, borderRadius:8, padding:"6px 12px", cursor:"pointer", flexShrink:0 }}>
@@ -3650,7 +3655,8 @@ function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, em
 
   const puedeCrear = ["director","ceo","administrador","encargado","rrhh"].includes(usuario?.rol);
 
-  const comunicadosFiltrados = comunicados
+  const comunicadosFiltrados = (comunicados || [])
+    .filter(c => c && c.titulo) // solo comunicados válidos
     .filter(c => {
       // Filtrar por destinatario
       if (!c.destinatarios || c.destinatarios.tipo === "todos") return true;
@@ -3741,7 +3747,7 @@ function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, em
                     <div style={{ display:"flex", gap:4 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setEditando(c); setModalNuevo(true); }}
                         style={{ background:"none", border:"none", cursor:"pointer", color:textMuted, fontSize:14, padding:"2px 5px" }} title="Editar">✏️</button>
-                      <button onClick={() => { if(confirm("¿Eliminar este comunicado?")) deleteDoc(doc(db,"comunicados",c.id)); }}
+                      <button onClick={() => { deleteDoc(doc(db,"comunicados",c.id)); }}
                         style={{ background:"none", border:"none", cursor:"pointer", color:textMuted, fontSize:14, padding:"2px 5px" }} title="Eliminar">🗑️</button>
                     </div>
                   )}
