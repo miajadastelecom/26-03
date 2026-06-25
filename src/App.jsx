@@ -1572,7 +1572,7 @@ function Reportes({ tickets, usuarioActual }) {
       </div>
 
       {/* RESUMEN STATS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${esEncargado ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
         {[
           ["Completados", ticketsFiltrados.length, "#38A169", "✅"],
           ["Empresas origen", [...new Set(ticketsFiltrados.map(t=>t.empresaOrigenId))].length, "#3182CE", "🏢"],
@@ -2750,41 +2750,124 @@ export default function App() {
   });
 
   const ticketsFiltrados = ticketsMisRol.filter(t => {
-    if (vista === "mis" && usuario?.rol !== "director") {
-      const eds   = t.empresasDestino || [];
-      const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
-      if (!usuario) return false;
-      if (usuario.rol === "encargado") {
-        const mio = eds.includes(usuario.empresaId) || t.creadoPor === usuario.id;
-        if (!mio) return false;
-      } else {
-        const mio = asigs.includes(usuario.id) || t.creadoPor === usuario.id;
+    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+    const eds   = t.empresasDestino || [];
+
+    // ── Filtro por KPI seleccionado ──
+    if (filtros.estado === "kpi_total") {
+      // Total: tickets activos asignados al usuario (trabajador/encargado) o todos (dir/ceo)
+      if (["Completado","Cancelado"].includes(t.estado)) return false;
+      if (!esDirCeo) {
+        if (esEncargado) {
+          const mio = (asigs.includes(usuarioId) || t.creadoPor === usuarioId);
+          if (!mio) return false;
+        } else {
+          if (!asigs.includes(usuarioId)) return false;
+        }
+      }
+    } else if (filtros.estado === "kpi_pendientes") {
+      // Pendientes: tickets creados por el usuario con estado Pendiente
+      if (t.estado !== "Pendiente") return false;
+      if (!esDirCeo && t.creadoPor !== usuarioId) return false;
+    } else if (filtros.estado === "kpi_progreso") {
+      // En progreso: tickets donde el usuario está asignado y en progreso
+      if (!["Asignado","En progreso"].includes(t.estado)) return false;
+      if (!esDirCeo && !asigs.includes(usuarioId)) return false;
+    } else if (filtros.estado === "kpi_completados") {
+      // Completados: historial
+      if (t.estado !== "Completado") return false;
+      if (!esDirCeo) {
+        const mio = asigs.includes(usuarioId) || t.creadoPor === usuarioId;
         if (!mio) return false;
       }
+    } else if (filtros.estado === "kpi_sinasignar") {
+      // Sin asignar: tickets hacia mi empresa, pendientes y sin asignar en mi empresa
+      if (t.estado !== "Pendiente") return false;
+      if (!eds.includes(usuario?.empresaId)) return false;
+      if ((t.asignacionesPorEmpresa?.[usuario?.empresaId]?.length || 0) > 0) return false;
+    } else {
+      // Vista normal (todos/mis)
+      if (["Completado","Cancelado"].includes(t.estado)) return false;
+      if (vista === "mis" && !esDirCeo) {
+        if (esEncargado) {
+          if (!eds.includes(usuario.empresaId) && t.creadoPor !== usuarioId) return false;
+        } else {
+          if (!asigs.includes(usuarioId) && t.creadoPor !== usuarioId) return false;
+        }
+      }
     }
-    // Pantalla principal: solo activos
-    if (["Completado", "Cancelado"].includes(t.estado)) return false;
-    if (filtros.estado === "en_curso") {
-      if (!["Asignado","En progreso"].includes(t.estado)) return false;
-    } else if (filtros.estado !== "todos" && t.estado !== filtros.estado) return false;
-    if (filtros.empresa !== "todas") {
-      const eds = t.empresasDestino || [];
-      if (!eds.includes(Number(filtros.empresa)) && t.empresaOrigenId !== Number(filtros.empresa)) return false;
-    }
+
     if (filtros.buscar && !t.titulo.toLowerCase().includes(filtros.buscar.toLowerCase())) return false;
     return true;
   });
 
-  // Estadísticas basadas en los tickets del rol del usuario
-  const ticketsActivos    = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
-  const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
-  const ticketsCancelados  = ticketsMisRol.filter(t => t.estado === "Cancelado");
+  // ── Estadísticas por rol ──
+  const esEncargado  = usuario?.rol === "encargado";
+  const esTrabajador = usuario?.rol === "trabajador";
+  const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
 
-  const stats = {
+  // Todos los tickets activos del usuario
+  const ticketsActivos     = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
+  const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
+
+  // Tickets asignados al trabajador (en sus asignaciones)
+  const misAsignados = ticketsMisRol.filter(t => {
+    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+    return asigs.includes(usuarioId);
+  });
+
+  // Tickets que el trabajador creó y están pendientes
+  const misPendientes = ticketsMisRol.filter(t =>
+    t.creadoPor === usuarioId && t.estado === "Pendiente"
+  );
+
+  // Tickets que el trabajador está realizando (asignado a él y en progreso)
+  const misEnProgreso = misAsignados.filter(t => t.estado === "En progreso");
+
+  // Tickets completados del trabajador (donde estaba asignado o los creó)
+  const misCompletados = ticketsMisRol.filter(t => {
+    if (t.estado !== "Completado") return false;
+    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+    return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
+  });
+
+  // Para encargado: tickets pendientes de asignación en su empresa
+  const sinAsignar = esEncargado ? ticketsMisRol.filter(t => {
+    const eds = t.empresasDestino || [];
+    const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+    const tieneAsignadosEnMiEmpresa = ticketsMisRol.filter(t2 => t2.id === t.id)
+      .some(() => {
+        const empAsigs = t.asignacionesPorEmpresa?.[usuario.empresaId] || [];
+        return empAsigs.length > 0;
+      });
+    return eds.includes(usuario.empresaId) && t.estado === "Pendiente" &&
+      !(t.asignacionesPorEmpresa?.[usuario.empresaId]?.length > 0);
+  }) : [];
+
+  const stats = esDirCeo ? {
+    // Director/CEO: visión global
     total:       ticketsActivos.length,
     pendientes:  ticketsActivos.filter(t => t.estado === "Pendiente").length,
-    enCurso:     ticketsActivos.filter(t => ["Asignado","En progreso"].includes(t.estado)).length,
+    enProgreso:  ticketsActivos.filter(t => ["Asignado","En progreso"].includes(t.estado)).length,
     completados: ticketsCompletados.length,
+    sinAsignar:  0,
+  } : esEncargado ? {
+    // Encargado: sus tickets + sin asignar en su empresa
+    total:       ticketsActivos.filter(t => {
+      const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+      return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
+    }).length,
+    pendientes:  misPendientes.length,
+    enProgreso:  misEnProgreso.length,
+    completados: misCompletados.length,
+    sinAsignar:  sinAsignar.length,
+  } : {
+    // Trabajador
+    total:       misAsignados.filter(t => !["Completado","Cancelado"].includes(t.estado)).length,
+    pendientes:  misPendientes.length,
+    enProgreso:  misEnProgreso.length,
+    completados: misCompletados.length,
+    sinAsignar:  0,
   };
 
   const guardarNotifs = (nuevas) => {
@@ -3339,29 +3422,24 @@ export default function App() {
         ) : seccion === "tickets" ? (
           <>
             {/* ESTADÍSTICAS — clicables */}
-            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
+            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${esEncargado ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
               {[
-                ["Total",       stats.total,       "#94A3B8", "🎫", "todos"],
-                ["Pendientes",  stats.pendientes,   "#718096", "⏳", "Pendiente"],
-                ["En progreso",    stats.enCurso,      "#D4A017", "⚙️", "en_curso"],
-                ["Completados", stats.completados,  "#38A169", "✅", "completados_hist"],
+                ["Total",        stats.total,       "#94A3B8", "🎫",  "kpi_total"],
+                ["Pendientes",   stats.pendientes,  "#718096", "⏳",  "kpi_pendientes"],
+                ["En progreso",  stats.enProgreso,  "#D4A017", "⚙️", "kpi_progreso"],
+                ["Completados",  stats.completados, "#38A169", "✅",  "kpi_completados"],
+                ...(esEncargado ? [["Sin asignar", stats.sinAsignar, "#E53E3E", "📋", "kpi_sinasignar"]] : []),
               ].map(([l, v, c, ic, accion]) => {
-                const activo =
-                  (accion === "todos"           && filtros.estado === "todos") ||
-                  (accion === "Pendiente"        && filtros.estado === "Pendiente") ||
-                  (accion === "en_curso"         && (filtros.estado === "en_curso" || ["Asignado","En progreso"].includes(filtros.estado))) ||
-                  (accion === "completados_hist" && seccion === "historial" && subHistorial === "completados");
+                const activo = filtros.estado === accion;
 
                 const handleClick = () => {
-                  if (accion === "completados_hist") {
-                    setSeccion("historial");
-                    setSubHistorial("completados");
-                  } else if (accion === "en_curso") {
-                    setSeccion("tickets");
-                    setFiltros(f => ({ ...f, estado: filtros.estado === "Asignado" ? "todos" : "Asignado" }));
+                  setSeccion("tickets");
+                  // Toggle: si ya está activo, volver a vista normal
+                  if (activo) {
+                    setFiltros(f => ({ ...f, estado: "todos" }));
+                    setVista("mis");
                   } else {
-                    setSeccion("tickets");
-                    setFiltros(f => ({ ...f, estado: activo ? "todos" : accion }));
+                    setFiltros(f => ({ ...f, estado: accion }));
                   }
                 };
 
@@ -3390,7 +3468,7 @@ export default function App() {
                   ? [["todos", "Todos"]]
                   : [["mis", "Mis tickets"], ["todos", "Todos"]]
                 ).map(([v, l]) => (
-                  <button key={v} onClick={() => setVista(v)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s" }}>{l}</button>
+                  <button key={v} onClick={() => { setVista(v); setFiltros(f => ({...f, estado:"todos"})); }} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s" }}>{l}</button>
                 ))}
               </div>
 
