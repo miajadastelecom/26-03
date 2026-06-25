@@ -2833,6 +2833,7 @@ export default function App() {
 
   const ticketsActivos     = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
   const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
+  const ticketsCancelados  = ticketsMisRol.filter(t => t.estado === "Cancelado");
 
   // Tickets donde el usuario está asignado (como trabajador)
   const misAsignados = ticketsMisRol.filter(t => {
@@ -3462,12 +3463,6 @@ export default function App() {
             {/* FILTROS */}
             <div className="filters-row" style={{ display: "flex", gap: 8, marginBottom: 18, alignItems: "center", flexWrap: "wrap" }}>
 
-              {/* Segmento Mis/Todos */}
-              <div style={{ display: "flex", gap: 2, background: darkMode ? "#1E293B" : "#F1F5F9", borderRadius: 8, padding: 3, flexShrink: 0 }}>
-                {[["mis", "Mis tickets"], ["todos", "Todos"]].map(([v, l]) => (
-                  <button key={v} onClick={() => { setVista(v); setFiltros(f => ({...f, estado:"todos"})); }} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: vista === v ? empColor : "transparent", color: vista === v ? "#fff" : (darkMode ? "#64748B" : "#94A3B8"), transition: "all .15s" }}>{l}</button>
-                ))}
-              </div>
 
               {/* Selector empresa — solo para director/ceo en vista todos */}
               {esDirCeo && vista === "todos" && (
