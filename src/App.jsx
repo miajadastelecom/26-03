@@ -85,7 +85,7 @@ const USUARIOS = [
 ];
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
-const PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Urgente: "#E53E3E" };
+let PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Urgente: "#E53E3E" };
 const CATEGORIAS = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
 const ESTADOS = ["Pendiente", "Asignado", "En progreso", "Completado", "Cancelado"];
 
@@ -109,7 +109,7 @@ const loadConfig = async () => {
   } catch {}
 };
 loadConfig();
-const ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso": "#D4A017", Completado: "#38A169", Cancelado: "#E53E3E" };
+let ESTADO_COLORES = { Pendiente: "#718096", Asignado: "#3182CE", "En progreso": "#D4A017", Completado: "#38A169", Cancelado: "#E53E3E" };
 
 // PINs por defecto (4 dígitos) — clave: userId, valor: pin string
 const PINS_DEFAULT = {};
@@ -144,9 +144,9 @@ function ticketFromFirestore(t) {
 }
 
 // ─── ESTILOS BASE ─────────────────────────────────────────────────────────────
-const inp    = { fontFamily: "inherit", fontSize: 13, background: darkMode ? "#1A2235" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 6, padding: "9px 12px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
-const btnS   = { fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer" };
-const labelS = { display: "block", color: darkMode ? "#64748B" : "#475569", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 5 };
+let inp    = { fontFamily: "inherit", fontSize: 13, background: darkMode ? "#1A2235" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 6, padding: "9px 12px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
+let btnS   = { fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer" };
+let labelS = { display: "block", color: darkMode ? "#64748B" : "#475569", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 5 };
 
 // ─── COMPONENTES BASE ─────────────────────────────────────────────────────────
 function Badge({ texto, color, small }) {
@@ -2762,6 +2762,10 @@ export default function App() {
 
 
   // Tickets que "pertenecen" al usuario según su rol
+  const esEncargado  = usuario?.rol === "encargado";
+  const esTrabajador = usuario?.rol === "trabajador";
+  const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
+
   const ticketsMisRol = tickets.filter(t => {
     if (!usuario || usuario.rol === "director") return true;
     const eds   = t.empresasDestino || [];
@@ -2826,9 +2830,6 @@ export default function App() {
     return base;
   })();
 
-  const esEncargado  = usuario?.rol === "encargado";
-  const esTrabajador = usuario?.rol === "trabajador";
-  const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
 
   const ticketsActivos     = ticketsMisRol.filter(t => !["Completado","Cancelado"].includes(t.estado));
   const ticketsCompletados = ticketsMisRol.filter(t => t.estado === "Completado");
