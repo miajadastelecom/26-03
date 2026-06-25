@@ -234,13 +234,13 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   };
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
-  const disponibles = EMPRESAS.filter(e => e.id !== 0);
+  const disponibles = EMPRESAS; // incluye Independiente (id:0)
   const puedeCrear  = titulo.trim().length > 0 && empresasDestino.length > 0;
 
   const toggleEmp = (id) => {
     setEmps(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      if (id === 6 && !next.includes(6)) setComercialAsignados([]);
+      if (id === 0 && !next.includes(0)) setComercialAsignados([]);
       return next;
     });
   };
@@ -427,16 +427,16 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
                       <span style={{ width: 10, height: 10, borderRadius: "50%", background: emp.color, flexShrink: 0 }} />
                       <span style={{ color: marcada ? "#E2E8F0" : "#94A3B8", fontSize: 13, fontWeight: marcada ? 700 : 400, flex: 1 }}>{emp.nombre}</span>
                       {emp.id === usuarioActual.empresaId && <span style={{ color: darkMode ? "#475569" : "#64748B", fontSize: 10 }}>mi empresa</span>}
-                      {marcada && emp.id !== 6 && <span style={{ color: emp.color, fontSize: 12 }}>✓</span>}
-                      {marcada && emp.id === 6 && <span style={{ color: emp.color, fontSize: 10 }}>{comercialAsignados.length > 0 ? `${comercialAsignados.length} asignada${comercialAsignados.length > 1 ? "s" : ""}` : "elige persona"}</span>}
+                      {marcada && emp.id !== 0 && <span style={{ color: emp.color, fontSize: 12 }}>✓</span>}
+                      {marcada && emp.id === 0 && <span style={{ color: emp.color, fontSize: 10 }}>{comercialAsignados.length > 0 ? `${comercialAsignados.length} asignada${comercialAsignados.length > 1 ? "s" : ""}` : "elige persona"}</span>}
                     </label>
                     {/* Selector de personas para Comercial */}
-                    {marcada && emp.id === 6 && (
+                    {marcada && emp.id === 0 && (
                       <div style={{ marginTop: 4, marginLeft: 12, display: "flex", flexDirection: "column", gap: 4, padding: "10px 12px", background: darkMode ? "#0D1424" : "#FFFFFF", borderRadius: 8, border: `1px solid ${emp.color}33` }}>
                         <p style={{ margin: "0 0 6px", color: emp.color, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>
                           🎯 Selecciona a quién va dirigido
                         </p>
-                        {USUARIOS.filter(u => u.empresaId === 6).map(u => {
+                        {USUARIOS.filter(u => u.empresaId === 0).map(u => {
                           const sel = comercialAsignados.includes(u.id);
                           return (
                             <label key={u.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 6, background: sel ? emp.color + "22" : darkMode ? "#1A2235" : "#F8FAFC", border: `1px solid ${sel ? emp.color + "66" : darkMode ? "#2E3A55" : "#CBD5E1"}`, cursor: "pointer" }}>
@@ -457,8 +457,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             </div>
             {empresasDestino.length > 0 && (
               <p style={{ margin: "6px 0 0", color: darkMode ? "#64748B" : "#475569", fontSize: 11 }}>
-                {empresasDestino.filter(id => id !== 6).length > 0 && "El encargado de cada empresa asignará a sus trabajadores. "}
-                {empresasDestino.includes(6) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Comercial.</span>}
+                {empresasDestino.filter(id => id !== 0).length > 0 && "El encargado de cada empresa asignará a sus trabajadores. "}
+                {empresasDestino.includes(0) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Comercial.</span>}
               </p>
             )}
           </div>
@@ -989,12 +989,12 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
         )}
 
         {/* Asignación directa Comercial — solo quien creó el ticket */}
-        {empresasDestino.includes(6) && esCreadoPor && !["Completado", "Cancelado"].includes(ticket.estado) && (() => {
-          const trabsComercial = USUARIOS.filter(u => u.empresaId === 6);
-          const asignadosComercial = asignaciones[6] || [];
+        {empresasDestino.includes(0) && esCreadoPor && !["Completado", "Cancelado"].includes(ticket.estado) && (() => {
+          const trabsComercial = USUARIOS.filter(u => u.empresaId === 0);
+          const asignadosComercial = asignaciones[0] || [];
           const col = "#E53E3E";
           const asignarComercial = (nuevos) => {
-            const nuevasAsig = { ...asignaciones, 6: nuevos };
+            const nuevasAsig = { ...asignaciones, 0: nuevos };
             onActualizar({
               ...ticket,
               asignacionesPorEmpresa: nuevasAsig,
