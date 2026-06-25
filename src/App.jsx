@@ -753,7 +753,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
                     </div>
                     {haCompletado
                       ? <span style={{ background: "#38A16922", color: "#38A169", border: "1px solid #38A16955", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>✓ Completado</span>
-                      : ticket.estado !== "Pendiente" && <span style={{ background: "#D4A01722", color: "#D4A017", border: "1px solid #D4A01755", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>⏳ En curso</span>
+                      : ticket.estado !== "Pendiente" && <span style={{ background: "#D4A01722", color: "#D4A017", border: "1px solid #D4A01755", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>⏳ En progreso</span>
                     }
                   </div>
                   {asignadosEmp.length > 0 && (
@@ -2423,7 +2423,7 @@ function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, fich
                 <p style={{ margin:0, color: darkMode?"#E2E8F0":"#0F172A", fontSize:13, fontWeight:700 }}>
                   {new Date(f.entrada).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}
                   {f.salida && <> → {new Date(f.salida).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})}</>}
-                  {!f.salida && <span style={{ color:"#38A169", marginLeft:8, fontSize:11 }}>● En curso</span>}
+                  {!f.salida && <span style={{ color:"#38A169", marginLeft:8, fontSize:11 }}>● En progreso</span>}
                 </p>
                 {dur && <span style={{ color: darkMode?"#64748B":"#475569", fontSize:12, fontWeight:700 }}>{durStr(dur)}</span>}
               </div>
@@ -3341,7 +3341,7 @@ export default function App() {
               {[
                 ["Total",       stats.total,       "#94A3B8", "🎫", "todos"],
                 ["Pendientes",  stats.pendientes,   "#718096", "⏳", "Pendiente"],
-                ["En curso",    stats.enCurso,      "#D4A017", "⚙️", "en_curso"],
+                ["En progreso",    stats.enCurso,      "#D4A017", "⚙️", "en_curso"],
                 ["Completados", stats.completados,  "#38A169", "✅", "completados_hist"],
               ].map(([l, v, c, ic, accion]) => {
                 const activo =
