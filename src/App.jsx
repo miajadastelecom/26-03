@@ -2764,7 +2764,9 @@ export default function App() {
     }
     // Pantalla principal: solo activos
     if (["Completado", "Cancelado"].includes(t.estado)) return false;
-    if (filtros.estado !== "todos" && t.estado !== filtros.estado) return false;
+    if (filtros.estado === "en_curso") {
+      if (!["Asignado","En progreso"].includes(t.estado)) return false;
+    } else if (filtros.estado !== "todos" && t.estado !== filtros.estado) return false;
     if (filtros.empresa !== "todas") {
       const eds = t.empresasDestino || [];
       if (!eds.includes(Number(filtros.empresa)) && t.empresaOrigenId !== Number(filtros.empresa)) return false;
@@ -3347,7 +3349,7 @@ export default function App() {
                 const activo =
                   (accion === "todos"           && filtros.estado === "todos") ||
                   (accion === "Pendiente"        && filtros.estado === "Pendiente") ||
-                  (accion === "en_curso"         && ["Asignado","En progreso"].includes(filtros.estado)) ||
+                  (accion === "en_curso"         && (filtros.estado === "en_curso" || ["Asignado","En progreso"].includes(filtros.estado))) ||
                   (accion === "completados_hist" && seccion === "historial" && subHistorial === "completados");
 
                 const handleClick = () => {
