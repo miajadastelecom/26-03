@@ -511,7 +511,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
 
   const esDirector         = ["director","ceo"].includes(usuarioActual.rol);
   const esAdmin            = usuarioActual.rol === "administrador";
-  const esEncargadoDest    = (["director","ceo"].includes(usuarioActual.rol) || usuarioActual.rol === "encargado" || esAdmin) && (["director","ceo"].includes(usuarioActual.rol) || empresasDestino.includes(usuarioActual.empresaId);
+  const esEncargadoDest    = (["director","ceo"].includes(usuarioActual.rol) || usuarioActual.rol === "encargado" || esAdmin) && (["director","ceo"].includes(usuarioActual.rol) || empresasDestino.includes(usuarioActual.empresaId));
   const esAsignado         = todosAsignadosIds.includes(usuarioActual.id);
   const esCreadoPor        = ticket.creadoPor === usuarioActual.id;
   const puedeAccion        = esDirector || esEncargadoDest || esAsignado || esCreadoPor || esAdmin;
