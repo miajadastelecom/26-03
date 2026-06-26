@@ -23,7 +23,7 @@ const EMPRESAS = [
   { id: 0, nombre: "Independiente",             color: "#6B7280", inicial: "IN" },
   { id: 1, nombre: "Energía de Miajadas",        color: "#cf142b", inicial: "EM" },
   { id: 2, nombre: "Miajadas Telecom",           color: "#e0ad12", inicial: "MT" },
-  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LOI" },
+  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LI" },
   { id: 4, nombre: "Zaqaru",                     color: "#af4a85", inicial: "ZQ" },
   { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LO" },
 ];
@@ -3198,49 +3198,58 @@ export default function App() {
           </div>
 
           {/* Menú de navegación */}
-          <nav style={{ flex:1, padding:"8px 8px", display:"flex", flexDirection:"column", gap:2 }}>
+          <nav style={{ flex:1, padding:"8px 8px", display:"flex", flexDirection:"column", gap:2, overflowY:"auto" }}>
+
+            {/* ── TICKETS con submenú ── */}
+            <button onClick={() => { setTicketsExpanded(v => !v); setSeccion("tickets"); }}
+              title={!sidebarOpen ? "Tickets" : ""}
+              style={{ display:"flex", alignItems:"center", gap:10, padding:sidebarOpen?"10px 12px":"10px", justifyContent:sidebarOpen?"flex-start":"center", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:["tickets","historial","reportes","equipo"].includes(seccion)?700:500, background:["tickets","historial","reportes","equipo"].includes(seccion)?(darkMode?"#1E293B":"#F4F7FE"):"transparent", color:["tickets","historial","reportes","equipo"].includes(seccion)?empColor:(darkMode?"#94A3B8":"#68769F"), borderLeft:["tickets","historial","reportes","equipo"].includes(seccion)?`3px solid ${empColor}`:"3px solid transparent", transition:"all .15s", width:"100%", whiteSpace:"nowrap" }}
+              onMouseEnter={e => { if(!["tickets","historial","reportes","equipo"].includes(seccion)) e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE88"; }}
+              onMouseLeave={e => { if(!["tickets","historial","reportes","equipo"].includes(seccion)) e.currentTarget.style.background="transparent"; }}>
+              <span style={{ fontSize:16, flexShrink:0 }}>🎫</span>
+              {sidebarOpen && <><span style={{ flex:1 }}>Tickets</span><span style={{ fontSize:10 }}>{ticketsExpanded?"▾":"▸"}</span></>}
+            </button>
+
+            {/* Submenú */}
+            {ticketsExpanded && sidebarOpen && (
+              <div style={{ marginLeft:12, borderLeft:`2px solid ${darkMode?"#1E293B":"#E2E8F0"}`, paddingLeft:8, display:"flex", flexDirection:"column", gap:1 }}>
+                {[
+                  { id:"historial", icon:"🗂️",  label:"Historial",      show:true },
+                  { id:"reportes",  icon:"📄", label:"Reportes",        show:["director","ceo","encargado","administrador"].includes(usuario?.rol) },
+                  { id:"equipo",    icon:"👥", label:"Panel de equipo", show:esEncargado },
+                ].filter(i => i.show).map(item => {
+                  const activo = seccion === item.id;
+                  return (
+                    <button key={item.id} onClick={e => { e.stopPropagation(); setSeccion(item.id); }}
+                      style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:activo?700:400, background:activo?(darkMode?"#1E293B":"#EEF2FF"):"transparent", color:activo?empColor:(darkMode?"#64748B":"#94A3B8"), transition:"all .15s", width:"100%" }}
+                      onMouseEnter={e => { if(!activo) e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE"; }}
+                      onMouseLeave={e => { if(!activo) e.currentTarget.style.background="transparent"; }}>
+                      <span style={{ fontSize:13 }}>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── RESTO ── */}
             {[
-              { id:"tickets",    icon:"🎫", label:"Tickets" },
-              { id:"historial",  icon:"🗂️", label:"Historial" },
-              { id:"calendario", icon:"📅", label:"Calendario" },
-              ...( ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
+              { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
-              ...(esEncargado ? [{ id:"equipo", icon:"👥", label:"Panel de equipo" }] : []),
-              { id:"fichaje",    icon:"🕐", label:"Fichaje" },
-              { id:"nominas",    icon:"💰", label:"Nóminas" },
-              { id:"perfil",     icon:"👤", label:"Perfil" },
+              { id:"fichaje",      icon:"🕐", label:"Fichaje", extra:fichajeActivo },
+              { id:"nominas",      icon:"💰", label:"Nóminas" },
+              { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
               return (
                 <button key={item.id} onClick={() => setSeccion(item.id)}
                   title={!sidebarOpen ? item.label : ""}
-                  style={{
-                    display:        "flex",
-                    alignItems:     "center",
-                    gap:            10,
-                    padding:        sidebarOpen ? "10px 12px" : "10px",
-                    justifyContent: sidebarOpen ? "flex-start" : "center",
-                    borderRadius:   8,
-                    border:         "none",
-                    cursor:         "pointer",
-                    fontFamily:     "inherit",
-                    fontSize:       13,
-                    fontWeight:     activo ? 700 : 400,
-                    background:     activo ? (darkMode?"#1E293B":"#F4F7FE") : "transparent",
-                    color:          activo ? empColor : (darkMode?"#94A3B8":"#68769F"),
-                    borderLeft:     activo ? `3px solid ${empColor}` : "3px solid transparent",
-                    transition:     "all .15s",
-                    width:          "100%",
-                    whiteSpace:     "nowrap",
-                  }}
-                  onMouseEnter={e => { if(!activo) { e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE"; e.currentTarget.style.color=darkMode?"#E2E8F0":"#1B2559"; }}}
-                  onMouseLeave={e => { if(!activo) { e.currentTarget.style.background="transparent"; }}}>
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:sidebarOpen?"10px 12px":"10px", justifyContent:sidebarOpen?"flex-start":"center", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:activo?700:500, background:activo?(darkMode?"#1E293B":"#F4F7FE"):"transparent", color:activo?empColor:(darkMode?"#94A3B8":"#68769F"), borderLeft:activo?`3px solid ${empColor}`:"3px solid transparent", transition:"all .15s", width:"100%", whiteSpace:"nowrap" }}
+                  onMouseEnter={e => { if(!activo) e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE88"; }}
+                  onMouseLeave={e => { if(!activo) e.currentTarget.style.background="transparent"; }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
-                  {sidebarOpen && <span>{item.label}</span>}
-                  {/* Indicador fichaje activo */}
-                  {item.id === "fichaje" && fichajeActivo && (
-                    <span style={{ marginLeft:"auto", width:8, height:8, borderRadius:"50%", background:"#38A169", flexShrink:0, animation:"parpadeo 1.6s ease-in-out infinite" }} />
-                  )}
+                  {sidebarOpen && <span style={{ flex:1 }}>{item.label}</span>}
+                  {item.extra && <span style={{ width:8, height:8, borderRadius:"50%", background:"#38A169", flexShrink:0 }} />}
                 </button>
               );
             })}
