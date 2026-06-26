@@ -2691,6 +2691,7 @@ export default function App() {
   const [modalNomina,   setModalNomina] = useState(false);  // solo admin/director
   const [subHistorial,  setSubHistorial] = useState("completados");
   const [ticketsExpanded, setTicketsExpanded] = useState(true);
+  const [rrhhExpanded,    setRrhhExpanded]    = useState(true);
 
 
   // ── Firebase: tickets en tiempo real ──
@@ -3213,13 +3214,13 @@ export default function App() {
               {sidebarOpen && <><span style={{ flex:1 }}>Tickets</span><span style={{ fontSize:10 }}>{ticketsExpanded?"▾":"▸"}</span></>}
             </button>
 
-            {/* Submenú */}
+            {/* Submenú Tickets */}
             {ticketsExpanded && sidebarOpen && (
               <div style={{ marginLeft:12, borderLeft:`2px solid ${darkMode?"#1E293B":"#E2E8F0"}`, paddingLeft:8, display:"flex", flexDirection:"column", gap:1 }}>
                 {[
-                  { id:"historial", icon:"🗂️",  label:"Historial",      show:true },
-                  { id:"reportes",  icon:"📄", label:"Reportes",        show:["director","ceo","encargado","administrador"].includes(usuario?.rol) },
-                  { id:"equipo",    icon:"👥", label:"Panel de equipo", show:esEncargado },
+                  { id:"historial", icon:"🗂️",  label:"Historial",      show: true },
+                  { id:"reportes",  icon:"📄", label:"Reportes",        show: ["director","ceo","encargado","administrador"].includes(usuario?.rol) },
+                  { id:"equipo",    icon:"👥", label:"Panel de equipo", show: esEncargado },
                 ].filter(i => i.show).map(item => {
                   const activo = seccion === item.id;
                   return (
@@ -3235,11 +3236,44 @@ export default function App() {
               </div>
             )}
 
+            {/* ── RRHH con submenú (solo rol rrhh) ── */}
+            {usuario?.rol === "rrhh" && (
+              <>
+                <button onClick={() => { setRrhhExpanded(v => !v); setSeccion("gestion_nominas"); }}
+                  title={!sidebarOpen ? "RRHH" : ""}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:sidebarOpen?"10px 12px":"10px", justifyContent:sidebarOpen?"flex-start":"center", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)?700:500, background:["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)?(darkMode?"#1E293B":"#F4F7FE"):"transparent", color:["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)?empColor:(darkMode?"#94A3B8":"#68769F"), borderLeft:["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)?`3px solid ${empColor}`:"3px solid transparent", transition:"all .15s", width:"100%", whiteSpace:"nowrap" }}
+                  onMouseEnter={e => { if(!["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)) e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE88"; }}
+                  onMouseLeave={e => { if(!["gestion_nominas","gestion_vacaciones","gestion_fichajes"].includes(seccion)) e.currentTarget.style.background="transparent"; }}>
+                  <span style={{ fontSize:16, flexShrink:0 }}>👔</span>
+                  {sidebarOpen && <><span style={{ flex:1 }}>RRHH</span><span style={{ fontSize:10 }}>{rrhhExpanded?"▾":"▸"}</span></>}
+                </button>
+
+                {rrhhExpanded && sidebarOpen && (
+                  <div style={{ marginLeft:12, borderLeft:`2px solid ${darkMode?"#1E293B":"#E2E8F0"}`, paddingLeft:8, display:"flex", flexDirection:"column", gap:1 }}>
+                    {[
+                      { id:"gestion_nominas",    icon:"📋", label:"Gestión de Nóminas" },
+                      { id:"gestion_vacaciones", icon:"🏖️",  label:"Gestión de Vacaciones" },
+                      { id:"gestion_fichajes",   icon:"🕐", label:"Gestión de Fichajes" },
+                    ].map(item => {
+                      const activo = seccion === item.id;
+                      return (
+                        <button key={item.id} onClick={e => { e.stopPropagation(); setSeccion(item.id); }}
+                          style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:activo?700:400, background:activo?(darkMode?"#1E293B":"#EEF2FF"):"transparent", color:activo?empColor:(darkMode?"#64748B":"#94A3B8"), transition:"all .15s", width:"100%" }}
+                          onMouseEnter={e => { if(!activo) e.currentTarget.style.background=darkMode?"#1E293B33":"#F4F7FE"; }}
+                          onMouseLeave={e => { if(!activo) e.currentTarget.style.background="transparent"; }}>
+                          <span style={{ fontSize:13 }}>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* ── RESTO ── */}
             {[
-              { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
-              { id:"fichaje",      icon:"🕐", label:"Fichaje", extra:fichajeActivo },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
@@ -3252,7 +3286,6 @@ export default function App() {
                   onMouseLeave={e => { if(!activo) e.currentTarget.style.background="transparent"; }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>{item.icon}</span>
                   {sidebarOpen && <span style={{ flex:1 }}>{item.label}</span>}
-                  {item.extra && <span style={{ width:8, height:8, borderRadius:"50%", background:"#38A169", flexShrink:0 }} />}
                 </button>
               );
             })}
@@ -3554,6 +3587,38 @@ export default function App() {
             EMPRESAS={EMPRESAS}
             onVerTicket={setDetalle}
             onActualizar={actualizarTicket}
+          />
+        )}
+
+        {/* ── GESTIÓN RRHH ── */}
+        {seccion === "gestion_nominas" && usuario?.rol === "rrhh" && (
+          <GestionNominasRRHH
+            darkMode={darkMode}
+            usuario={usuario}
+            db={db}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+            empColor={empColor}
+          />
+        )}
+        {seccion === "gestion_vacaciones" && usuario?.rol === "rrhh" && (
+          <GestionVacacionesRRHH
+            darkMode={darkMode}
+            usuario={usuario}
+            db={db}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+            empColor={empColor}
+          />
+        )}
+        {seccion === "gestion_fichajes" && usuario?.rol === "rrhh" && (
+          <GestionFichajesRRHH
+            darkMode={darkMode}
+            usuario={usuario}
+            db={db}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+            empColor={empColor}
           />
         )}
 
@@ -4302,6 +4367,485 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+// ═══════════════════════════════════════════════════════════════════
+// MÓDULOS RRHH — Daniel Pizarro
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Gestión de Nóminas ──────────────────────────────────────────────
+function GestionNominasRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
+  const [nominas,      setNominas]      = useState([]);
+  const [modalSubir,   setModalSubir]   = useState(false);
+  const [filtroEmp,    setFiltroEmp]    = useState("todas");
+  const [filtroUser,   setFiltroUser]   = useState("todos");
+  const [loading,      setLoading]      = useState(true);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "nominas"), snap => {
+      setNominas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [db]);
+
+  const dm = darkMode;
+  const cardBg = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+
+  const nominasFiltradas = nominas
+    .filter(n => filtroEmp === "todas" || String(n.empresaId) === filtroEmp)
+    .filter(n => filtroUser === "todos" || String(n.usuarioId) === filtroUser)
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  const usuariosFiltro = USUARIOS.filter(u =>
+    filtroEmp === "todas" || String(u.empresaId) === filtroEmp
+  );
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22, flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>📋 Gestión de Nóminas</h2>
+          <p style={{ margin:0, color:muted, fontSize:13 }}>Sube y gestiona las nóminas de todos los empleados</p>
+        </div>
+        <button onClick={() => setModalSubir(true)}
+          style={{ fontFamily:"inherit", fontSize:13, fontWeight:700, padding:"9px 20px", borderRadius:8, border:"none", cursor:"pointer", background:empColor, color:"#fff" }}>
+          + Subir Nómina
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+        <select value={filtroEmp} onChange={e => { setFiltroEmp(e.target.value); setFiltroUser("todos"); }}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todas">Todas las empresas</option>
+          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+        <select value={filtroUser} onChange={e => setFiltroUser(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todos">Todos los empleados</option>
+          {usuariosFiltro.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+        </select>
+      </div>
+
+      {/* Lista nóminas */}
+      {loading ? (
+        <p style={{ color:muted, textAlign:"center", padding:40 }}>Cargando nóminas...</p>
+      ) : nominasFiltradas.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"70px 20px" }}>
+          <p style={{ fontSize:48, marginBottom:12 }}>💰</p>
+          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>No hay nóminas para este filtro</p>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {nominasFiltradas.map(n => {
+            const usr = USUARIOS.find(u => u.id === n.usuarioId);
+            const emp = EMPRESAS.find(e => e.id === n.empresaId);
+            return (
+              <div key={n.id} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:(emp?.color||empColor)+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>💰</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:textPri }}>{usr?.nombre || "Usuario"}</span>
+                    {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
+                  </div>
+                  <span style={{ color:muted, fontSize:12 }}>
+                    {n.mes || "—"} · Subida {n.fecha ? new Date(n.fecha).toLocaleDateString("es-ES") : "—"}
+                  </span>
+                </div>
+                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                  {n.url && (
+                    <a href={n.url} download={n.nombre || "nomina.pdf"} target="_blank" rel="noreferrer"
+                      style={{ fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"7px 14px", borderRadius:7, border:`1px solid ${empColor}`, color:empColor, textDecoration:"none", background:empColor+"11" }}>
+                      ⬇ Descargar
+                    </a>
+                  )}
+                  <button onClick={() => deleteDoc(doc(db, "nominas", n.id))}
+                    style={{ fontFamily:"inherit", fontSize:12, padding:"7px 12px", borderRadius:7, border:`1px solid ${border}`, cursor:"pointer", background:"transparent", color:"#E53E3E" }}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal subir nómina */}
+      {modalSubir && (
+        <ModalSubirNominaRRHH
+          darkMode={dm}
+          db={db}
+          USUARIOS={USUARIOS}
+          EMPRESAS={EMPRESAS}
+          empColor={empColor}
+          onClose={() => setModalSubir(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalSubirNominaRRHH({ darkMode, db, USUARIOS, EMPRESAS, empColor, onClose }) {
+  const [empresaId, setEmpresaId] = useState("");
+  const [usuarioId, setUsuarioId] = useState("");
+  const [mes,       setMes]       = useState("");
+  const [archivo,   setArchivo]   = useState(null);
+  const [loading,   setLoading]   = useState(false);
+
+  const dm = darkMode;
+  const inp = { fontFamily:"inherit", fontSize:13, background:dm?"#1A2235":"#F8FAFC", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:7, padding:"9px 12px", color:dm?"#E2E8F0":"#0F172A", outline:"none", width:"100%", boxSizing:"border-box" };
+  const label = { display:"block", color:dm?"#64748B":"#475569", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".4px", marginBottom:5 };
+
+  const usuariosEmp = USUARIOS.filter(u => String(u.empresaId) === empresaId);
+
+  const handleFile = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => setArchivo({ nombre: f.name, url: ev.target.result });
+    reader.readAsDataURL(f);
+  };
+
+  const subir = async () => {
+    if (!empresaId || !usuarioId || !mes || !archivo) return;
+    setLoading(true);
+    const id = "nom_" + Date.now();
+    await setDoc(doc(db, "nominas", id), {
+      id, usuarioId: Number(usuarioId), empresaId: Number(empresaId),
+      mes, nombre: archivo.nombre, url: archivo.url,
+      fecha: new Date().toISOString(), subidoPor: "rrhh",
+    });
+    setLoading(false);
+    onClose();
+  };
+
+  const canSubmit = empresaId && usuarioId && mes && archivo;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20 }} onMouseDown={onClose}>
+      <div style={{ background:dm?"#111827":"#FFFFFF", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:480, padding:28, boxShadow:"0 24px 80px #0008" }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h2 style={{ margin:0, fontSize:17, fontWeight:800, color:dm?"#E2E8F0":"#0F172A" }}>💰 Subir Nómina</h2>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div>
+            <label style={label}>Empresa *</label>
+            <select style={inp} value={empresaId} onChange={e => { setEmpresaId(e.target.value); setUsuarioId(""); }}>
+              <option value="">Selecciona empresa...</option>
+              {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={label}>Empleado *</label>
+            <select style={inp} value={usuarioId} onChange={e => setUsuarioId(e.target.value)} disabled={!empresaId}>
+              <option value="">Selecciona empleado...</option>
+              {usuariosEmp.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={label}>Mes *</label>
+            <input type="month" style={{ ...inp, colorScheme:dm?"dark":"light" }} value={mes} onChange={e => setMes(e.target.value)} />
+          </div>
+          <div>
+            <label style={label}>Archivo PDF *</label>
+            {archivo ? (
+              <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:dm?"#1E293B":"#F8FAFC", borderRadius:7, border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}` }}>
+                <span>📄</span>
+                <span style={{ fontSize:12, color:dm?"#E2E8F0":"#0F172A", flex:1 }}>{archivo.nombre}</span>
+                <button onClick={() => setArchivo(null)} style={{ background:"none", border:"none", color:"#E53E3E", cursor:"pointer", fontSize:16 }}>×</button>
+              </div>
+            ) : (
+              <label style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${dm?"#2E3A55":"#E2E8F0"}`, borderRadius:7, cursor:"pointer", fontSize:12, color:dm?"#94A3B8":"#64748B" }}>
+                📎 Seleccionar PDF
+                <input type="file" accept=".pdf" style={{ display:"none" }} onChange={handleFile} />
+              </label>
+            )}
+          </div>
+          <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:6 }}>
+            <button onClick={onClose} style={{ fontFamily:"inherit", fontSize:13, fontWeight:600, padding:"9px 18px", borderRadius:7, border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, cursor:"pointer", background:"transparent", color:dm?"#94A3B8":"#475569" }}>Cancelar</button>
+            <button onClick={subir} disabled={!canSubmit || loading}
+              style={{ fontFamily:"inherit", fontSize:13, fontWeight:700, padding:"9px 20px", borderRadius:7, border:"none", cursor:canSubmit?"pointer":"not-allowed", background:empColor, color:"#fff", opacity:canSubmit?1:0.5 }}>
+              {loading ? "Subiendo..." : "💰 Subir Nómina"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Gestión de Vacaciones ───────────────────────────────────────────
+function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [filtroEmp,   setFiltroEmp]   = useState("todas");
+  const [filtroEst,   setFiltroEst]   = useState("todos");
+  const [detalle,     setDetalle]     = useState(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "solicitudesRRHH"), snap => {
+      setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [db]);
+
+  const dm = darkMode;
+  const cardBg = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+
+  const TIPOS = { vacaciones:"🏖️ Vacaciones", ausencia:"🤒 Ausencia", horasExtras:"⏱️ Horas extras" };
+  const ESTADO_COL = { pendiente:"#D4A017", aprobada:"#38A169", rechazada:"#E53E3E" };
+
+  const filtradas = solicitudes
+    .filter(s => filtroEmp === "todas" || String(USUARIOS.find(u => u.id === s.usuarioId)?.empresaId) === filtroEmp)
+    .filter(s => filtroEst === "todos" || s.estado === filtroEst)
+    .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
+
+  const aprobar = async s => {
+    await updateDoc(doc(db, "solicitudesRRHH", s.id), { estado:"aprobada", encargadoId: usuario.id, fechaGestion: new Date().toISOString() });
+    setDetalle(null);
+  };
+  const rechazar = async s => {
+    await updateDoc(doc(db, "solicitudesRRHH", s.id), { estado:"rechazada", encargadoId: usuario.id, fechaGestion: new Date().toISOString() });
+    setDetalle(null);
+  };
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      <div style={{ marginBottom:22 }}>
+        <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🏖️ Gestión de Vacaciones</h2>
+        <p style={{ margin:0, color:muted, fontSize:13 }}>Solicitudes de vacaciones, ausencias y horas extras</p>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:22 }}>
+        {[
+          ["⏳ Pendientes", solicitudes.filter(s=>s.estado==="pendiente").length, "#D4A017"],
+          ["✅ Aprobadas",  solicitudes.filter(s=>s.estado==="aprobada").length,  "#38A169"],
+          ["❌ Rechazadas", solicitudes.filter(s=>s.estado==="rechazada").length, "#E53E3E"],
+        ].map(([l,v,c]) => (
+          <div key={l} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"16px 20px" }}>
+            <div style={{ fontSize:26, fontWeight:900, color:c, lineHeight:1 }}>{v}</div>
+            <div style={{ color:muted, fontSize:12, fontWeight:700, marginTop:4 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:10, marginBottom:18, flexWrap:"wrap" }}>
+        <select value={filtroEmp} onChange={e => setFiltroEmp(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todas">Todas las empresas</option>
+          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+        <select value={filtroEst} onChange={e => setFiltroEst(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todos">Todos los estados</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="aprobada">Aprobadas</option>
+          <option value="rechazada">Rechazadas</option>
+        </select>
+      </div>
+
+      {/* Lista */}
+      {filtradas.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"70px 20px" }}>
+          <p style={{ fontSize:48 }}>📋</p>
+          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin solicitudes para este filtro</p>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {filtradas.map(s => {
+            const usr = USUARIOS.find(u => u.id === s.usuarioId);
+            const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
+            const col = ESTADO_COL[s.estado] || "#94A3B8";
+            return (
+              <div key={s.id} onClick={() => setDetalle(s)}
+                style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14, cursor:"pointer" }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:col+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
+                  {s.tipo === "vacaciones" ? "🏖️" : s.tipo === "ausencia" ? "🤒" : "⏱️"}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:textPri }}>{usr?.nombre}</span>
+                    {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
+                    <span style={{ color:muted, fontSize:12 }}>{TIPOS[s.tipo]}</span>
+                  </div>
+                  <span style={{ color:muted, fontSize:12 }}>
+                    {s.tipo === "vacaciones" ? `📅 ${s.fechaInicio} → ${s.fechaFin} · ${s.diasSolicitados} días` :
+                     s.tipo === "ausencia"    ? `📅 ${s.fecha} · ${s.motivo}` :
+                     `📅 ${s.fecha} · ${s.horasExtra}h extra`}
+                  </span>
+                </div>
+                <span style={{ background:col+"22", color:col, border:`1px solid ${col}55`, borderRadius:6, padding:"4px 10px", fontSize:11, fontWeight:700, flexShrink:0 }}>
+                  {s.estado === "pendiente" ? "⏳ " : s.estado === "aprobada" ? "✅ " : "❌ "}{s.estado}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal detalle */}
+      {detalle && (
+        <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20 }} onMouseDown={() => setDetalle(null)}>
+          <div style={{ background:dm?"#111827":"#FFFFFF", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:480, padding:28, boxShadow:"0 24px 80px #0008" }} onMouseDown={e => e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
+              <h3 style={{ margin:0, color:textPri, fontWeight:800 }}>{TIPOS[detalle.tipo]}</h3>
+              <button onClick={() => setDetalle(null)} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
+            </div>
+            <p style={{ color:muted, fontSize:13, margin:"0 0 16px" }}>
+              {USUARIOS.find(u => u.id === detalle.usuarioId)?.nombre} · {detalle.tipo === "vacaciones" ? `${detalle.fechaInicio} → ${detalle.fechaFin} (${detalle.diasSolicitados} días)` : detalle.tipo === "ausencia" ? `${detalle.fecha} · ${detalle.motivo}` : `${detalle.fecha} · ${detalle.horasExtra}h extra`}
+            </p>
+            {detalle.descripcion && <p style={{ color:muted, fontSize:13, margin:"0 0 16px" }}>📝 {detalle.descripcion}</p>}
+            {detalle.estado === "pendiente" && (
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => aprobar(detalle)} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#38A169", color:"#fff" }}>✅ Aprobar</button>
+                <button onClick={() => rechazar(detalle)} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#E53E3E", color:"#fff" }}>❌ Rechazar</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Gestión de Fichajes ─────────────────────────────────────────────
+function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
+  const [fichajes,  setFichajes]  = useState([]);
+  const [filtroEmp, setFiltroEmp] = useState("todas");
+  const [filtroUser,setFiltroUser]= useState("todos");
+  const [filtroFecha,setFiltroFecha]=useState("");
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "fichajes"), snap => {
+      setFichajes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [db]);
+
+  const dm = darkMode;
+  const cardBg = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+
+  const usuariosEmp = USUARIOS.filter(u => filtroEmp === "todas" || String(u.empresaId) === filtroEmp);
+
+  const fichajesFiltrados = fichajes
+    .filter(f => {
+      const usr = USUARIOS.find(u => u.id === f.usuarioId);
+      if (filtroEmp !== "todas" && String(usr?.empresaId) !== filtroEmp) return false;
+      if (filtroUser !== "todos" && String(f.usuarioId) !== filtroUser) return false;
+      if (filtroFecha && !f.fecha?.startsWith(filtroFecha)) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.entrada) - new Date(a.entrada));
+
+  const calcDuracion = f => {
+    if (!f.salida) return "En curso";
+    const diff = new Date(f.salida) - new Date(f.entrada);
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return `${h}h ${m}min`;
+  };
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      <div style={{ marginBottom:22 }}>
+        <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🕐 Gestión de Fichajes</h2>
+        <p style={{ margin:0, color:muted, fontSize:13 }}>Registros de entrada y salida de todos los empleados</p>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
+        <select value={filtroEmp} onChange={e => { setFiltroEmp(e.target.value); setFiltroUser("todos"); }}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todas">Todas las empresas</option>
+          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+        <select value={filtroUser} onChange={e => setFiltroUser(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todos">Todos los empleados</option>
+          {usuariosEmp.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+        </select>
+        <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none", colorScheme:dm?"dark":"light" }} />
+        {filtroFecha && <button onClick={() => setFiltroFecha("")} style={{ height:34, padding:"0 12px", background:"transparent", border:`1px solid ${border}`, borderRadius:8, color:muted, fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>✕ Limpiar</button>}
+      </div>
+
+      {/* Stats del día */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+        {[
+          ["👥 Total registros", fichajesFiltrados.length, "#3182CE"],
+          ["🟢 En curso", fichajesFiltrados.filter(f => !f.salida).length, "#38A169"],
+          ["✅ Completados", fichajesFiltrados.filter(f => f.salida).length, "#805AD5"],
+        ].map(([l,v,c]) => (
+          <div key={l} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"14px 18px" }}>
+            <div style={{ fontSize:24, fontWeight:900, color:c, lineHeight:1 }}>{v}</div>
+            <div style={{ color:muted, fontSize:11, fontWeight:700, marginTop:4 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista */}
+      {fichajesFiltrados.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"60px 20px" }}>
+          <p style={{ fontSize:40 }}>🕐</p>
+          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin fichajes para este filtro</p>
+        </div>
+      ) : (
+        <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, overflow:"hidden" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ background:dm?"#0D1424":"#F8FAFC" }}>
+                {["Empleado","Empresa","Entrada","Salida","Duración"].map(h => (
+                  <th key={h} style={{ padding:"10px 14px", textAlign:"left", color:muted, fontWeight:700, fontSize:11, textTransform:"uppercase", borderBottom:`1px solid ${border}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {fichajesFiltrados.map(f => {
+                const usr = USUARIOS.find(u => u.id === f.usuarioId);
+                const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
+                const enCurso = !f.salida;
+                return (
+                  <tr key={f.id} style={{ borderBottom:`1px solid ${dm?"#0D1424":"#F1F5F9"}` }}>
+                    <td style={{ padding:"10px 14px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ width:28, height:28, borderRadius:"50%", background:(emp?.color||"#888")+"33", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:emp?.color||"#888", flexShrink:0 }}>
+                          {usr?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+                        </div>
+                        <span style={{ fontWeight:600, color:textPri }}>{usr?.nombre || "—"}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding:"10px 14px" }}>
+                      {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
+                    </td>
+                    <td style={{ padding:"10px 14px", color:muted }}>
+                      {f.entrada ? new Date(f.entrada).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "—"}
+                    </td>
+                    <td style={{ padding:"10px 14px", color:muted }}>
+                      {enCurso ? <span style={{ color:"#38A169", fontWeight:700 }}>🟢 En curso</span> : new Date(f.salida).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
+                    </td>
+                    <td style={{ padding:"10px 14px", color:enCurso?muted:textPri, fontWeight:enCurso?400:600 }}>
+                      {calcDuracion(f)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
