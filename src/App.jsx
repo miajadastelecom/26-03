@@ -4723,10 +4723,10 @@ function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empC
 
 // ── Gestión de Fichajes ─────────────────────────────────────────────
 function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
-  const [fichajes,   setFichajes]   = useState([]);
-  const [periodo,    setPeriodo]    = useState("dia");
-  const [filtroEmp,  setFiltroEmp]  = useState("todas");
-  const [fechaRef,   setFechaRef]   = useState(new Date().toISOString().split("T")[0]);
+  const [fichajes,  setFichajes]  = useState([]);
+  const [periodo,   setPeriodo]   = useState("dia");
+  const [fechaRef,  setFechaRef]  = useState(new Date().toISOString().split("T")[0]);
+  const [empActiva, setEmpActiva] = useState("todas");
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
@@ -4740,297 +4740,246 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   const textPri = dm ? "#E2E8F0" : "#0F172A";
   const muted   = dm ? "#64748B" : "#94A3B8";
   const cardBg  = dm ? "#111827" : "#FFFFFF";
-  const bg      = dm ? "#0D1424" : "#F8FAFC";
+  const bg2     = dm ? "#0D1424" : "#F8FAFC";
 
-  // Calcular rango de fechas según periodo
+  const fmtTime  = iso => iso ? new Date(iso).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}) : null;
+  const calcMins = f => f.salida ? Math.max(0,Math.round((new Date(f.salida)-new Date(f.entrada))/60000)) : null;
+  const fmtHoras = m => { if(!m&&m!==0)return null; const h=Math.floor(m/60),min=m%60; return h>0?`${h}h${min>0?` ${min}min`:""}`:min>0?`${min}min`:"0min"; };
+
+  // Rango de fechas
   const getRango = () => {
     const ref = new Date(fechaRef + "T12:00:00");
-    if (periodo === "dia") {
-      return { desde: fechaRef, hasta: fechaRef, label: ref.toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" }) };
-    } else if (periodo === "semana") {
+    if (periodo === "dia") return { desde:fechaRef, hasta:fechaRef };
+    if (periodo === "semana") {
       const dow = ref.getDay();
-      const lunes = new Date(ref); lunes.setDate(ref.getDate() - (dow === 0 ? 6 : dow - 1));
-      const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-      return {
-        desde: lunes.toISOString().split("T")[0],
-        hasta: domingo.toISOString().split("T")[0],
-        label: `${lunes.toLocaleDateString("es-ES",{day:"numeric",month:"short"})} — ${domingo.toLocaleDateString("es-ES",{day:"numeric",month:"short",year:"numeric"})}`
-      };
-    } else if (periodo === "mes") {
-      const y = ref.getFullYear(), m = ref.getMonth();
-      const desde = `${y}-${String(m+1).padStart(2,"0")}-01`;
-      const hasta = new Date(y, m+1, 0).toISOString().split("T")[0];
-      return { desde, hasta, label: ref.toLocaleDateString("es-ES",{month:"long",year:"numeric"}) };
-    } else {
-      const y = ref.getFullYear();
-      return { desde:`${y}-01-01`, hasta:`${y}-12-31`, label:`Año ${y}` };
+      const lun = new Date(ref); lun.setDate(ref.getDate()-(dow===0?6:dow-1));
+      const dom = new Date(lun); dom.setDate(lun.getDate()+6);
+      return { desde:lun.toISOString().split("T")[0], hasta:dom.toISOString().split("T")[0] };
     }
+    if (periodo === "mes") {
+      const y=ref.getFullYear(),m=ref.getMonth();
+      return { desde:`${y}-${String(m+1).padStart(2,"0")}-01`, hasta:new Date(y,m+1,0).toISOString().split("T")[0] };
+    }
+    const y=ref.getFullYear();
+    return { desde:`${y}-01-01`, hasta:`${y}-12-31` };
   };
 
   const rango = getRango();
 
-  const navegar = (dir) => {
-    const ref = new Date(fechaRef + "T12:00:00");
-    if (periodo === "dia")    ref.setDate(ref.getDate() + dir);
-    else if (periodo === "semana") ref.setDate(ref.getDate() + dir*7);
-    else if (periodo === "mes")  ref.setMonth(ref.getMonth() + dir);
-    else ref.setFullYear(ref.getFullYear() + dir);
+  const navegar = dir => {
+    const ref = new Date(fechaRef+"T12:00:00");
+    if(periodo==="dia") ref.setDate(ref.getDate()+dir);
+    else if(periodo==="semana") ref.setDate(ref.getDate()+dir*7);
+    else if(periodo==="mes") ref.setMonth(ref.getMonth()+dir);
+    else ref.setFullYear(ref.getFullYear()+dir);
     setFechaRef(ref.toISOString().split("T")[0]);
   };
 
-  const calcMins = f => {
-    if (!f.salida) return null;
-    return Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000));
+  const rangoLabel = () => {
+    const ref = new Date(fechaRef+"T12:00:00");
+    if(periodo==="dia") return ref.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+    if(periodo==="semana"){const r=getRango();return `${new Date(r.desde+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short"})} — ${new Date(r.hasta+"T12:00:00").toLocaleDateString("es-ES",{day:"numeric",month:"short",year:"numeric"})}`;}
+    if(periodo==="mes") return ref.toLocaleDateString("es-ES",{month:"long",year:"numeric"});
+    return `Año ${ref.getFullYear()}`;
   };
 
-  const fmtHoras = mins => {
-    if (!mins && mins !== 0) return "—";
-    const h = Math.floor(mins / 60), m = mins % 60;
-    return h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ""}` : `${m}min`;
-  };
-
-  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}) : "—";
-
-  // Filtrar fichajes del periodo
+  // Fichajes del periodo filtrados
   const fichajesPeriodo = fichajes.filter(f => {
     const fecha = f.fecha || f.entrada?.split("T")[0];
-    if (!fecha) return false;
-    if (fecha < rango.desde || fecha > rango.hasta) return false;
-    const usr = USUARIOS.find(u => u.id === f.usuarioId);
-    if (filtroEmp !== "todas" && String(usr?.empresaId) !== filtroEmp) return false;
-    return true;
+    return fecha >= rango.desde && fecha <= rango.hasta;
   });
 
-  // Empleados activos ahora mismo
-  const activosAhora = fichajes.filter(f => !f.salida);
-
-  // Agrupar horas por usuario en el periodo
-  const usuariosData = USUARIOS
+  // Empleados a mostrar (excluir director/ceo)
+  const empleados = USUARIOS
     .filter(u => !["director","ceo"].includes(u.rol))
-    .filter(u => filtroEmp === "todas" || String(u.empresaId) === filtroEmp)
-    .map(u => {
-      const emp = EMPRESAS.find(e => e.id === u.empresaId);
-      const miFichajes = fichajesPeriodo.filter(f => f.usuarioId === u.id);
-      const mins = miFichajes.reduce((acc, f) => acc + (calcMins(f) || 0), 0);
-      const activoAhora = activosAhora.some(f => f.usuarioId === u.id);
-      // Días teóricos en el periodo
-      const diasPeriodo = periodo === "dia" ? 1 : periodo === "semana" ? 5 : periodo === "mes" ? 22 : 250;
-      const maxMins = diasPeriodo * 8 * 60;
-      return { u, emp, mins, activoAhora, miFichajes, maxMins };
-    })
-    .filter(x => x.miFichajes.length > 0 || x.activoAhora)
-    .sort((a, b) => {
-      if (a.activoAhora && !b.activoAhora) return -1;
-      if (!a.activoAhora && b.activoAhora) return 1;
-      return b.mins - a.mins;
-    });
+    .filter(u => empActiva === "todas" || String(u.empresaId) === empActiva);
 
-  // KPIs globales
-  const totalMins  = fichajesPeriodo.reduce((acc, f) => acc + (calcMins(f) || 0), 0);
-  const empleadosActivos = USUARIOS.filter(u => !["director","ceo"].includes(u.rol) && (filtroEmp === "todas" || String(u.empresaId) === filtroEmp)).length;
-  const diasTrabajados = new Set(fichajesPeriodo.map(f => f.fecha || f.entrada?.split("T")[0])).size;
+  // Datos por empleado en el periodo
+  const datosEmpleado = empleados.map(u => {
+    const emp = EMPRESAS.find(e => e.id === u.empresaId);
+    const misF = fichajesPeriodo.filter(f => f.usuarioId === u.id);
+    const activoAhora = fichajes.some(f => f.usuarioId === u.id && !f.salida);
+    const totalMins = misF.reduce((acc,f) => acc + (calcMins(f)||0), 0);
+    // Para vista día: último fichaje
+    const ultimoFichaje = misF.sort((a,b)=>new Date(b.entrada)-new Date(a.entrada))[0];
+    return { u, emp, misF, activoAhora, totalMins, ultimoFichaje };
+  });
+
+  // KPIs
+  const fichados   = datosEmpleado.filter(d => d.activoAhora).length;
+  const hanFichado = datosEmpleado.filter(d => d.misF.length > 0).length;
+  const sinFichar  = datosEmpleado.filter(d => d.misF.length === 0).length;
+  const totalHoras = datosEmpleado.reduce((acc,d) => acc+d.totalMins, 0);
+
+  // Empresas para tabs
+  const empresasConEmpleados = EMPRESAS.filter(e =>
+    USUARIOS.some(u => u.empresaId === e.id && !["director","ceo"].includes(u.rol))
+  );
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth:1200 }}>
       {/* Cabecera */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom:20 }}>
         <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🕐 Gestión de Fichajes</h2>
-        <p style={{ margin:0, color:muted, fontSize:13 }}>Control horario de todos los empleados</p>
+        <p style={{ margin:0, color:muted, fontSize:13 }}>Control de presencia por empresa y periodo</p>
       </div>
 
       {/* KPIs */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:22 }}>
         {[
-          { icon:"🟢", label:"Fichados ahora",    v: activosAhora.length,            color:"#38A169" },
-          { icon:"👥", label:"Empleados activos",  v: empleadosActivos,               color:"#3182CE" },
-          { icon:"⏱️", label:"Horas acumuladas",   v: fmtHoras(totalMins),            color:"#805AD5", str:true },
-          { icon:"📅", label:"Días con actividad", v: diasTrabajados,                 color:"#D4A017" },
-        ].map((k,i) => (
-          <div key={i} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"16px 18px", display:"flex", alignItems:"center", gap:14 }}>
-            <div style={{ width:44, height:44, borderRadius:10, background:k.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{k.icon}</div>
+          { icon:"🟢", label:"Fichados ahora",   v:fichados,              color:"#38A169" },
+          { icon:"✅", label:"Han fichado",       v:hanFichado,            color:"#3182CE" },
+          { icon:"❌", label:"Sin fichar hoy",    v:sinFichar,             color:"#E53E3E" },
+          { icon:"⏱️", label:"Horas totales",     v:fmtHoras(totalHoras)||"0h", color:"#805AD5", str:true },
+        ].map((k,i)=>(
+          <div key={i} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"14px 18px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:42, height:42, borderRadius:10, background:k.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{k.icon}</div>
             <div>
-              <div style={{ fontSize:k.str?18:26, fontWeight:900, color:k.color, lineHeight:1 }}>{k.v}</div>
+              <div style={{ fontSize:k.str?16:24, fontWeight:900, color:k.color, lineHeight:1 }}>{k.v}</div>
               <div style={{ color:muted, fontSize:11, fontWeight:700, marginTop:3 }}>{k.label}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Controles de periodo */}
-      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
-        {/* Selector periodo */}
-        <div style={{ display:"flex", gap:2, background:dm?"#1E293B":"#F1F5F9", borderRadius:8, padding:3, flexShrink:0 }}>
-          {[["dia","Día"],["semana","Semana"],["mes","Mes"],["anio","Año"]].map(([v,l]) => (
-            <button key={v} onClick={() => setPeriodo(v)}
+      {/* Controles periodo */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ display:"flex", gap:2, background:dm?"#1E293B":"#F1F5F9", borderRadius:8, padding:3 }}>
+          {[["dia","Día"],["semana","Semana"],["mes","Mes"],["anio","Año"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setPeriodo(v)}
               style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"5px 12px", borderRadius:6, border:"none", cursor:"pointer", background:periodo===v?empColor:"transparent", color:periodo===v?"#fff":(dm?"#64748B":"#94A3B8") }}>
               {l}
             </button>
           ))}
         </div>
-
-        {/* Navegación */}
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <button onClick={() => navegar(-1)} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${border}`, background:"transparent", cursor:"pointer", color:textPri, fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
-          <span style={{ color:textPri, fontSize:13, fontWeight:600, whiteSpace:"nowrap", minWidth:200, textAlign:"center" }}>{rango.label}</span>
-          <button onClick={() => navegar(1)} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${border}`, background:"transparent", cursor:"pointer", color:textPri, fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
-        </div>
-
-        <button onClick={() => setFechaRef(new Date().toISOString().split("T")[0])}
+        <button onClick={()=>navegar(-1)} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${border}`, background:"transparent", cursor:"pointer", color:textPri, fontSize:18 }}>‹</button>
+        <span style={{ color:textPri, fontSize:13, fontWeight:600, minWidth:220, textAlign:"center" }}>{rangoLabel()}</span>
+        <button onClick={()=>navegar(1)} style={{ width:32, height:32, borderRadius:8, border:`1px solid ${border}`, background:"transparent", cursor:"pointer", color:textPri, fontSize:18 }}>›</button>
+        <button onClick={()=>setFechaRef(new Date().toISOString().split("T")[0])}
           style={{ height:32, padding:"0 14px", background:empColor+"22", border:`1px solid ${empColor}44`, borderRadius:8, color:empColor, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
           Hoy
         </button>
-
-        {/* Filtro empresa */}
-        <select value={filtroEmp} onChange={e => setFiltroEmp(e.target.value)}
-          style={{ height:32, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none", marginLeft:"auto" }}>
-          <option value="todas">Todas las empresas</option>
-          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </select>
       </div>
 
-      {/* Layout principal: izquierda tabla + derecha bandeja */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 340px", gap:16 }}>
+      {/* Tabs por empresa */}
+      <div style={{ display:"flex", gap:4, marginBottom:20, flexWrap:"wrap" }}>
+        <button onClick={()=>setEmpActiva("todas")}
+          style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"6px 16px", borderRadius:99, border:`1px solid ${empActiva==="todas"?empColor:border}`, cursor:"pointer", background:empActiva==="todas"?empColor+"22":"transparent", color:empActiva==="todas"?empColor:(dm?"#64748B":"#94A3B8") }}>
+          🏢 Todas
+        </button>
+        {empresasConEmpleados.map(e=>(
+          <button key={e.id} onClick={()=>setEmpActiva(String(e.id))}
+            style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"6px 16px", borderRadius:99, border:`1px solid ${empActiva===String(e.id)?e.color:border}`, cursor:"pointer", background:empActiva===String(e.id)?e.color+"22":"transparent", color:empActiva===String(e.id)?e.color:(dm?"#64748B":"#94A3B8"), display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ width:8, height:8, borderRadius:"50%", background:e.color, flexShrink:0 }} />
+            {e.nombre.split(" ")[0]}
+          </button>
+        ))}
+      </div>
 
-        {/* ── IZQUIERDA: Control por empleado ── */}
-        <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:14, padding:"18px 20px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-            <div>
-              <p style={{ margin:0, fontWeight:700, color:textPri, fontSize:14 }}>📊 Control de Horas — {rango.label}</p>
-              <div style={{ display:"flex", gap:16, marginTop:6 }}>
-                {[["#38A169","Horas trabajadas"],["#E53E3E","Sin actividad"]].map(([c,l]) => (
-                  <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                    <div style={{ width:10, height:10, borderRadius:2, background:c }} />
-                    <span style={{ color:muted, fontSize:11 }}>{l}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <span style={{ color:muted, fontSize:12 }}>{usuariosData.length} empleados</span>
-          </div>
-
-          {usuariosData.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"50px 20px" }}>
-              <p style={{ fontSize:40 }}>📭</p>
-              <p style={{ color:muted, fontSize:13 }}>Sin actividad en este periodo</p>
-            </div>
-          ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {usuariosData.map(({ u, emp, mins, activoAhora, maxMins }) => {
-                const pct = maxMins > 0 ? Math.min(100, (mins / maxMins) * 100) : 0;
-                const color = activoAhora ? "#38A169" : pct >= 90 ? "#38A169" : pct >= 50 ? "#D4A017" : "#E53E3E";
-                return (
-                  <div key={u.id} style={{ display:"grid", gridTemplateColumns:"200px 1fr 80px", gap:12, alignItems:"center", padding:"8px 0", borderBottom:`1px solid ${dm?"#0D1424":"#F1F5F9"}` }}>
-                    {/* Usuario */}
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ position:"relative", flexShrink:0 }}>
-                        <div style={{ width:34, height:34, borderRadius:"50%", background:(emp?.color||"#888")+"33", border:`2px solid ${emp?.color||"#888"}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:emp?.color||"#888", fontSize:11 }}>
-                          {u.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
-                        </div>
-                        {activoAhora && <span style={{ position:"absolute", bottom:0, right:0, width:10, height:10, borderRadius:"50%", background:"#38A169", border:"2px solid "+cardBg }} />}
-                      </div>
-                      <div style={{ minWidth:0 }}>
-                        <p style={{ margin:0, fontSize:12, fontWeight:700, color:textPri, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{u.nombre.split(" ").slice(0,2).join(" ")}</p>
-                        <p style={{ margin:0, fontSize:10, color:emp?.color||muted }}>{u.rol} · {emp?.nombre?.split(" ")[0]}</p>
-                      </div>
-                    </div>
-
-                    {/* Barra */}
-                    <div>
-                      <div style={{ height:10, background:dm?"#1E293B":"#F1F5F9", borderRadius:99, overflow:"hidden" }}>
-                        <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:99, transition:"width .4s" }} />
-                      </div>
-                    </div>
-
-                    {/* Horas */}
-                    <div style={{ textAlign:"right" }}>
-                      <span style={{ fontSize:13, fontWeight:700, color }}>{fmtHoras(mins)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── DERECHA: Bandeja en tiempo real ── */}
-        <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:14, padding:"18px 20px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-            <p style={{ margin:0, fontWeight:700, color:textPri, fontSize:14 }}>🟢 Fichados ahora</p>
-            <span style={{ background:"#38A16922", color:"#38A169", borderRadius:99, padding:"3px 10px", fontSize:12, fontWeight:700 }}>{activosAhora.length} activos</span>
-          </div>
-
-          {activosAhora.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"40px 10px" }}>
-              <p style={{ fontSize:36 }}>😴</p>
-              <p style={{ color:muted, fontSize:13 }}>Nadie fichado ahora</p>
-            </div>
-          ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {activosAhora
-                .filter(f => filtroEmp === "todas" || String(USUARIOS.find(u=>u.id===f.usuarioId)?.empresaId) === filtroEmp)
-                .map(f => {
-                  const usr = USUARIOS.find(u => u.id === f.usuarioId);
-                  const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
-                  const minsDesdeFichaje = Math.round((new Date() - new Date(f.entrada)) / 60000);
+      {/* Tabla de empleados */}
+      <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:14, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <thead>
+            <tr style={{ background:dm?"#0D1424":"#F8FAFC" }}>
+              {["Empleado","Empresa","Estado","Entrada","Salida","Horas totales"].map(h=>(
+                <th key={h} style={{ padding:"11px 16px", textAlign:"left", color:muted, fontWeight:700, fontSize:11, textTransform:"uppercase", letterSpacing:".4px", borderBottom:`1px solid ${border}` }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Agrupar por empresa si es "todas" */}
+            {empActiva === "todas"
+              ? empresasConEmpleados.map(emp => {
+                  const empData = datosEmpleado.filter(d => d.emp?.id === emp.id);
+                  if (!empData.length) return null;
                   return (
-                    <div key={f.id} style={{ background:bg, border:`1px solid ${"#38A169"}33`, borderRadius:10, padding:"12px 14px" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                        <div style={{ position:"relative" }}>
-                          <div style={{ width:36, height:36, borderRadius:"50%", background:(emp?.color||"#888")+"33", border:`2px solid ${emp?.color||"#888"}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:emp?.color||"#888", fontSize:12, flexShrink:0 }}>
-                            {usr?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+                    <React.Fragment key={emp.id}>
+                      {/* Cabecera empresa */}
+                      <tr>
+                        <td colSpan={6} style={{ padding:"8px 16px", background:emp.color+"11", borderBottom:`1px solid ${emp.color}33` }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color, display:"inline-block" }} />
+                            <span style={{ color:emp.color, fontWeight:800, fontSize:12, textTransform:"uppercase", letterSpacing:".5px" }}>{emp.nombre}</span>
+                            <span style={{ color:muted, fontSize:11 }}>· {empData.filter(d=>d.activoAhora).length} activos · {empData.filter(d=>d.misF.length>0).length} han fichado · {empData.filter(d=>d.misF.length===0).length} sin fichar</span>
                           </div>
-                          <span style={{ position:"absolute", bottom:0, right:0, width:10, height:10, borderRadius:"50%", background:"#38A169", border:"2px solid "+cardBg }} />
-                        </div>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ margin:0, fontWeight:700, fontSize:13, color:textPri, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usr?.nombre}</p>
-                          {emp && <span style={{ fontSize:10, color:emp.color, fontWeight:600 }}>{emp.nombre}</span>}
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <span style={{ color:muted, fontSize:11 }}>↑ Entró a las {fmtTime(f.entrada)}</span>
-                        <span style={{ background:"#38A16922", color:"#38A169", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>
-                          {fmtHoras(minsDesdeFichaje)}
-                        </span>
-                      </div>
-                    </div>
+                        </td>
+                      </tr>
+                      {empData.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)}
+                    </React.Fragment>
                   );
                 })
-              }
-            </div>
-          )}
-
-          {/* Sin fichar hoy */}
-          {periodo === "dia" && (() => {
-            const idsActivos = new Set(activosAhora.map(f => f.usuarioId));
-            const idsConFichaje = new Set(fichajesPeriodo.map(f => f.usuarioId));
-            const sinFichar = USUARIOS
-              .filter(u => !["director","ceo"].includes(u.rol))
-              .filter(u => filtroEmp === "todas" || String(u.empresaId) === filtroEmp)
-              .filter(u => !idsConFichaje.has(u.id));
-            if (!sinFichar.length) return null;
-            return (
-              <div style={{ marginTop:16, paddingTop:16, borderTop:`1px solid ${border}` }}>
-                <p style={{ margin:"0 0 10px", color:"#E53E3E", fontSize:11, fontWeight:700 }}>😴 Sin fichar hoy ({sinFichar.length})</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  {sinFichar.map(u => {
-                    const emp = EMPRESAS.find(e => e.id === u.empresaId);
-                    return (
-                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:8, opacity:.6 }}>
-                        <div style={{ width:26, height:26, borderRadius:"50%", background:(emp?.color||"#888")+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:muted, flexShrink:0 }}>
-                          {u.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
-                        </div>
-                        <div style={{ minWidth:0 }}>
-                          <p style={{ margin:0, fontSize:11, color:muted, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{u.nombre.split(" ").slice(0,2).join(" ")}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
+              : datosEmpleado.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)
+            }
+          </tbody>
+        </table>
+        {datosEmpleado.length === 0 && (
+          <div style={{ textAlign:"center", padding:"60px 20px" }}>
+            <p style={{ fontSize:40 }}>📭</p>
+            <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin empleados para este filtro</p>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, periodo }) {
+  const { u, emp, activoAhora, totalMins, ultimoFichaje, misF } = d;
+  const hoy = misF.length > 0;
+  const color = activoAhora ? "#38A169" : hoy ? "#3182CE" : "#E53E3E";
+  const label = activoAhora ? "🟢 Fichado" : hoy ? "✅ Ha fichado" : "❌ Sin fichar";
+
+  return (
+    <tr style={{ borderBottom:`1px solid ${dm?"#0D1424":"#F1F5F9"}` }}>
+      {/* Empleado */}
+      <td style={{ padding:"12px 16px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ position:"relative", flexShrink:0 }}>
+            <div style={{ width:34, height:34, borderRadius:"50%", background:(emp?.color||"#888")+"33", border:`2px solid ${activoAhora?emp?.color||"#38A169":dm?"#2E3A55":"#E2E8F0"}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:emp?.color||"#888", fontSize:11 }}>
+              {u.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
+            </div>
+            {activoAhora && <span style={{ position:"absolute", bottom:0, right:0, width:9, height:9, borderRadius:"50%", background:"#38A169", border:`2px solid ${dm?"#111827":"#FFFFFF"}` }} />}
+          </div>
+          <div>
+            <p style={{ margin:0, fontWeight:700, fontSize:13, color:textPri }}>{u.nombre}</p>
+            <p style={{ margin:0, fontSize:11, color:muted }}>{u.rol}</p>
+          </div>
+        </div>
+      </td>
+
+      {/* Empresa */}
+      <td style={{ padding:"12px 16px" }}>
+        {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"2px 8px", fontSize:11, fontWeight:700 }}>{emp.nombre.split(" ")[0]}</span>}
+      </td>
+
+      {/* Estado */}
+      <td style={{ padding:"12px 16px" }}>
+        <span style={{ background:color+"18", color, border:`1px solid ${color}44`, borderRadius:99, padding:"4px 12px", fontSize:12, fontWeight:700, whiteSpace:"nowrap" }}>
+          {label}
+        </span>
+      </td>
+
+      {/* Entrada */}
+      <td style={{ padding:"12px 16px", color:hoy?"#38A169":muted, fontWeight:hoy?700:400 }}>
+        {ultimoFichaje ? fmtTime(ultimoFichaje.entrada) : "—"}
+      </td>
+
+      {/* Salida */}
+      <td style={{ padding:"12px 16px", color:ultimoFichaje?.salida?"#E53E3E":muted, fontWeight:ultimoFichaje?.salida?700:400 }}>
+        {ultimoFichaje?.salida ? fmtTime(ultimoFichaje.salida) : activoAhora ? <span style={{ color:"#38A169", fontWeight:600 }}>En curso</span> : "—"}
+      </td>
+
+      {/* Horas totales */}
+      <td style={{ padding:"12px 16px" }}>
+        {totalMins > 0 ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ flex:1, height:6, background:dm?"#1E293B":"#F1F5F9", borderRadius:99, overflow:"hidden", minWidth:60 }}>
+              <div style={{ height:"100%", width:`${Math.min(100,(totalMins/(periodo==="dia"?480:periodo==="semana"?2400:periodo==="mes"?10560:120960))*100)}%`, background:totalMins>=(periodo==="dia"?480:1)?color:"#D4A017", borderRadius:99 }} />
+            </div>
+            <span style={{ color:textPri, fontWeight:700, fontSize:12, whiteSpace:"nowrap" }}>{fmtHoras(totalMins)}</span>
+          </div>
+        ) : <span style={{ color:muted }}>—</span>}
+      </td>
+    </tr>
   );
 }
