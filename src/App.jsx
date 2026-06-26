@@ -2689,6 +2689,7 @@ export default function App() {
   const [nominas,       setNominas]    = useState([]);
   const [modalNomina,   setModalNomina] = useState(false);  // solo admin/director
   const [subHistorial,  setSubHistorial] = useState("completados");
+  const [ticketsExpanded, setTicketsExpanded] = useState(true);
 
 
   // ── Firebase: tickets en tiempo real ──
@@ -2745,6 +2746,10 @@ export default function App() {
   }, [usuarioId]);
 
   const usuario  = USUARIOS.find(u => u.id === usuarioId) || null;
+
+  const esEncargado  = usuario?.rol === "encargado";
+  const esTrabajador = usuario?.rol === "trabajador";
+  const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
   const empresa  = EMPRESAS.find(e => e.id === usuario?.empresaId);
   const empColor = ["director","ceo"].includes(usuario?.rol) ? "#94A3B8" : (empresa?.color || "#E53E3E");
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
@@ -2773,9 +2778,6 @@ export default function App() {
 
 
   // Tickets que "pertenecen" al usuario según su rol
-  const esEncargado  = usuario?.rol === "encargado";
-  const esTrabajador = usuario?.rol === "trabajador";
-  const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
 
   const ticketsMisRol = tickets.filter(t => {
     if (!usuario || ["director","ceo"].includes(usuario.rol)) return true;
