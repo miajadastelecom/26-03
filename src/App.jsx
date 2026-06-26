@@ -23,9 +23,9 @@ const EMPRESAS = [
   { id: 0, nombre: "Independiente",             color: "#6B7280", inicial: "IN" },
   { id: 1, nombre: "Energía de Miajadas",        color: "#cf142b", inicial: "EM" },
   { id: 2, nombre: "Miajadas Telecom",           color: "#e0ad12", inicial: "MT" },
-  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LI" },
+  { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LOI" },
   { id: 4, nombre: "Zaqaru",                     color: "#af4a85", inicial: "ZQ" },
-  { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LOI" },
+  { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LO" },
 ];
 
 const USUARIOS = [
