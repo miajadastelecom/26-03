@@ -3394,9 +3394,11 @@ export default function App() {
           </div>
         )}
 
-        {seccion === "reportes" && ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? (
-          <Reportes tickets={tickets} usuarioActual={usuario} />
-        ) : seccion === "historial" ? (
+        {seccion === "reportes" && ["director","ceo","encargado","administrador"].includes(usuario?.rol) && (
+          <Reportes tickets={tickets} usuarioActual={usuario} darkMode={darkMode} EMPRESAS={EMPRESAS} USUARIOS={USUARIOS} />
+        )}
+
+        {seccion === "historial" && (
           <>
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ margin: "0 0 4px", color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 18 }}>🗂️ Historial</h2>
@@ -3435,7 +3437,9 @@ export default function App() {
               </>
             )}
           </>
-        ) : seccion === "calendario" ? (
+        )}
+
+        {seccion === "calendario" && (
           <div>
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ margin: "0 0 4px", color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 18 }}>📅 Mi Calendario</h2>
@@ -3443,7 +3447,9 @@ export default function App() {
             </div>
             <Calendario tickets={tickets} ticketsPersonales={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} usuarioActual={usuario} onVerTicket={t => setDetalle(t)} onVerTicketPersonal={t => setDetalleMiTicket(t)} />
           </div>
-        ) : seccion === "tickets" ? (
+        )}
+
+        {seccion === "tickets" && (
           <>
             {/* ESTADÍSTICAS — clicables */}
             <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${(esEncargado || esDirCeo) ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
@@ -3533,7 +3539,7 @@ export default function App() {
               </div>
             )}
           </>
-        ) : null}
+        )}
 
         {/* ── PANEL DE EQUIPO (solo encargados) ── */}
         {seccion === "equipo" && esEncargado && (
@@ -4129,7 +4135,7 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
   const dm       = darkMode;
   const miEmpId  = usuario?.empresaId;
   const miEmpresa = EMPRESAS.find(e => e.id === miEmpId);
-  const misTrabs  = USUARIOS.filter(u => u.empresaId === miEmpId && u.rol === "trabajador");
+  const misTrabs  = USUARIOS.filter(u => u.empresaId === miEmpId && u.id !== usuario?.id); // todos excepto el encargado mismo
 
   // Tickets de mi empresa (destino o creados por mí)
   const ticketsEmpresa = tickets.filter(t => {
