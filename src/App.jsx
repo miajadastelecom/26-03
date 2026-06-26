@@ -1410,8 +1410,9 @@ function Calendario({ tickets, ticketsPersonales, usuarioActual, onVerTicket, on
 
 
 // ─── REPORTES ─────────────────────────────────────────────────────────────────
-function Reportes({ tickets, usuarioActual }) {
-  const darkMode = __darkMode;
+function Reportes({ tickets, usuarioActual, darkMode, EMPRESAS: EMP, USUARIOS: USR }) {
+  const _EMPRESAS = EMP || EMPRESAS;
+  const _USUARIOS = USR || USUARIOS;
   const [empresaFiltro, setEmpresaFiltro] = useState("todas");
   const [mesFiltro, setMesFiltro]         = useState("todos");
 
@@ -1608,7 +1609,7 @@ function Reportes({ tickets, usuarioActual }) {
       </div>
 
       {/* RESUMEN STATS */}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${(esEncargado || esDirCeo) ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(4,1fr)`, gap: 12, marginBottom: 24 }}>
         {[
           ["Completados", ticketsFiltrados.length, "#38A169", "✅"],
           ["Empresas origen", [...new Set(ticketsFiltrados.map(t=>t.empresaOrigenId))].length, "#3182CE", "🏢"],
@@ -3452,7 +3453,7 @@ export default function App() {
         {seccion === "tickets" && (
           <>
             {/* ESTADÍSTICAS — clicables */}
-            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${(esEncargado || esDirCeo) ? 5 : 4},1fr)`, gap: 12, marginBottom: 24 }}>
+            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(4,1fr)`, gap: 12, marginBottom: 24 }}>
               {[
                 ["Mis tickets",  stats.total,       "#94A3B8", "🎫", "kpi_total"],
                 ["Pendientes",   stats.pendientes,  "#718096", "⏳", "kpi_pendientes"],
