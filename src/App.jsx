@@ -4722,10 +4722,10 @@ function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empC
 
 // ── Gestión de Fichajes ─────────────────────────────────────────────
 function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
-  const [fichajes,  setFichajes]  = useState([]);
-  const [filtroEmp, setFiltroEmp] = useState("todas");
-  const [filtroUser,setFiltroUser]= useState("todos");
-  const [filtroFecha,setFiltroFecha]=useState("");
+  const [fichajes,    setFichajes]    = useState([]);
+  const [filtroEmp,   setFiltroEmp]   = useState("todas");
+  const [filtroFecha, setFiltroFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [vista,       setVista]       = useState("tarjetas"); // tarjetas | tabla
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
@@ -4734,112 +4734,244 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
     return unsub;
   }, [db]);
 
-  const dm = darkMode;
-  const cardBg = dm ? "#111827" : "#FFFFFF";
+  const dm      = darkMode;
   const border  = dm ? "#1E293B" : "#E2E8F0";
   const textPri = dm ? "#E2E8F0" : "#0F172A";
   const muted   = dm ? "#64748B" : "#94A3B8";
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
 
-  const usuariosEmp = USUARIOS.filter(u => filtroEmp === "todas" || String(u.empresaId) === filtroEmp);
-
-  const fichajesFiltrados = fichajes
-    .filter(f => {
-      const usr = USUARIOS.find(u => u.id === f.usuarioId);
-      if (filtroEmp !== "todas" && String(usr?.empresaId) !== filtroEmp) return false;
-      if (filtroUser !== "todos" && String(f.usuarioId) !== filtroUser) return false;
-      if (filtroFecha && !f.fecha?.startsWith(filtroFecha)) return false;
-      return true;
-    })
-    .sort((a, b) => new Date(b.entrada) - new Date(a.entrada));
-
-  const calcDuracion = f => {
-    if (!f.salida) return "En curso";
-    const diff = new Date(f.salida) - new Date(f.entrada);
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return `${h}h ${m}min`;
+  const calcMins = f => {
+    if (!f.salida) return null;
+    return Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000);
   };
 
+  const fmtHoras = mins => {
+    if (mins === null) return null;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m > 0 ? m+"min" : ""}`.trim() : `${m}min`;
+  };
+
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("es-ES", { hour:"2-digit", minute:"2-digit" }) : "—";
+
+  // Filtrar por fecha y empresa
+  const fichajesDia = fichajes.filter(f => {
+    if (filtroFecha && !f.fecha?.startsWith(filtroFecha) && !f.entrada?.startsWith(filtroFecha)) return false;
+    const usr = USUARIOS.find(u => u.id === f.usuarioId);
+    if (filtroEmp !== "todas" && String(usr?.empresaId) !== filtroEmp) return false;
+    return true;
+  });
+
+  // Agrupar por usuario
+  const porUsuario = {};
+  fichajesDia.forEach(f => {
+    if (!porUsuario[f.usuarioId]) porUsuario[f.usuarioId] = [];
+    porUsuario[f.usuarioId].push(f);
+  });
+
+  // Stats del día
+  const usuariosFichados = Object.keys(porUsuario).length;
+  const enCursoAhora = fichajes.filter(f => !f.salida).length;
+  const totalMinsDia = fichajesDia.reduce((acc, f) => acc + (calcMins(f) || 0), 0);
+
+  const usuariosConFichaje = Object.entries(porUsuario)
+    .map(([uid, flist]) => {
+      const usr = USUARIOS.find(u => u.id === Number(uid));
+      const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
+      const activo = flist.some(f => !f.salida);
+      const totalMins = flist.reduce((acc, f) => acc + (calcMins(f) || 0), 0);
+      return { usr, emp, flist, activo, totalMins };
+    })
+    .filter(x => x.usr)
+    .sort((a, b) => {
+      if (a.activo && !b.activo) return -1;
+      if (!a.activo && b.activo) return 1;
+      return a.usr.nombre.localeCompare(b.usr.nombre);
+    });
+
+  // Usuarios sin fichar hoy
+  const idsConFichaje = new Set(Object.keys(porUsuario).map(Number));
+  const sinFichar = USUARIOS
+    .filter(u => filtroEmp === "todas" || String(u.empresaId) === filtroEmp)
+    .filter(u => !idsConFichaje.has(u.id) && !["director","ceo"].includes(u.rol));
+
   return (
-    <div style={{ maxWidth: 1100 }}>
-      <div style={{ marginBottom:22 }}>
+    <div style={{ maxWidth: 1200 }}>
+      {/* Cabecera */}
+      <div style={{ marginBottom: 22 }}>
         <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🕐 Gestión de Fichajes</h2>
-        <p style={{ margin:0, color:muted, fontSize:13 }}>Registros de entrada y salida de todos los empleados</p>
+        <p style={{ margin:0, color:muted, fontSize:13 }}>Control de presencia diaria</p>
       </div>
 
-      {/* Filtros */}
-      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap" }}>
-        <select value={filtroEmp} onChange={e => { setFiltroEmp(e.target.value); setFiltroUser("todos"); }}
-          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
-          <option value="todas">Todas las empresas</option>
-          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </select>
-        <select value={filtroUser} onChange={e => setFiltroUser(e.target.value)}
-          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
-          <option value="todos">Todos los empleados</option>
-          {usuariosEmp.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-        </select>
-        <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
-          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none", colorScheme:dm?"dark":"light" }} />
-        {filtroFecha && <button onClick={() => setFiltroFecha("")} style={{ height:34, padding:"0 12px", background:"transparent", border:`1px solid ${border}`, borderRadius:8, color:muted, fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>✕ Limpiar</button>}
-      </div>
-
-      {/* Stats del día */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+      {/* KPIs */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:22 }}>
         {[
-          ["👥 Total registros", fichajesFiltrados.length, "#3182CE"],
-          ["🟢 En curso", fichajesFiltrados.filter(f => !f.salida).length, "#38A169"],
-          ["✅ Completados", fichajesFiltrados.filter(f => f.salida).length, "#805AD5"],
-        ].map(([l,v,c]) => (
-          <div key={l} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"14px 18px" }}>
-            <div style={{ fontSize:24, fontWeight:900, color:c, lineHeight:1 }}>{v}</div>
-            <div style={{ color:muted, fontSize:11, fontWeight:700, marginTop:4 }}>{l}</div>
+          { icon:"🟢", label:"Fichados ahora",    v: enCursoAhora,       color:"#38A169" },
+          { icon:"👥", label:"Han fichado hoy",   v: usuariosFichados,   color:"#3182CE" },
+          { icon:"⏱️", label:"Horas totales hoy", v: fmtHoras(totalMinsDia) || "0min", color:"#805AD5", isStr:true },
+          { icon:"😴", label:"Sin fichar hoy",    v: sinFichar.length,   color:"#E53E3E" },
+        ].map((k,i) => (
+          <div key={i} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"16px 18px", display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:44, height:44, borderRadius:10, background:k.color+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{k.icon}</div>
+            <div>
+              <div style={{ fontSize:k.isStr?20:26, fontWeight:900, color:k.color, lineHeight:1 }}>{k.v}</div>
+              <div style={{ color:muted, fontSize:11, fontWeight:700, marginTop:3 }}>{k.label}</div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Lista */}
-      {fichajesFiltrados.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"60px 20px" }}>
-          <p style={{ fontSize:40 }}>🕐</p>
-          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin fichajes para este filtro</p>
+      {/* Filtros y controles */}
+      <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
+        <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none", colorScheme:dm?"dark":"light" }} />
+        <select value={filtroEmp} onChange={e => setFiltroEmp(e.target.value)}
+          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
+          <option value="todas">Todas las empresas</option>
+          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+        <button onClick={() => setFiltroFecha(new Date().toISOString().split("T")[0])}
+          style={{ height:34, padding:"0 14px", background:empColor+"22", border:`1px solid ${empColor}44`, borderRadius:8, color:empColor, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          Hoy
+        </button>
+        {/* Switch vista */}
+        <div style={{ marginLeft:"auto", display:"flex", gap:2, background:dm?"#1E293B":"#F1F5F9", borderRadius:8, padding:3 }}>
+          {[["tarjetas","🪪 Tarjetas"],["tabla","📋 Tabla"]].map(([v,l]) => (
+            <button key={v} onClick={() => setVista(v)}
+              style={{ fontFamily:"inherit", fontSize:12, fontWeight:600, padding:"5px 14px", borderRadius:6, border:"none", cursor:"pointer", background:vista===v?empColor:"transparent", color:vista===v?"#fff":(dm?"#64748B":"#94A3B8") }}>
+              {l}
+            </button>
+          ))}
         </div>
+      </div>
+
+      {usuariosConFichaje.length === 0 && sinFichar.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"70px 20px" }}>
+          <p style={{ fontSize:48 }}>📭</p>
+          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin fichajes para este día</p>
+        </div>
+      ) : vista === "tarjetas" ? (
+        <>
+          {/* Tarjetas por usuario */}
+          {usuariosConFichaje.length > 0 && (
+            <>
+              <p style={{ color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".4px", margin:"0 0 12px" }}>Con fichaje</p>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14, marginBottom:24 }}>
+                {usuariosConFichaje.map(({ usr, emp, flist, activo, totalMins }) => (
+                  <div key={usr.id} style={{ background:cardBg, border:`2px solid ${activo?"#38A169":border}`, borderRadius:14, padding:"16px 18px", position:"relative" }}>
+                    {/* Header */}
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                      <div style={{ position:"relative" }}>
+                        <div style={{ width:42, height:42, borderRadius:"50%", background:(emp?.color||"#888")+"33", border:`2px solid ${emp?.color||"#888"}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:emp?.color||"#888", fontSize:14 }}>
+                          {usr.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
+                        </div>
+                        {activo && <span style={{ position:"absolute", bottom:0, right:0, width:12, height:12, borderRadius:"50%", background:"#38A169", border:"2px solid "+cardBg }} />}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ margin:0, fontWeight:700, fontSize:13, color:textPri, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usr.nombre}</p>
+                        {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
+                      </div>
+                      <div style={{ textAlign:"right" }}>
+                        {activo
+                          ? <span style={{ background:"#38A16922", color:"#38A169", borderRadius:6, padding:"3px 8px", fontSize:11, fontWeight:700 }}>🟢 Activo</span>
+                          : <span style={{ color:muted, fontSize:11, fontWeight:600 }}>{fmtHoras(totalMins) || "0min"} hoy</span>
+                        }
+                      </div>
+                    </div>
+
+                    {/* Barra de horas */}
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                        <span style={{ color:muted, fontSize:10, fontWeight:700 }}>HORAS HOY</span>
+                        <span style={{ color:textPri, fontSize:11, fontWeight:700 }}>{fmtHoras(totalMins) || "—"}</span>
+                      </div>
+                      <div style={{ height:6, background:dm?"#1E293B":"#F1F5F9", borderRadius:99, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${Math.min(100, (totalMins/480)*100)}%`, background: totalMins >= 480 ? "#38A169" : activo ? "#3182CE" : "#D4A017", borderRadius:99, transition:"width .3s" }} />
+                      </div>
+                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:3 }}>
+                        <span style={{ color:muted, fontSize:10 }}>0h</span>
+                        <span style={{ color:muted, fontSize:10 }}>8h jornada</span>
+                      </div>
+                    </div>
+
+                    {/* Registros del día */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      {flist.map((f, idx) => (
+                        <div key={f.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", background:dm?"#0D1424":"#F8FAFC", borderRadius:6, fontSize:12 }}>
+                          <span style={{ color:"#38A169", fontWeight:700, flexShrink:0 }}>↑ {fmtTime(f.entrada)}</span>
+                          <span style={{ color:muted }}>→</span>
+                          {f.salida
+                            ? <><span style={{ color:"#E53E3E", fontWeight:700 }}>↓ {fmtTime(f.salida)}</span><span style={{ marginLeft:"auto", color:textPri, fontWeight:600 }}>{fmtHoras(calcMins(f))}</span></>
+                            : <span style={{ color:"#38A169", fontWeight:600 }}>En curso...</span>
+                          }
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Sin fichar */}
+          {sinFichar.length > 0 && (
+            <>
+              <p style={{ color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".4px", margin:"0 0 12px" }}>Sin fichar hoy ({sinFichar.length})</p>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
+                {sinFichar.map(usr => {
+                  const emp = EMPRESAS.find(e => e.id === usr.empresaId);
+                  return (
+                    <div key={usr.id} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:10, padding:"12px 14px", display:"flex", alignItems:"center", gap:10, opacity:.7 }}>
+                      <div style={{ width:34, height:34, borderRadius:"50%", background:(emp?.color||"#888")+"22", border:`2px solid ${dm?"#2E3A55":"#E2E8F0"}`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:muted, fontSize:11, flexShrink:0 }}>
+                        {usr.nombre.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
+                      </div>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ margin:0, fontSize:12, fontWeight:600, color:muted, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{usr.nombre}</p>
+                        {emp && <span style={{ fontSize:10, color:emp.color, fontWeight:600 }}>{emp.nombre}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </>
       ) : (
+        /* Vista tabla */
         <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, overflow:"hidden" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr style={{ background:dm?"#0D1424":"#F8FAFC" }}>
-                {["Empleado","Empresa","Entrada","Salida","Duración"].map(h => (
+                {["Empleado","Empresa","Entrada","Salida","Duración","Estado"].map(h => (
                   <th key={h} style={{ padding:"10px 14px", textAlign:"left", color:muted, fontWeight:700, fontSize:11, textTransform:"uppercase", borderBottom:`1px solid ${border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {fichajesFiltrados.map(f => {
+              {fichajesDia.sort((a,b) => new Date(b.entrada)-new Date(a.entrada)).map(f => {
                 const usr = USUARIOS.find(u => u.id === f.usuarioId);
                 const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
-                const enCurso = !f.salida;
+                const mins = calcMins(f);
+                const activo = !f.salida;
                 return (
                   <tr key={f.id} style={{ borderBottom:`1px solid ${dm?"#0D1424":"#F1F5F9"}` }}>
                     <td style={{ padding:"10px 14px" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <div style={{ width:28, height:28, borderRadius:"50%", background:(emp?.color||"#888")+"33", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, color:emp?.color||"#888", flexShrink:0 }}>
-                          {usr?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+                          {usr?.nombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
                         </div>
-                        <span style={{ fontWeight:600, color:textPri }}>{usr?.nombre || "—"}</span>
+                        <span style={{ fontWeight:600, color:textPri }}>{usr?.nombre}</span>
                       </div>
                     </td>
+                    <td style={{ padding:"10px 14px" }}>{emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}</td>
+                    <td style={{ padding:"10px 14px", color:"#38A169", fontWeight:600 }}>{fmtTime(f.entrada)}</td>
+                    <td style={{ padding:"10px 14px", color:activo?muted:"#E53E3E", fontWeight:activo?400:600 }}>{activo?"—":fmtTime(f.salida)}</td>
+                    <td style={{ padding:"10px 14px", color:textPri, fontWeight:600 }}>{mins!==null?fmtHoras(mins):"En curso"}</td>
                     <td style={{ padding:"10px 14px" }}>
-                      {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
-                    </td>
-                    <td style={{ padding:"10px 14px", color:muted }}>
-                      {f.entrada ? new Date(f.entrada).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "—"}
-                    </td>
-                    <td style={{ padding:"10px 14px", color:muted }}>
-                      {enCurso ? <span style={{ color:"#38A169", fontWeight:700 }}>🟢 En curso</span> : new Date(f.salida).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
-                    </td>
-                    <td style={{ padding:"10px 14px", color:enCurso?muted:textPri, fontWeight:enCurso?400:600 }}>
-                      {calcDuracion(f)}
+                      {activo
+                        ? <span style={{ background:"#38A16922", color:"#38A169", borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700 }}>🟢 Activo</span>
+                        : <span style={{ background:"#94A3B822", color:muted, borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700 }}>Completado</span>
+                      }
                     </td>
                   </tr>
                 );
