@@ -952,8 +952,8 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
               : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                   {esDirector
-                    ? EMPRESAS.filter(e => e.id !== 0).map(emp => {
-                        const trabsEmp = USUARIOS.filter(u => u.empresaId === emp.id && ["trabajador","encargado"].includes(u.rol));
+                    ? EMPRESAS.map(emp => {
+                        const trabsEmp = USUARIOS.filter(u => u.empresaId === emp.id && !["director","ceo"].includes(u.rol));
                         if (!trabsEmp.length) return null;
                         return (
                           <div key={emp.id}>
