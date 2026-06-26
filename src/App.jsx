@@ -545,7 +545,18 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
 
   const asignar = () => {
     if (seleccionados.length === 0) return;
-    const nuevas = { ...asignaciones, [usuarioActual.empresaId]: seleccionados };
+    let nuevas = { ...asignaciones };
+    if (esDirector) {
+      // Director: agrupar seleccionados por su empresa
+      seleccionados.forEach(uid => {
+        const usr = USUARIOS.find(u => u.id === uid);
+        if (!usr) return;
+        const empId = usr.empresaId;
+        nuevas[empId] = [...(nuevas[empId] || []).filter(x => x !== uid), uid];
+      });
+    } else {
+      nuevas[usuarioActual.empresaId] = seleccionados;
+    }
     onActualizar({
       ...ticket,
       asignacionesPorEmpresa: nuevas,
@@ -2663,7 +2674,7 @@ export default function App() {
   });
   const [detalleMiTicket, setDetalleMiTicket] = useState(null);
   const [detalle,       setDetalle]    = useState(null);
-  const [filtros,       setFiltros]    = useState({ estado: "todos", empresa: "todas", buscar: "" });
+  const [filtros,       setFiltros]    = useState({ estado: "kpi_total", empresa: "todas", buscar: "" });
   const [vista,         setVista]      = useState("mis");
   const [seccion,       setSeccion]    = useState("tickets");
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -2767,7 +2778,7 @@ export default function App() {
   const esDirCeo     = ["director","ceo"].includes(usuario?.rol);
 
   const ticketsMisRol = tickets.filter(t => {
-    if (!usuario || usuario.rol === "director") return true;
+    if (!usuario || ["director","ceo"].includes(usuario.rol)) return true;
     const eds   = t.empresasDestino || [];
     const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
     if (usuario.rol === "encargado") {
