@@ -4889,24 +4889,21 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
           <tbody>
             {/* Agrupar por empresa si es "todas" */}
             {empActiva === "todas"
-              ? empresasConEmpleados.map(emp => {
+              ? empresasConEmpleados.flatMap(emp => {
                   const empData = datosEmpleado.filter(d => d.emp?.id === emp.id);
-                  if (!empData.length) return null;
-                  return (
-                    <React.Fragment key={emp.id}>
-                      {/* Cabecera empresa */}
-                      <tr>
-                        <td colSpan={6} style={{ padding:"8px 16px", background:emp.color+"11", borderBottom:`1px solid ${emp.color}33` }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                            <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color, display:"inline-block" }} />
-                            <span style={{ color:emp.color, fontWeight:800, fontSize:12, textTransform:"uppercase", letterSpacing:".5px" }}>{emp.nombre}</span>
-                            <span style={{ color:muted, fontSize:11 }}>· {empData.filter(d=>d.activoAhora).length} activos · {empData.filter(d=>d.misF.length>0).length} han fichado · {empData.filter(d=>d.misF.length===0).length} sin fichar</span>
-                          </div>
-                        </td>
-                      </tr>
-                      {empData.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)}
-                    </React.Fragment>
-                  );
+                  if (!empData.length) return [];
+                  return [
+                    <tr key={"hdr_"+emp.id}>
+                      <td colSpan={6} style={{ padding:"8px 16px", background:emp.color+"11", borderBottom:`1px solid ${emp.color}33` }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color, display:"inline-block" }} />
+                          <span style={{ color:emp.color, fontWeight:800, fontSize:12, textTransform:"uppercase", letterSpacing:".5px" }}>{emp.nombre}</span>
+                          <span style={{ color:muted, fontSize:11 }}>· {empData.filter(d=>d.activoAhora).length} activos · {empData.filter(d=>d.misF.length>0).length} han fichado · {empData.filter(d=>d.misF.length===0).length} sin fichar</span>
+                        </div>
+                      </td>
+                    </tr>,
+                    ...empData.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)
+                  ];
                 })
               : datosEmpleado.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)
             }
