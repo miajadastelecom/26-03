@@ -3275,6 +3275,7 @@ export default function App() {
             {[
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
+              ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
