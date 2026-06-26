@@ -25,7 +25,7 @@ const EMPRESAS = [
   { id: 2, nombre: "Miajadas Telecom",           color: "#e0ad12", inicial: "MT" },
   { id: 3, nombre: "Laura Otero Instalaciones",  color: "#0077ab", inicial: "LI" },
   { id: 4, nombre: "Zaqaru",                     color: "#af4a85", inicial: "ZQ" },
-  { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LO" },
+  { id: 5, nombre: "Laura Otero S.A.",           color: "#4F8C0d", inicial: "LOI" },
 ];
 
 const USUARIOS = [
