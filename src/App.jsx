@@ -2813,18 +2813,17 @@ export default function App() {
       base = base.filter(t => {
         if (t.estado !== "Pendiente") return false;
         if (esDirCeo) return Object.values(t.asignacionesPorEmpresa || {}).every(a => !a.length);
-        return edsFn(t).includes(usuario?.empresaId) && !(t.asignacionesPorEmpresa?.[usuario?.empresaId]?.length > 0);
+        // Encargado: tickets hacia su empresa sin asignar aún en su empresa
+        return edsFn(t).includes(usuario?.empresaId) &&
+               !(t.asignacionesPorEmpresa?.[usuario?.empresaId]?.length > 0);
       });
     } else {
-      // Vista normal (mis/todos)
+      // Vista normal — solo tickets personales (asignados o creados por el usuario)
       base = base.filter(t => !["Completado","Cancelado"].includes(t.estado));
-      if (vista === "mis") {
-        base = base.filter(t => {
-          if (esDirCeo)    return asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId;
-          if (esEncargado) return edsFn(t).includes(usuario.empresaId) || t.creadoPor === usuarioId;
-          return asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId;
-        });
-      }
+      base = base.filter(t => {
+        const asigs = Object.values(t.asignacionesPorEmpresa || {}).flat();
+        return asigs.includes(usuarioId) || t.creadoPor === usuarioId;
+      });
     }
 
     // Filtro por empresa (para director/ceo en vista global)
@@ -3206,6 +3205,7 @@ export default function App() {
               { id:"calendario", icon:"📅", label:"Calendario" },
               ...( ["director","ceo","encargado","administrador"].includes(usuario?.rol) ? [{ id:"reportes", icon:"📄", label:"Reportes" }] : []),
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
+              ...(esEncargado ? [{ id:"equipo", icon:"👥", label:"Panel de equipo" }] : []),
               { id:"fichaje",    icon:"🕐", label:"Fichaje" },
               { id:"nominas",    icon:"💰", label:"Nóminas" },
               { id:"perfil",     icon:"👤", label:"Perfil" },
@@ -3523,6 +3523,21 @@ export default function App() {
             )}
           </>
         ) : null}
+
+        {/* ── PANEL DE EQUIPO (solo encargados) ── */}
+        {seccion === "equipo" && esEncargado && (
+          <PanelEquipo
+            darkMode={darkMode}
+            usuario={usuario}
+            usuarioId={usuarioId}
+            tickets={tickets}
+            empColor={empColor}
+            USUARIOS={USUARIOS}
+            EMPRESAS={EMPRESAS}
+            onVerTicket={setDetalle}
+            onActualizar={actualizarTicket}
+          />
+        )}
 
         {/* ── COMUNICACIÓN ── */}
         {seccion === "comunicacion" && (
@@ -4088,6 +4103,189 @@ function DetalleComunicado({ darkMode, c, USUARIOS, EMPRESAS, empColor, onClose 
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MÓDULO: Panel de Equipo (solo encargados)
+// ═══════════════════════════════════════════════════════════════════
+
+function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS, EMPRESAS, onVerTicket, onActualizar }) {
+  const [subVista, setSubVista] = useState("sinAsignar");
+  const [buscar, setBuscar]     = useState("");
+
+  const dm       = darkMode;
+  const miEmpId  = usuario?.empresaId;
+  const miEmpresa = EMPRESAS.find(e => e.id === miEmpId);
+  const misTrabs  = USUARIOS.filter(u => u.empresaId === miEmpId && u.rol === "trabajador");
+
+  // Tickets de mi empresa (destino o creados por mí)
+  const ticketsEmpresa = tickets.filter(t => {
+    const eds = t.empresasDestino || [];
+    return eds.includes(miEmpId) || t.creadoPor === usuarioId;
+  });
+
+  // Sin asignar: pendientes hacia mi empresa sin asignar
+  const sinAsignar = ticketsEmpresa.filter(t =>
+    t.estado === "Pendiente" &&
+    !(t.asignacionesPorEmpresa?.[miEmpId]?.length > 0)
+  );
+
+  // En curso: asignados a alguien de mi empresa y activos
+  const enCurso = ticketsEmpresa.filter(t =>
+    ["Asignado","En progreso"].includes(t.estado) &&
+    (t.asignacionesPorEmpresa?.[miEmpId]?.length > 0)
+  );
+
+  // Completados de mi empresa
+  const completados = ticketsEmpresa.filter(t => t.estado === "Completado");
+
+  const filtrar = (lista) => {
+    if (!buscar) return lista;
+    return lista.filter(t => t.titulo?.toLowerCase().includes(buscar.toLowerCase()));
+  };
+
+  const vistas = [
+    { id: "sinAsignar", label: `⏳ Sin asignar`, count: sinAsignar.length, color: "#E53E3E" },
+    { id: "enCurso",    label: `⚙️ En curso`,    count: enCurso.length,    color: "#D4A017" },
+    { id: "completados",label: `✅ Completados`,  count: completados.length, color: "#38A169" },
+  ];
+
+  const listaActual = subVista === "sinAsignar" ? sinAsignar
+                    : subVista === "enCurso"    ? enCurso
+                    : completados;
+
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      {/* Cabecera */}
+      <div style={{ marginBottom: 22 }}>
+        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>
+          👥 Panel de equipo — {miEmpresa?.nombre}
+        </h2>
+        <p style={{ margin: 0, color: muted, fontSize: 13 }}>
+          Gestión de tickets de tu empresa
+        </p>
+      </div>
+
+      {/* KPIs resumen */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 22 }}>
+        {vistas.map(v => (
+          <div key={v.id} onClick={() => setSubVista(v.id)}
+            style={{ background: subVista === v.id ? v.color + "18" : cardBg, border: `1px solid ${subVista === v.id ? v.color : border}`, borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all .15s" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: subVista === v.id ? v.color : textPri, lineHeight: 1 }}>{v.count}</div>
+            <div style={{ color: subVista === v.id ? v.color : muted, fontSize: 12, fontWeight: 700, marginTop: 4 }}>{v.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Resumen por trabajador */}
+      <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+        <p style={{ margin: "0 0 12px", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" }}>
+          Carga por trabajador
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {misTrabs.map(u => {
+            const asignados = enCurso.filter(t =>
+              (t.asignacionesPorEmpresa?.[miEmpId] || []).includes(u.id)
+            ).length;
+            return (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 7, background: dm ? "#0D1424" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "6px 12px" }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: empColor + "33", border: `2px solid ${empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: empColor, fontSize: 10, flexShrink: 0 }}>
+                  {u.nombre.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: textPri }}>{u.nombre.split(" ")[0]}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: asignados > 0 ? empColor : muted }}>
+                    {asignados} ticket{asignados !== 1 ? "s" : ""} activo{asignados !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          {misTrabs.length === 0 && (
+            <p style={{ color: muted, fontSize: 13 }}>No hay trabajadores en tu empresa.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Buscador */}
+      <div style={{ position: "relative", maxWidth: 280, marginBottom: 16 }}>
+        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: muted, fontSize: 13 }}>🔍</span>
+        <input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar ticket..."
+          style={{ width: "100%", height: 34, paddingLeft: 30, paddingRight: 10, background: dm ? "#1E293B" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, color: textPri, fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+      </div>
+
+      {/* Lista de tickets */}
+      {filtrar(listaActual).length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <p style={{ fontSize: 40 }}>{subVista === "sinAsignar" ? "✅" : subVista === "enCurso" ? "⚙️" : "📋"}</p>
+          <p style={{ color: muted, fontSize: 14, fontWeight: 700 }}>
+            {subVista === "sinAsignar" ? "¡Todo asignado!" : subVista === "enCurso" ? "Sin tickets en curso" : "Sin completados"}
+          </p>
+        </div>
+      ) : (
+        <div className="tickets-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
+          {filtrar(listaActual).map(t => {
+            const asignadosEmp = (t.asignacionesPorEmpresa?.[miEmpId] || [])
+              .map(id => USUARIOS.find(u => u.id === id))
+              .filter(Boolean);
+            const origen = EMPRESAS.find(e => e.id === t.empresaOrigenId);
+            const vencido = t.fechaLimite && new Date(t.fechaLimite) < new Date() && !["Completado","Cancelado"].includes(t.estado);
+
+            return (
+              <div key={t.id} onClick={() => onVerTicket(t)}
+                style={{ background: cardBg, border: `2px solid ${vencido ? "#E53E3E" : border}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px #0002"}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+
+                {/* Origen y estado */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    {origen && <span style={{ background: origen.color + "22", color: origen.color, borderRadius: 99, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>● {origen.nombre}</span>}
+                    {vencido && <span style={{ background: "#E53E3E22", color: "#E53E3E", borderRadius: 99, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>⚠ VENCIDO</span>}
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.estado === "Pendiente" ? "#718096" : t.estado === "Asignado" ? "#3182CE" : t.estado === "En progreso" ? "#D4A017" : "#38A169", background: (t.estado === "Pendiente" ? "#71809622" : t.estado === "Asignado" ? "#3182CE22" : t.estado === "En progreso" ? "#D4A01722" : "#38A16922"), borderRadius: 99, padding: "2px 8px" }}>
+                    {t.estado}
+                  </span>
+                </div>
+
+                {/* Título */}
+                <p style={{ margin: "0 0 10px", fontWeight: 700, fontSize: 14, color: textPri, lineHeight: 1.3 }}>{t.titulo}</p>
+
+                {/* Asignados */}
+                {asignadosEmp.length > 0 ? (
+                  <div style={{ display: "flex", gap: 5, alignItems: "center", marginBottom: 8 }}>
+                    {asignadosEmp.slice(0, 4).map(u => (
+                      <div key={u.id} title={u.nombre}
+                        style={{ width: 26, height: 26, borderRadius: "50%", background: empColor + "44", border: `2px solid ${empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: empColor }}>
+                        {u.nombre.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                    ))}
+                    {asignadosEmp.length > 4 && <span style={{ color: muted, fontSize: 11 }}>+{asignadosEmp.length - 4}</span>}
+                  </div>
+                ) : (
+                  subVista === "sinAsignar" && (
+                    <p style={{ margin: "0 0 8px", color: "#E53E3E", fontSize: 11, fontWeight: 600 }}>⚠ Sin asignar — pulsa para asignar</p>
+                  )
+                )}
+
+                {/* Fecha límite */}
+                {t.fechaLimite && (
+                  <p style={{ margin: 0, color: vencido ? "#E53E3E" : muted, fontSize: 11 }}>
+                    📅 Límite: {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
