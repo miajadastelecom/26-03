@@ -3277,6 +3277,7 @@ export default function App() {
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
+              ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
@@ -3352,7 +3353,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3708,6 +3709,11 @@ export default function App() {
             </div>
           );
         })()}
+
+        {/* ── SALAS ── */}
+        {seccion === "salas" && USUARIOS_SALAS_IDS.includes(usuario?.id) && (
+          <SeccionSalas db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
+        )}
 
         {/* ── PERFIL ── */}
         {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
@@ -5836,6 +5842,462 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea
           {onBorrar && <button onClick={onBorrar} style={{ background:"#E53E3E22", border:"1px solid #E53E3E44", borderRadius:8, padding:"10px 14px", color:"#E53E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>🗑️</button>}
           <button onClick={onClose} style={{ flex:1, background:"transparent", border:`1px solid ${border}`, borderRadius:8, padding:"10px", color:muted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
           <button onClick={guardar} style={{ flex:2, background:empColor, border:"none", borderRadius:8, padding:"10px", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  MÓDULO SALAS — Reserva de salas de reunión y formación
+//  Horario: 08:00 – 15:00 · Cancelación: solo el creador
+// ═══════════════════════════════════════════════════════════════
+
+const SALAS = [
+  { id: "juntas",     nombre: "Sala de Juntas",        icon: "🪑", color: "#3182CE" },
+  { id: "formacion1", nombre: "Sala 1 de Formación",   icon: "📚", color: "#38A169" },
+  { id: "formacion2", nombre: "Sala 2 de Formación",   icon: "🎓", color: "#805AD5" },
+];
+
+// IDs de usuarios con acceso al módulo de salas
+const USUARIOS_SALAS_IDS = [7,1,0,2,3,35,17,18,19,43,42,44,45,46,11,12,13,14,15,16,8,9,10];
+
+function horaToMin(h) {
+  const [hh, mm] = h.split(":").map(Number);
+  return hh * 60 + mm;
+}
+function minToHora(m) {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+function solapan(r1, r2) {
+  const ini1 = horaToMin(r1.horaInicio), fin1 = horaToMin(r1.horaFin);
+  const ini2 = horaToMin(r2.horaInicio), fin2 = horaToMin(r2.horaFin);
+  return ini1 < fin2 && fin1 > ini2;
+}
+
+// ── Componente principal de Salas ──────────────────────────────
+function SeccionSalas({ db, darkMode, usuario, empColor }) {
+  const [reservas,     setReservas]     = useState([]);
+  const [fechaSel,     setFechaSel]     = useState(new Date().toISOString().split("T")[0]);
+  const [modalNueva,   setModalNueva]   = useState(null);  // { salaId } | null
+  const [verDetalle,   setVerDetalle]   = useState(null);  // reserva | null
+  const [loading,      setLoading]      = useState(true);
+
+  const dm      = darkMode;
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+  const bg2     = dm ? "#0D1424" : "#F8FAFC";
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "reservasSalas"), snap => {
+      setReservas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [db]);
+
+  // Reservas del día seleccionado
+  const reservasHoy = reservas.filter(r => r.fecha === fechaSel);
+
+  const navFecha = (dir) => {
+    const d = new Date(fechaSel + "T12:00:00");
+    d.setDate(d.getDate() + dir);
+    setFechaSel(d.toISOString().split("T")[0]);
+  };
+
+  const fechaLabel = new Date(fechaSel + "T12:00:00").toLocaleDateString("es-ES", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  });
+  const esHoy = fechaSel === new Date().toISOString().split("T")[0];
+
+  const cancelarReserva = async (r) => {
+    if (!window.confirm(`¿Cancelar la reserva de "${SALAS.find(s => s.id === r.salaId)?.nombre}" el ${r.fecha} de ${r.horaInicio} a ${r.horaFin}?`)) return;
+    await deleteDoc(doc(db, "reservasSalas", r.id));
+    setVerDetalle(null);
+  };
+
+  // Franja horaria visual: 08:00 – 15:00
+  const HORA_INI  = 8 * 60;  // 480 min
+  const HORA_FIN  = 15 * 60; // 900 min
+  const TOTAL_MIN = HORA_FIN - HORA_INI; // 420 min
+
+  const pct = (h) => ((horaToMin(h) - HORA_INI) / TOTAL_MIN) * 100;
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      {/* Cabecera */}
+      <div style={{ marginBottom: 22 }}>
+        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🏛️ Reserva de Salas</h2>
+        <p style={{ margin: 0, color: muted, fontSize: 13 }}>Gestión de salas compartidas · Horario 08:00 – 15:00</p>
+      </div>
+
+      {/* Navegador de fecha */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+        <button onClick={() => navFecha(-1)}
+          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>‹</button>
+        <input type="date" value={fechaSel} onChange={e => setFechaSel(e.target.value)}
+          style={{ fontFamily: "inherit", fontSize: 13, background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", color: textPri, outline: "none", colorScheme: dm ? "dark" : "light" }} />
+        <button onClick={() => navFecha(1)}
+          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>›</button>
+        <span style={{ color: textPri, fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>{fechaLabel}</span>
+        {esHoy && <span style={{ background: empColor + "22", color: empColor, border: `1px solid ${empColor}44`, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>Hoy</span>}
+        <button onClick={() => setFechaSel(new Date().toISOString().split("T")[0])}
+          style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${border}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", color: muted, fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+          Ir a hoy
+        </button>
+      </div>
+
+      {/* Tarjetas de salas */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "60px 0", color: muted }}>Cargando reservas...</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {SALAS.map(sala => {
+            const reservasSala = reservasHoy.filter(r => r.salaId === sala.id).sort((a, b) => horaToMin(a.horaInicio) - horaToMin(b.horaInicio));
+            return (
+              <div key={sala.id} style={{ background: cardBg, border: `1px solid ${sala.color}44`, borderRadius: 14, overflow: "hidden" }}>
+                {/* Header de sala */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${border}`, background: sala.color + "11" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 22 }}>{sala.icon}</span>
+                    <div>
+                      <p style={{ margin: 0, color: sala.color, fontWeight: 800, fontSize: 15 }}>{sala.nombre}</p>
+                      <p style={{ margin: 0, color: muted, fontSize: 11 }}>
+                        {reservasSala.length === 0 ? "Libre todo el día" : `${reservasSala.length} reserva${reservasSala.length > 1 ? "s" : ""}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setModalNueva({ salaId: sala.id })}
+                    style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: sala.color, color: "#fff" }}>
+                    + Reservar
+                  </button>
+                </div>
+
+                {/* Timeline visual 08:00–15:00 */}
+                <div style={{ padding: "16px 20px" }}>
+                  {/* Horas */}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    {[8, 9, 10, 11, 12, 13, 14, 15].map(h => (
+                      <span key={h} style={{ color: muted, fontSize: 10, fontWeight: 600 }}>{String(h).padStart(2,"0")}:00</span>
+                    ))}
+                  </div>
+
+                  {/* Barra de disponibilidad */}
+                  <div style={{ position: "relative", height: 36, background: dm ? "#1A2235" : "#F0F7FF", borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+                    {/* Línea de hora actual */}
+                    {esHoy && (() => {
+                      const ahora = new Date();
+                      const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+                      if (minAhora < HORA_INI || minAhora > HORA_FIN) return null;
+                      const left = pct(minToHora(minAhora));
+                      return <div style={{ position: "absolute", left: `${left}%`, top: 0, bottom: 0, width: 2, background: "#E53E3E", zIndex: 3 }} />;
+                    })()}
+                    {/* Bloques ocupados */}
+                    {reservasSala.map(r => {
+                      const left  = pct(r.horaInicio);
+                      const width = ((horaToMin(r.horaFin) - horaToMin(r.horaInicio)) / TOTAL_MIN) * 100;
+                      const esMia = r.usuarioId === usuario?.id;
+                      return (
+                        <div key={r.id} onClick={() => setVerDetalle(r)}
+                          title={`${r.usuarioNombre} · ${r.horaInicio}–${r.horaFin}${r.motivo ? ` · ${r.motivo}` : ""}`}
+                          style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 4, bottom: 4, borderRadius: 5, background: esMia ? sala.color : sala.color + "88", border: `1px solid ${sala.color}`, cursor: "pointer", display: "flex", alignItems: "center", paddingLeft: 6, overflow: "hidden", zIndex: 2 }}>
+                          <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+                            {esMia ? "Yo" : r.usuarioNombre?.split(" ")[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Lista de reservas del día */}
+                  {reservasSala.length === 0 ? (
+                    <p style={{ margin: 0, color: muted, fontSize: 12, fontStyle: "italic" }}>Sin reservas para este día. ¡Disponible todo el horario!</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {reservasSala.map(r => {
+                        const esMia    = r.usuarioId === usuario?.id;
+                        const userInfo = USUARIOS.find(u => u.id === r.usuarioId);
+                        const emp      = EMPRESAS.find(e => e.id === userInfo?.empresaId);
+                        return (
+                          <div key={r.id} onClick={() => setVerDetalle(r)}
+                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: esMia ? sala.color + "18" : (dm ? "#1A2235" : "#F8FAFC"), borderRadius: 8, border: `1px solid ${esMia ? sala.color + "44" : border}`, cursor: "pointer" }}>
+                            <span style={{ color: sala.color, fontSize: 13, fontWeight: 800, minWidth: 100 }}>{r.horaInicio} – {r.horaFin}</span>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: (emp?.color || sala.color) + "33", border: `1.5px solid ${emp?.color || sala.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: emp?.color || sala.color, flexShrink: 0 }}>
+                              {r.usuarioNombre?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ margin: 0, color: textPri, fontSize: 12, fontWeight: esMia ? 700 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {r.usuarioNombre} {esMia && <span style={{ color: sala.color, fontSize: 10 }}>(tú)</span>}
+                              </p>
+                              {r.motivo && <p style={{ margin: 0, color: muted, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.motivo}</p>}
+                            </div>
+                            {esMia && (
+                              <span style={{ background: sala.color + "22", color: sala.color, border: `1px solid ${sala.color}44`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>Tu reserva</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal nueva reserva */}
+      {modalNueva && (
+        <ModalNuevaReserva
+          db={db}
+          darkMode={dm}
+          usuario={usuario}
+          empColor={empColor}
+          salaId={modalNueva.salaId}
+          fechaDefault={fechaSel}
+          reservasExistentes={reservas}
+          onClose={() => setModalNueva(null)}
+        />
+      )}
+
+      {/* Modal detalle */}
+      {verDetalle && (
+        <ModalDetalleReserva
+          db={db}
+          darkMode={dm}
+          reserva={verDetalle}
+          usuario={usuario}
+          empColor={empColor}
+          onClose={() => setVerDetalle(null)}
+          onCancelar={() => cancelarReserva(verDetalle)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Modal: nueva reserva ────────────────────────────────────────
+function ModalNuevaReserva({ db, darkMode, usuario, empColor, salaId, fechaDefault, reservasExistentes, onClose }) {
+  const sala = SALAS.find(s => s.id === salaId);
+  const dm   = darkMode;
+
+  const hoyStr = new Date().toISOString().split("T")[0];
+
+  const [fecha,      setFecha]      = useState(fechaDefault || hoyStr);
+  const [horaInicio, setHoraInicio] = useState("08:00");
+  const [horaFin,    setHoraFin]    = useState("09:00");
+  const [motivo,     setMotivo]     = useState("");
+  const [error,      setError]      = useState("");
+  const [guardando,  setGuardando]  = useState(false);
+
+  const card   = dm ? "#111827" : "#FFFFFF";
+  const border = dm ? "#2E3A55" : "#E2E8F0";
+  const text   = dm ? "#E2E8F0" : "#0F172A";
+  const muted  = dm ? "#64748B" : "#94A3B8";
+  const inp    = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
+  const lbl    = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
+
+  // Opciones de hora: 08:00 a 15:00 cada 30min
+  const horasDisponibles = [];
+  for (let m = 8 * 60; m <= 15 * 60; m += 30) {
+    horasDisponibles.push(minToHora(m));
+  }
+
+  const validar = () => {
+    if (!fecha) return "Selecciona una fecha.";
+    if (fecha < hoyStr) return "No puedes reservar en el pasado.";
+    const ini = horaToMin(horaInicio);
+    const fin = horaToMin(horaFin);
+    if (fin <= ini) return "La hora de fin debe ser posterior a la hora de inicio.";
+    if (ini < 8 * 60 || fin > 15 * 60) return "El horario disponible es de 08:00 a 15:00.";
+    // Comprobar solapamiento
+    const reservasSala = reservasExistentes.filter(r => r.salaId === salaId && r.fecha === fecha);
+    const nueva = { horaInicio, horaFin };
+    const conflicto = reservasSala.find(r => solapan(nueva, r));
+    if (conflicto) return `Conflicto con reserva de ${conflicto.usuarioNombre} (${conflicto.horaInicio}–${conflicto.horaFin}).`;
+    return null;
+  };
+
+  const guardar = async () => {
+    const err = validar();
+    if (err) { setError(err); return; }
+    setGuardando(true);
+    try {
+      const id = "res_" + Date.now();
+      await setDoc(doc(db, "reservasSalas", id), {
+        id,
+        salaId,
+        fecha,
+        horaInicio,
+        horaFin,
+        motivo:       motivo.trim() || null,
+        usuarioId:    usuario.id,
+        usuarioNombre: usuario.nombre,
+        empresaId:    usuario.empresaId,
+        creadoEn:     new Date().toISOString(),
+      });
+      onClose();
+    } catch (e) {
+      setError("Error al guardar. Inténtalo de nuevo.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 460, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <h3 style={{ margin: 0, color: sala.color, fontSize: 17, fontWeight: 800 }}>{sala.icon} {sala.nombre}</h3>
+            <p style={{ margin: "3px 0 0", color: muted, fontSize: 12 }}>Nueva reserva</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Fecha */}
+          <div>
+            <label style={lbl}>📅 Fecha</label>
+            <input type="date" style={inp} value={fecha} min={hoyStr} onChange={e => { setFecha(e.target.value); setError(""); }} />
+          </div>
+
+          {/* Horas */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={lbl}>⏰ Hora inicio</label>
+              <select style={inp} value={horaInicio} onChange={e => { setHoraInicio(e.target.value); setError(""); }}>
+                {horasDisponibles.filter(h => h < "15:00").map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lbl}>⏰ Hora fin</label>
+              <select style={inp} value={horaFin} onChange={e => { setHoraFin(e.target.value); setError(""); }}>
+                {horasDisponibles.filter(h => h > horaInicio).map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Motivo */}
+          <div>
+            <label style={lbl}>📝 Motivo (opcional)</label>
+            <input style={inp} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Reunión de equipo, Formación..." maxLength={100} />
+          </div>
+
+          {/* Info duración */}
+          {horaInicio && horaFin && horaToMin(horaFin) > horaToMin(horaInicio) && (
+            <div style={{ background: sala.color + "11", border: `1px solid ${sala.color}33`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⏱️</span>
+              <span style={{ color: sala.color, fontSize: 13, fontWeight: 700 }}>
+                {horaInicio} – {horaFin} · {Math.round((horaToMin(horaFin) - horaToMin(horaInicio)) / 60 * 10) / 10}h
+              </span>
+            </div>
+          )}
+
+          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando}
+              style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? sala.color + "88" : sala.color, color: "#fff" }}>
+              {guardando ? "Guardando..." : "✓ Confirmar reserva"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal: detalle de reserva ───────────────────────────────────
+function ModalDetalleReserva({ db, darkMode, reserva, usuario, empColor, onClose, onCancelar }) {
+  const dm     = darkMode;
+  const sala   = SALAS.find(s => s.id === reserva.salaId);
+  const card   = dm ? "#111827" : "#FFFFFF";
+  const border = dm ? "#2E3A55" : "#E2E8F0";
+  const text   = dm ? "#E2E8F0" : "#0F172A";
+  const muted  = dm ? "#64748B" : "#94A3B8";
+
+  const esMia  = reserva.usuarioId === usuario?.id;
+  const emp    = EMPRESAS.find(e => e.id === reserva.empresaId);
+  const durMin = horaToMin(reserva.horaFin) - horaToMin(reserva.horaInicio);
+  const durStr = durMin >= 60 ? `${Math.floor(durMin/60)}h${durMin%60>0?` ${durMin%60}min`:""}` : `${durMin}min`;
+
+  const fechaFmt = new Date(reserva.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 420, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: sala.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{sala.icon}</div>
+            <div>
+              <h3 style={{ margin: 0, color: sala.color, fontSize: 16, fontWeight: 800 }}>{sala.nombre}</h3>
+              <p style={{ margin: 0, color: muted, fontSize: 12 }}>Detalles de la reserva</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Fecha */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+            <span style={{ fontSize: 18 }}>📅</span>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Fecha</p>
+              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{fechaFmt}</p>
+            </div>
+          </div>
+
+          {/* Horario */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: sala.color + "11", borderRadius: 8, border: `1px solid ${sala.color}33` }}>
+            <span style={{ fontSize: 18 }}>⏰</span>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Horario</p>
+              <p style={{ margin: 0, color: sala.color, fontSize: 15, fontWeight: 800 }}>{reserva.horaInicio} – {reserva.horaFin} <span style={{ fontSize: 12, fontWeight: 600 }}>({durStr})</span></p>
+            </div>
+          </div>
+
+          {/* Reservado por */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: (emp?.color || empColor) + "33", border: `1.5px solid ${emp?.color || empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: emp?.color || empColor, flexShrink: 0 }}>
+              {reserva.usuarioNombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+            </div>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Reservado por</p>
+              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700 }}>{reserva.usuarioNombre} {esMia && <span style={{ color: sala.color, fontSize: 11 }}>(tú)</span>}</p>
+              {emp && <p style={{ margin: 0, color: emp.color, fontSize: 11 }}>{emp.nombre}</p>}
+            </div>
+          </div>
+
+          {/* Motivo */}
+          {reserva.motivo && (
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+              <span style={{ fontSize: 18 }}>📝</span>
+              <div>
+                <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Motivo</p>
+                <p style={{ margin: 0, color: text, fontSize: 13 }}>{reserva.motivo}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Botones */}
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cerrar</button>
+          {esMia && (
+            <button onClick={onCancelar}
+              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
+              🗑️ Cancelar reserva
+            </button>
+          )}
         </div>
       </div>
     </div>
