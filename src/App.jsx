@@ -3274,6 +3274,7 @@ export default function App() {
             {/* ── RESTO ── */}
             {[
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
+              { id:"proyectos",    icon:"📊", label:"Proyectos" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
@@ -3351,7 +3352,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3634,6 +3635,14 @@ export default function App() {
             empColor={empColor}
             USUARIOS={USUARIOS}
             EMPRESAS={EMPRESAS}
+          />
+        )}
+
+        {/* ── PROYECTOS ── */}
+        {seccion === "proyectos" && (
+          <SeccionProyectos
+            db={db} darkMode={darkMode} usuario={usuario} usuarioId={usuarioId}
+            empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS}
           />
         )}
 
@@ -4980,3 +4989,856 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
     </tr>
   );
 }
+
+
+// ===== MÓDULO PROYECTOS: plantillas + helpers (integrado) =====
+// =============================================================
+//  Módulo Proyectos — Plantillas Gantt
+//  Grupo Laura Otero · App Gestión Empresarial
+//  Generado a partir de: cronograma_obra_electrica.xlsx
+// =============================================================
+//
+//  MODELO DE DATOS
+//  ---------------
+//  Plantilla (estructura reutilizable, SIN fechas absolutas):
+//    { id, nombre, descripcion, categoria, color, fases: [
+//        { nombre, color, tareas: [
+//            { nombre, offsetDias, duracionDias, responsableSugerido, avanceEjemplo }
+//        ]}
+//    ]}
+//
+//  Proyecto (instancia con fechas reales, se guarda en Firestore `proyectos`):
+//    { id, nombre, empresaId, plantillaId, fechaInicio, fechaFin, responsable,
+//      estado, creadoPor, creadoEn, fases: [
+//        { id, nombre, color, tareas: [
+//            { id, nombre, inicio, fin, responsable, avance, dependencias }
+//        ]}
+//    ]}
+//
+//  offsetDias  = días desde el inicio del proyecto hasta el inicio de la tarea
+//  duracionDias = días naturales que dura la tarea (inicio y fin incluidos)
+// =============================================================
+
+// ---------- Helpers de fecha (sin dependencias) ----------
+const MS_DIA = 86400000;
+
+function addDias(fechaISO, n) {
+  const d = new Date(fechaISO);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function diffDias(iniISO, finISO) {
+  return Math.round((new Date(finISO) - new Date(iniISO)) / MS_DIA) + 1;
+}
+
+const uidP = () =>
+  (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : "id_" + Math.random().toString(36).slice(2, 10);
+
+// ---------- PLANTILLA: Instalación eléctrica (obra) ----------
+const PLANTILLA_OBRA_ELECTRICA = {
+  id: "plantilla_obra_electrica",
+  nombre: "Instalación eléctrica (obra)",
+  descripcion: "Cronograma estándar de obra eléctrica: ingeniería, obra civil, cuadros, pruebas y legalización.",
+  categoria: "Instalaciones eléctricas",
+  color: "#cf142b",
+  duracionTotalDias: 121,
+  fases: [
+    {
+      nombre: "Ingeniería y Proyecto",
+      color: "#0077ab",
+      tareas: [
+        { nombre: "Levantamiento de cargas",              offsetDias: 0,  duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
+        { nombre: "Diseño de esquemas unifilares",         offsetDias: 5,  duracionDias: 16, responsableSugerido: "Ana Torres",    avanceEjemplo: 100 },
+        { nombre: "Cálculo de secciones y protecciones",   offsetDias: 12, duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
+        { nombre: "Memoria técnica y planos",              offsetDias: 18, duracionDias: 13, responsableSugerido: "Laura Vidal",   avanceEjemplo: 85  },
+        { nombre: "Aprobación de proyecto",                offsetDias: 28, duracionDias: 11, responsableSugerido: "Dirección",     avanceEjemplo: 60  },
+      ],
+    },
+    {
+      nombre: "Obra Civil y Canalizaciones",
+      color: "#6B7280",
+      tareas: [
+        { nombre: "Replanteo de trazados",                 offsetDias: 30, duracionDias: 7,  responsableSugerido: "Pedro Sanz", avanceEjemplo: 50 },
+        { nombre: "Apertura de rozas y zanjas",            offsetDias: 33, duracionDias: 18, responsableSugerido: "Equipo A",   avanceEjemplo: 30 },
+        { nombre: "Instalación de tubos y bandejas",       offsetDias: 40, duracionDias: 21, responsableSugerido: "Equipo A",   avanceEjemplo: 10 },
+        { nombre: "Tendido de cables BT",                  offsetDias: 55, duracionDias: 21, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
+        { nombre: "Tendido de cables MT",                  offsetDias: 60, duracionDias: 26, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
+        { nombre: "Sellado y acabados civiles",            offsetDias: 80, duracionDias: 16, responsableSugerido: "Equipo A",   avanceEjemplo: 0  },
+      ],
+    },
+    {
+      nombre: "Cuadros y Equipos",
+      color: "#e0ad12",
+      tareas: [
+        { nombre: "Recepción y verificación de material",  offsetDias: 35, duracionDias: 8,  responsableSugerido: "Almacén",       avanceEjemplo: 40 },
+        { nombre: "Montaje CGD / CGBT principal",          offsetDias: 50, duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 5  },
+        { nombre: "Montaje cuadros secundarios",           offsetDias: 60, duracionDias: 21, responsableSugerido: "Juan Romero",   avanceEjemplo: 0  },
+        { nombre: "Instalación transformador MT/BT",       offsetDias: 65, duracionDias: 16, responsableSugerido: "Proveedor ext.", avanceEjemplo: 0 },
+        { nombre: "Montaje equipos de medida",             offsetDias: 75, duracionDias: 14, responsableSugerido: "Ana Torres",    avanceEjemplo: 0  },
+      ],
+    },
+    {
+      nombre: "Conexiones y Pruebas",
+      color: "#af4a85",
+      tareas: [
+        { nombre: "Conexionado cuadros y circuitos",       offsetDias: 80,  duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 0 },
+        { nombre: "Pruebas de aislamiento (Megger)",       offsetDias: 92,  duracionDias: 7,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Verificación de protecciones",          offsetDias: 95,  duracionDias: 8,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Prueba funcional de circuitos",         offsetDias: 98,  duracionDias: 9,  responsableSugerido: "Equipo B",      avanceEjemplo: 0 },
+        { nombre: "Medición de tierras",                   offsetDias: 100, duracionDias: 9,  responsableSugerido: "Ana Torres",    avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Legalización y Entrega",
+      color: "#4F8C0d",
+      tareas: [
+        { nombre: "Acta de puesta en servicio",            offsetDias: 105, duracionDias: 6, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
+        { nombre: "Documentación as-built",                offsetDias: 106, duracionDias: 9, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
+        { nombre: "Boletín eléctrico BCIE",                offsetDias: 108, duracionDias: 9, responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Entrega a cliente",                     offsetDias: 114, duracionDias: 7, responsableSugerido: "Dirección",     avanceEjemplo: 0 },
+      ],
+    },
+  ],
+};
+
+// Registro de plantillas disponibles (añade aquí futuras plantillas)
+const PLANTILLAS = [PLANTILLA_OBRA_ELECTRICA];
+
+// ---------- Instanciar un proyecto desde una plantilla ----------
+// opciones: { nombre, fechaInicio (YYYY-MM-DD), empresaId, creadoPor, usarAvanceEjemplo }
+function crearProyectoDesdePlantilla(plantilla, opciones = {}) {
+  const {
+    nombre = plantilla.nombre,
+    fechaInicio = new Date().toISOString().slice(0, 10),
+    empresaId = 0,
+    creadoPor = null,
+    usarAvanceEjemplo = false,
+  } = opciones;
+
+  let finMax = fechaInicio;
+
+  const fases = plantilla.fases.map((f) => ({
+    id: uidP(),
+    nombre: f.nombre,
+    color: f.color || plantilla.color || "#6B7280",
+    tareas: f.tareas.map((t) => {
+      const inicio = addDias(fechaInicio, t.offsetDias);
+      const fin = addDias(inicio, t.duracionDias - 1);
+      if (new Date(fin) > new Date(finMax)) finMax = fin;
+      return {
+        id: uidP(),
+        nombre: t.nombre,
+        inicio,
+        fin,
+        responsable: t.responsableSugerido || "",
+        avance: usarAvanceEjemplo ? (t.avanceEjemplo || 0) : 0,
+        dependencias: [],
+      };
+    }),
+  }));
+
+  return {
+    id: uidP(),
+    nombre,
+    empresaId,
+    plantillaId: plantilla.id,
+    fechaInicio,
+    fechaFin: finMax,
+    responsable: "",
+    estado: "En progreso", // Planificado | En progreso | Completado | Cancelado
+    creadoPor,
+    creadoEn: new Date().toISOString(),
+    fases,
+  };
+}
+
+// Proyecto en blanco (creación manual, sin plantilla)
+function crearProyectoVacio(opciones = {}) {
+  const fechaInicio = opciones.fechaInicio || new Date().toISOString().slice(0, 10);
+  return {
+    id: uidP(),
+    nombre: opciones.nombre || "Nuevo proyecto",
+    empresaId: opciones.empresaId ?? 0,
+    plantillaId: null,
+    fechaInicio,
+    fechaFin: fechaInicio,
+    responsable: "",
+    estado: "Planificado",
+    creadoPor: opciones.creadoPor || null,
+    creadoEn: new Date().toISOString(),
+    fases: [],
+  };
+}
+
+// Progreso global de un proyecto (media ponderada por duración de tarea)
+function progresoProyecto(proyecto) {
+  let totalDias = 0, ponderado = 0;
+  for (const f of proyecto.fases) {
+    for (const t of f.tareas) {
+      const d = Math.max(1, diffDias(t.inicio, t.fin));
+      totalDias += d;
+      ponderado += d * (t.avance || 0);
+    }
+  }
+  return totalDias ? Math.round(ponderado / totalDias) : 0;
+}
+
+// =============================================================
+//  IMPORT / EXPORT EXCEL  (requiere SheetJS: `npm i xlsx`)
+//  import * as XLSX from "xlsx";
+//  Mismo formato de columnas que tu cronograma:
+//  Fase | Tarea / Actividad | Inicio | Fin | Responsable | % Avance
+//  (filas de fase = sin tarea/fechas, actúan de agrupador)
+// =============================================================
+
+const COL = ["Fase", "Tarea / Actividad", "Inicio", "Fin", "Responsable", "% Avance"];
+
+function excelSerialAISO(v) {
+  // 25569 = días entre 1899-12-30 y 1970-01-01
+  const d = new Date(Math.round((Number(v) - 25569) * MS_DIA));
+  return d.toISOString().slice(0, 10);
+}
+function parseFecha(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return excelSerialAISO(v);
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/); // DD/MM/AAAA
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  const d = new Date(s);
+  return isNaN(d) ? null : d.toISOString().slice(0, 10);
+}
+const fmtESx = (iso) => {
+  if (!iso) return "";
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+};
+
+// XLSX = instancia de SheetJS pasada por el caller
+function parseExcelCronograma(XLSX, arrayBuffer, opciones = {}) {
+  const wb = XLSX.read(arrayBuffer, { type: "array" });
+  const ws = wb.Sheets["Cronograma"] || wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+  const fases = [];
+  let cur = null;
+  for (const r of rows) {
+    const fase = r["Fase"];
+    const tarea = r["Tarea / Actividad"];
+    if (fase && !tarea) {
+      cur = { id: uidP(), nombre: String(fase), color: "#6B7280", tareas: [] };
+      fases.push(cur);
+    } else if (tarea) {
+      if (!cur) { cur = { id: uidP(), nombre: String(fase || "General"), color: "#6B7280", tareas: [] }; fases.push(cur); }
+      const inicio = parseFecha(r["Inicio"]);
+      const fin = parseFecha(r["Fin"]) || inicio;
+      cur.tareas.push({
+        id: uidP(),
+        nombre: String(tarea),
+        inicio,
+        fin,
+        responsable: String(r["Responsable"] || ""),
+        avance: Number(r["% Avance"]) || 0,
+        dependencias: [],
+      });
+    }
+  }
+  const todas = fases.flatMap((f) => f.tareas).map((t) => t.fin).filter(Boolean);
+  return {
+    id: uidP(),
+    nombre: opciones.nombre || "Proyecto importado",
+    empresaId: opciones.empresaId ?? 0,
+    plantillaId: null,
+    fechaInicio: fases[0]?.tareas[0]?.inicio || new Date().toISOString().slice(0, 10),
+    fechaFin: todas.length ? todas.sort().at(-1) : "",
+    responsable: "",
+    estado: "En progreso",
+    creadoPor: opciones.creadoPor || null,
+    creadoEn: new Date().toISOString(),
+    fases,
+  };
+}
+
+function exportarProyectoExcel(XLSX, proyecto) {
+  const aoa = [COL];
+  for (const f of proyecto.fases) {
+    aoa.push([f.nombre, "", "", "", "", ""]); // fila de fase
+    for (const t of f.tareas) {
+      aoa.push([f.nombre, t.nombre, fmtESx(t.inicio), fmtESx(t.fin), t.responsable, t.avance]);
+    }
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 26 }, { wch: 34 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Cronograma");
+  XLSX.writeFile(wb, `${proyecto.nombre.replace(/\s+/g, "_")}.xlsx`);
+}
+
+
+// ===== MÓDULO PROYECTOS: componentes UI (integrado) =====
+// =============================================================
+//  SeccionProyectos.jsx — Módulo Proyectos con Gantt
+//  Grupo Laura Otero · App Gestión Empresarial
+//  Requiere: ./plantillaProyectos.js  y (para Excel) `npm i xlsx`
+// =============================================================
+
+
+const ESTADOS_PROY = {
+  "Planificado":  "#6B7280",
+  "En progreso":  "#3182CE",
+  "Completado":   "#38A169",
+  "Cancelado":    "#E53E3E",
+};
+const MESES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const fmtES = (iso) => { if (!iso) return "—"; const [a,m,d]=iso.split("-"); return `${d}/${m}/${a}`; };
+
+// ─── Componente principal ───────────────────────────────────
+function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS, EMPRESAS }) {
+  const [proyectos, setProyectos] = useState([]);
+  const [abierto, setAbierto] = useState(null);     // id del proyecto en detalle
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [filtroEmp, setFiltroEmp] = useState("todas");
+  const [buscar, setBuscar] = useState("");
+
+  const rol = usuario?.rol;
+  const esDirCeo = ["director","ceo"].includes(rol);
+  const puedeEditar = ["director","ceo","encargado","administrador"].includes(rol);
+
+  // ── Firestore: proyectos en tiempo real ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "proyectos"), snap => {
+      setProyectos(snap.docs.map(d => d.data()).sort((a,b) => new Date(b.creadoEn||0) - new Date(a.creadoEn||0)));
+    }, err => console.error("Firebase proyectos error:", err));
+    return () => unsub();
+  }, [db]);
+
+  // ── Visibilidad por rol ──
+  const visibles = useMemo(() => proyectos.filter(p => {
+    if (esDirCeo || rol === "administrador") return true;
+    if (rol === "encargado") return p.empresaId === usuario?.empresaId;
+    // trabajador: proyectos de su empresa o donde figura como responsable de alguna tarea
+    if (p.empresaId === usuario?.empresaId) return true;
+    return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsable && usuario?.nombre && t.responsable.includes(usuario.nombre.split(" ")[0])));
+  }), [proyectos, rol, usuario, esDirCeo]);
+
+  const filtrados = visibles
+    .filter(p => filtroEmp === "todas" || p.empresaId === Number(filtroEmp))
+    .filter(p => !buscar || p.nombre.toLowerCase().includes(buscar.toLowerCase()));
+
+  // ── Persistencia ──
+  const guardar = async (p) => { await setDoc(doc(db, "proyectos", String(p.id)), p); };
+  const eliminar = async (id) => {
+    if (!window.confirm("¿Eliminar este proyecto? No se puede deshacer.")) return;
+    await deleteDoc(doc(db, "proyectos", String(id)));
+    setAbierto(null);
+  };
+
+  const card = darkMode ? "#111827" : "#FFFFFF";
+  const border = darkMode ? "#1E293B" : "#E2E8F0";
+  const textPri = darkMode ? "#E2E8F0" : "#0F172A";
+  const muted = darkMode ? "#64748B" : "#94A3B8";
+
+  // KPIs
+  const kpis = {
+    total: visibles.length,
+    progreso: visibles.filter(p => p.estado === "En progreso").length,
+    completados: visibles.filter(p => p.estado === "Completado").length,
+    avance: visibles.length ? Math.round(visibles.reduce((s,p)=>s+progresoProyecto(p),0)/visibles.length) : 0,
+  };
+
+  // ── Vista detalle (Gantt) ──
+  const proyAbierto = proyectos.find(p => p.id === abierto);
+  if (proyAbierto) {
+    return <DetalleProyecto
+      proyecto={proyAbierto} db={db} darkMode={darkMode} empColor={empColor}
+      puedeEditar={puedeEditar} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS}
+      onVolver={() => setAbierto(null)} onGuardar={guardar} onEliminar={eliminar} />;
+  }
+
+  // ── Vista lista ──
+  return (
+    <div>
+      <div className="page-header" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:18 }}>📊 Proyectos</h2>
+          <p style={{ margin:0, color: muted, fontSize:13 }}>Cronogramas Gantt por proyecto y empresa</p>
+        </div>
+        {puedeEditar && (
+          <div className="page-header-actions">
+            <button onClick={() => setModalNuevo(true)}
+              style={{ background: empColor, border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              + Nuevo proyecto
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* KPIs */}
+      <div className="stats-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+        {[
+          ["Total", kpis.total, "📊", "#3182CE"],
+          ["En progreso", kpis.progreso, "🔵", "#3182CE"],
+          ["Completados", kpis.completados, "✅", "#38A169"],
+          ["Avance medio", kpis.avance + "%", "📈", empColor],
+        ].map(([l,v,ic,col]) => (
+          <div key={l} style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"14px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+              <span style={{ fontSize:16 }}>{ic}</span>
+              <span style={{ color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{l}</span>
+            </div>
+            <p style={{ margin:0, color:col, fontSize:24, fontWeight:900 }}>{v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <div className="filters-row" style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+        <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar proyecto..."
+          style={{ fontFamily:"inherit", fontSize:13, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color:textPri, outline:"none", minWidth:220 }} />
+        {esDirCeo && (
+          <select value={filtroEmp} onChange={e=>setFiltroEmp(e.target.value)}
+            style={{ fontFamily:"inherit", fontSize:13, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color:textPri, outline:"none" }}>
+            <option value="todas">Todas las empresas</option>
+            {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+          </select>
+        )}
+      </div>
+
+      {/* Lista */}
+      {filtrados.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"70px 20px" }}>
+          <p style={{ fontSize:50, marginBottom:12 }}>📊</p>
+          <p style={{ fontSize:15, fontWeight:700, color: muted }}>No hay proyectos todavía</p>
+          {puedeEditar && <p style={{ fontSize:13, color: muted }}>Crea uno desde una plantilla o impórtalo desde Excel</p>}
+        </div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))", gap:12 }}>
+          {filtrados.map(p => {
+            const emp = EMPRESAS.find(e => e.id === p.empresaId);
+            const prog = progresoProyecto(p);
+            const nT = (p.fases||[]).reduce((s,f)=>s+(f.tareas||[]).length,0);
+            return (
+              <div key={p.id} onClick={() => setAbierto(p.id)}
+                style={{ background:card, border:`1px solid ${border}`, borderLeft:`4px solid ${emp?.color||empColor}`, borderRadius:12, padding:"16px 18px", cursor:"pointer" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, marginBottom:8 }}>
+                  <p style={{ margin:0, color:textPri, fontSize:15, fontWeight:800, lineHeight:1.3 }}>{p.nombre}</p>
+                  <span style={{ background: ESTADOS_PROY[p.estado]+"22", color: ESTADOS_PROY[p.estado], borderRadius:5, padding:"2px 8px", fontSize:10, fontWeight:800, whiteSpace:"nowrap" }}>{p.estado}</span>
+                </div>
+                <p style={{ margin:"0 0 12px", color:muted, fontSize:12 }}>
+                  {emp && <span style={{ color: emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {nT} tareas · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)}
+                </p>
+                <div style={{ background: darkMode?"#0D1424":"#F1F5F9", borderRadius:6, height:8, overflow:"hidden" }}>
+                  <div style={{ width:`${prog}%`, height:"100%", background: prog===100?"#38A169":(emp?.color||empColor), transition:"width .3s" }} />
+                </div>
+                <p style={{ margin:"6px 0 0", color:muted, fontSize:11, fontWeight:700, textAlign:"right" }}>{prog}%</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modalNuevo && (
+        <ModalNuevoProyecto darkMode={darkMode} empColor={empColor} usuario={usuario} usuarioId={usuarioId}
+          esDirCeo={esDirCeo} EMPRESAS={EMPRESAS}
+          onClose={() => setModalNuevo(false)}
+          onCrear={async (p) => { await guardar(p); setModalNuevo(false); setAbierto(p.id); }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Modal: nuevo proyecto (blanco / plantilla / Excel) ─────
+function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, EMPRESAS, onClose, onCrear }) {
+  const [modo, setModo] = useState("plantilla"); // plantilla | blanco | excel
+  const [nombre, setNombre] = useState("");
+  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().slice(0,10));
+  const [empresaId, setEmpresaId] = useState(esDirCeo ? 0 : (usuario?.empresaId ?? 0));
+  const [plantillaId, setPlantillaId] = useState(PLANTILLAS[0]?.id || "");
+  const [archivo, setArchivo] = useState(null);
+  const [err, setErr] = useState("");
+
+  const card = darkMode ? "#111827" : "#FFFFFF";
+  const border = darkMode ? "#1E293B" : "#E2E8F0";
+  const textPri = darkMode ? "#E2E8F0" : "#0F172A";
+  const muted = darkMode ? "#64748B" : "#94A3B8";
+  const inp = { fontFamily:"inherit", fontSize:13, background: darkMode?"#0D1424":"#FFFFFF", border:`1px solid ${border}`, borderRadius:8, padding:"9px 12px", color:textPri, outline:"none", width:"100%", boxSizing:"border-box" };
+  const lbl = { display:"block", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:6 };
+
+  const crear = async () => {
+    setErr("");
+    const base = { empresaId: Number(empresaId), creadoPor: usuarioId };
+    try {
+      if (modo === "excel") {
+        if (!archivo) return setErr("Selecciona un archivo Excel.");
+        let XLSX;
+        try { XLSX = await import("xlsx"); } catch { return setErr("Falta la librería 'xlsx'. Ejecuta: npm i xlsx"); }
+        const buf = await archivo.arrayBuffer();
+        const p = parseExcelCronograma(XLSX, buf, { ...base, nombre: nombre.trim() || archivo.name.replace(/\.xlsx?$/i,"") });
+        p.id = genId();
+        return onCrear(p);
+      }
+      if (!nombre.trim()) return setErr("Pon un nombre al proyecto.");
+      let p;
+      if (modo === "plantilla") {
+        const pl = PLANTILLAS.find(x => x.id === plantillaId);
+        p = crearProyectoDesdePlantilla(pl, { ...base, nombre: nombre.trim(), fechaInicio });
+      } else {
+        p = crearProyectoVacio({ ...base, nombre: nombre.trim(), fechaInicio });
+      }
+      p.id = genId();
+      onCrear(p);
+    } catch (e) { console.error(e); setErr("Error al crear el proyecto: " + e.message); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"#0008", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, padding:16 }}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}
+        style={{ background:card, border:`1px solid ${border}`, borderRadius:16, padding:24, width:"min(460px,100%)", maxHeight:"90vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+          <h3 style={{ margin:0, color:textPri, fontSize:16, fontWeight:800 }}>Nuevo proyecto</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:22 }}>×</button>
+        </div>
+
+        {/* Selector de modo */}
+        <div style={{ display:"flex", gap:6, marginBottom:18, background: darkMode?"#0D1424":"#F1F5F9", borderRadius:9, padding:3 }}>
+          {[["plantilla","📋 Plantilla"],["blanco","➕ En blanco"],["excel","📥 Excel"]].map(([v,l]) => (
+            <button key={v} onClick={()=>setModo(v)}
+              style={{ flex:1, fontFamily:"inherit", fontSize:12, fontWeight:700, padding:"8px 6px", borderRadius:7, border:"none", cursor:"pointer",
+                background: modo===v ? empColor : "transparent", color: modo===v ? "#fff" : muted }}>{l}</button>
+          ))}
+        </div>
+
+        {modo !== "excel" && (
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Nombre del proyecto</label>
+            <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej. Nave industrial Miajadas" />
+          </div>
+        )}
+
+        {modo === "plantilla" && (
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Plantilla</label>
+            <select style={inp} value={plantillaId} onChange={e=>setPlantillaId(e.target.value)}>
+              {PLANTILLAS.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.fases.reduce((s,f)=>s+f.tareas.length,0)} tareas)</option>)}
+            </select>
+            {(() => { const pl = PLANTILLAS.find(x=>x.id===plantillaId); return pl && <p style={{ margin:"6px 0 0", color:muted, fontSize:11 }}>{pl.descripcion}</p>; })()}
+          </div>
+        )}
+
+        {modo !== "excel" && (
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Fecha de inicio</label>
+            <input type="date" style={inp} value={fechaInicio} onChange={e=>setFechaInicio(e.target.value)} />
+          </div>
+        )}
+
+        {modo === "excel" && (
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Archivo Excel (columnas: Fase · Tarea / Actividad · Inicio · Fin · Responsable · % Avance)</label>
+            <input type="file" accept=".xlsx,.xls" onChange={e=>setArchivo(e.target.files?.[0]||null)}
+              style={{ ...inp, padding:"8px" }} />
+            <div style={{ marginTop:14 }}>
+              <label style={lbl}>Nombre (opcional)</label>
+              <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Se usa el nombre del archivo si lo dejas vacío" />
+            </div>
+          </div>
+        )}
+
+        {esDirCeo && (
+          <div style={{ marginBottom:14 }}>
+            <label style={lbl}>Empresa</label>
+            <select style={inp} value={empresaId} onChange={e=>setEmpresaId(e.target.value)}>
+              {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </select>
+          </div>
+        )}
+
+        {err && <p style={{ color:"#E53E3E", fontSize:12, margin:"0 0 12px" }}>{err}</p>}
+
+        <div style={{ display:"flex", gap:10, marginTop:6 }}>
+          <button onClick={onClose} style={{ flex:1, background:"transparent", border:`1px solid ${border}`, borderRadius:8, padding:"10px", color:muted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+          <button onClick={crear} style={{ flex:2, background:empColor, border:"none", borderRadius:8, padding:"10px", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>Crear proyecto</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Detalle del proyecto + Gantt ───────────────────────────
+function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARIOS, EMPRESAS, onVolver, onGuardar, onEliminar }) {
+  const [p, setP] = useState(proyecto);
+  const [editTarea, setEditTarea] = useState(null); // { faseId, tarea } o { faseId, tarea:null } para nueva
+  useEffect(() => { setP(proyecto); }, [proyecto.id]);
+
+  const card = darkMode ? "#111827" : "#FFFFFF";
+  const border = darkMode ? "#1E293B" : "#E2E8F0";
+  const textPri = darkMode ? "#E2E8F0" : "#0F172A";
+  const muted = darkMode ? "#64748B" : "#94A3B8";
+  const emp = EMPRESAS.find(e => e.id === p.empresaId);
+
+  // Recalcular rango y persistir
+  const recalcRango = (proj) => {
+    const todas = (proj.fases||[]).flatMap(f => f.tareas||[]);
+    const inis = todas.map(t=>t.inicio).filter(Boolean).sort();
+    const fins = todas.map(t=>t.fin).filter(Boolean).sort();
+    return { ...proj, fechaInicio: inis[0] || proj.fechaInicio, fechaFin: fins.at(-1) || proj.fechaFin };
+  };
+  const persistir = (proj) => { const r = recalcRango(proj); setP(r); onGuardar(r); };
+
+  const setEstado = (estado) => persistir({ ...p, estado });
+
+  const guardarTarea = (faseId, datos, tareaId) => {
+    const fases = p.fases.map(f => {
+      if (f.id !== faseId) return f;
+      if (tareaId) return { ...f, tareas: f.tareas.map(t => t.id===tareaId ? { ...t, ...datos } : t) };
+      return { ...f, tareas: [...f.tareas, { id: genId(), dependencias:[], avance:0, ...datos }] };
+    });
+    persistir({ ...p, fases });
+    setEditTarea(null);
+  };
+  const borrarTarea = (faseId, tareaId) => {
+    const fases = p.fases.map(f => f.id===faseId ? { ...f, tareas: f.tareas.filter(t=>t.id!==tareaId) } : f);
+    persistir({ ...p, fases });
+    setEditTarea(null);
+  };
+  const addFase = () => {
+    const nombre = window.prompt("Nombre de la nueva fase:");
+    if (!nombre) return;
+    persistir({ ...p, fases: [...(p.fases||[]), { id: genId(), nombre, color: emp?.color||empColor, tareas: [] }] });
+  };
+  const borrarFase = (faseId) => {
+    if (!window.confirm("¿Eliminar la fase y todas sus tareas?")) return;
+    persistir({ ...p, fases: p.fases.filter(f=>f.id!==faseId) });
+  };
+
+  const exportar = async () => {
+    let XLSX;
+    try { XLSX = await import("xlsx"); } catch { alert("Falta la librería 'xlsx'. Ejecuta: npm i xlsx"); return; }
+    exportarProyectoExcel(XLSX, p);
+  };
+
+  const prog = progresoProyecto(p);
+
+  return (
+    <div>
+      {/* Cabecera */}
+      <div className="page-header" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:12 }}>
+        <div style={{ minWidth:0 }}>
+          <button onClick={onVolver} style={{ background:"none", border:"none", color: empColor, cursor:"pointer", fontSize:13, fontWeight:700, padding:0, marginBottom:6 }}>← Volver a proyectos</button>
+          <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:18 }}>{p.nombre}</h2>
+          <p style={{ margin:0, color:muted, fontSize:13 }}>
+            {emp && <span style={{ color:emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)} · {prog}% completado
+          </p>
+        </div>
+        <div className="page-header-actions" style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {puedeEditar && (
+            <select value={p.estado} onChange={e=>setEstado(e.target.value)}
+              style={{ fontFamily:"inherit", fontSize:12, fontWeight:700, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color: ESTADOS_PROY[p.estado], outline:"none", cursor:"pointer" }}>
+              {Object.keys(ESTADOS_PROY).map(e => <option key={e} value={e}>{e}</option>)}
+            </select>
+          )}
+          <button onClick={exportar} style={{ background:"#38A16922", border:"1px solid #38A16944", borderRadius:8, padding:"8px 14px", color:"#38A169", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⬇️ Excel</button>
+          {puedeEditar && <button onClick={()=>onEliminar(p.id)} style={{ background:"#E53E3E22", border:"1px solid #E53E3E44", borderRadius:8, padding:"8px 14px", color:"#E53E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>🗑️ Eliminar</button>}
+        </div>
+      </div>
+
+      {/* Gantt */}
+      <GanttChart p={p} darkMode={darkMode} empColor={empColor}
+        onEditarTarea={puedeEditar ? (faseId, tarea) => setEditTarea({ faseId, tarea }) : null}
+        onBorrarFase={puedeEditar ? borrarFase : null} />
+
+      {puedeEditar && (
+        <button onClick={addFase} style={{ marginTop:14, background:"transparent", border:`1px dashed ${border}`, borderRadius:8, padding:"10px 16px", color:muted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          + Añadir fase
+        </button>
+      )}
+
+      {editTarea && (
+        <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} empresaId={p.empresaId}
+          fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
+          onGuardar={(datos)=>guardarTarea(editTarea.faseId, datos, editTarea.tarea?.id)}
+          onBorrar={editTarea.tarea ? ()=>borrarTarea(editTarea.faseId, editTarea.tarea.id) : null}
+          onClose={()=>setEditTarea(null)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Gráfico Gantt ──────────────────────────────────────────
+function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
+  const card = darkMode ? "#111827" : "#FFFFFF";
+  const border = darkMode ? "#1E293B" : "#E2E8F0";
+  const textPri = darkMode ? "#E2E8F0" : "#0F172A";
+  const muted = darkMode ? "#64748B" : "#94A3B8";
+  const grid = darkMode ? "#1E293B" : "#EEF2F7";
+
+  const todas = (p.fases||[]).flatMap(f => f.tareas||[]).filter(t=>t.inicio && t.fin);
+  if (todas.length === 0) {
+    return <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"40px 20px", textAlign:"center", color:muted, fontSize:13 }}>
+      Sin tareas todavía. {onEditarTarea && "Añade una fase y empieza a planificar."}
+    </div>;
+  }
+  const ini = todas.map(t=>t.inicio).sort()[0];
+  const fin = todas.map(t=>t.fin).sort().at(-1);
+  const totalDias = Math.max(1, diffDias(ini, fin));
+  const pxPorDia = 14;
+  const anchoTimeline = totalDias * pxPorDia;
+  const LABEL_W = 220;
+
+  // Marcas de mes
+  const marcas = [];
+  let d = new Date(ini);
+  while (d <= new Date(fin)) {
+    const offset = diffDias(ini, d.toISOString().slice(0,10)) - 1;
+    marcas.push({ left: offset * pxPorDia, label: `${MESES_ABR[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
+    d.setMonth(d.getMonth()+1, 1);
+  }
+  const hoyOffset = (() => {
+    const hoy = new Date().toISOString().slice(0,10);
+    if (hoy < ini || hoy > fin) return null;
+    return (diffDias(ini, hoy)-1) * pxPorDia;
+  })();
+
+  return (
+    <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, overflow:"hidden" }}>
+      <div style={{ overflowX:"auto" }}>
+        <div style={{ minWidth: LABEL_W + anchoTimeline }}>
+          {/* Cabecera meses */}
+          <div style={{ display:"flex", borderBottom:`1px solid ${border}`, position:"sticky", top:0 }}>
+            <div style={{ width:LABEL_W, flexShrink:0, padding:"8px 12px", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", borderRight:`1px solid ${border}` }}>Tarea</div>
+            <div style={{ position:"relative", height:34, width:anchoTimeline }}>
+              {marcas.map((m,i)=>(
+                <div key={i} style={{ position:"absolute", left:m.left, top:0, bottom:0, borderLeft:`1px solid ${grid}`, paddingLeft:6, color:muted, fontSize:10, fontWeight:700, display:"flex", alignItems:"center" }}>{m.label}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Filas por fase */}
+          {(p.fases||[]).map(fase => (
+            <div key={fase.id}>
+              {/* Fila de fase */}
+              <div style={{ display:"flex", background: darkMode?"#0D1424":"#F8FAFC", borderBottom:`1px solid ${border}` }}>
+                <div style={{ width:LABEL_W, flexShrink:0, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, borderRight:`1px solid ${border}` }}>
+                  <span style={{ width:9, height:9, borderRadius:2, background: fase.color||empColor, flexShrink:0 }} />
+                  <span style={{ color:textPri, fontSize:12, fontWeight:800, flex:1 }}>{fase.nombre}</span>
+                  {onBorrarFase && <button onClick={()=>onBorrarFase(fase.id)} title="Eliminar fase" style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:12 }}>×</button>}
+                </div>
+                <div style={{ position:"relative", width:anchoTimeline, height:33 }}>
+                  {hoyOffset!=null && <div style={{ position:"absolute", left:hoyOffset, top:0, bottom:0, width:2, background:"#E53E3E88" }} />}
+                </div>
+              </div>
+              {/* Tareas */}
+              {(fase.tareas||[]).map(t => {
+                const tieneFechas = t.inicio && t.fin;
+                const left = tieneFechas ? (diffDias(ini, t.inicio)-1)*pxPorDia : 0;
+                const w = tieneFechas ? Math.max(pxPorDia, diffDias(t.inicio, t.fin)*pxPorDia) : 0;
+                const completa = (t.avance||0) >= 100;
+                return (
+                  <div key={t.id} style={{ display:"flex", borderBottom:`1px solid ${grid}` }}>
+                    <div onClick={onEditarTarea ? ()=>onEditarTarea(fase.id, t) : undefined}
+                      style={{ width:LABEL_W, flexShrink:0, padding:"7px 12px 7px 28px", borderRight:`1px solid ${border}`, cursor: onEditarTarea?"pointer":"default" }}>
+                      <p style={{ margin:0, color:textPri, fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.nombre}</p>
+                      <p style={{ margin:0, color:muted, fontSize:10 }}>{t.responsable||"Sin asignar"}</p>
+                    </div>
+                    <div style={{ position:"relative", width:anchoTimeline, height:40, display:"flex", alignItems:"center" }}>
+                      {marcas.map((m,i)=><div key={i} style={{ position:"absolute", left:m.left, top:0, bottom:0, borderLeft:`1px solid ${grid}` }} />)}
+                      {hoyOffset!=null && <div style={{ position:"absolute", left:hoyOffset, top:0, bottom:0, width:2, background:"#E53E3E55" }} />}
+                      {tieneFechas && (
+                        <div onClick={onEditarTarea ? ()=>onEditarTarea(fase.id, t) : undefined}
+                          title={`${t.nombre} · ${fmtES(t.inicio)} → ${fmtES(t.fin)} · ${t.avance||0}%`}
+                          style={{ position:"absolute", left, width:w, height:22, borderRadius:6, background:(fase.color||empColor)+"33", border:`1px solid ${fase.color||empColor}`, overflow:"hidden", cursor:onEditarTarea?"pointer":"default" }}>
+                          <div style={{ width:`${t.avance||0}%`, height:"100%", background: completa?"#38A169":(fase.color||empColor) }} />
+                          <span style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", paddingLeft:6, color:"#fff", fontSize:10, fontWeight:700, whiteSpace:"nowrap", textShadow:"0 1px 2px #0006" }}>{t.avance||0}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Añadir tarea a la fase */}
+              {onEditarTarea && (
+                <div style={{ display:"flex", borderBottom:`1px solid ${grid}` }}>
+                  <div style={{ width:LABEL_W, flexShrink:0, padding:"5px 12px 5px 28px", borderRight:`1px solid ${border}` }}>
+                    <button onClick={()=>onEditarTarea(fase.id, null)} style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:11, fontWeight:700, padding:0 }}>+ tarea</button>
+                  </div>
+                  <div style={{ width:anchoTimeline, height:28 }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal: editar / crear tarea ────────────────────────────
+function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
+  const [nombre, setNombre] = useState(tarea?.nombre || "");
+  const [inicio, setInicio] = useState(tarea?.inicio || fechaBaseProyecto || new Date().toISOString().slice(0,10));
+  const [fin, setFin] = useState(tarea?.fin || addDias(tarea?.inicio || fechaBaseProyecto || new Date().toISOString().slice(0,10), 4));
+  const [responsable, setResponsable] = useState(tarea?.responsable || "");
+  const [avance, setAvance] = useState(tarea?.avance ?? 0);
+  const [err, setErr] = useState("");
+
+  const card = darkMode ? "#111827" : "#FFFFFF";
+  const border = darkMode ? "#1E293B" : "#E2E8F0";
+  const textPri = darkMode ? "#E2E8F0" : "#0F172A";
+  const muted = darkMode ? "#64748B" : "#94A3B8";
+  const inp = { fontFamily:"inherit", fontSize:13, background: darkMode?"#0D1424":"#FFFFFF", border:`1px solid ${border}`, borderRadius:8, padding:"9px 12px", color:textPri, outline:"none", width:"100%", boxSizing:"border-box" };
+  const lbl = { display:"block", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:6 };
+
+  // Sugerencias de responsables: usuarios de la empresa del proyecto
+  const sugeridos = USUARIOS.filter(u => u.empresaId === empresaId).map(u => u.nombre);
+
+  const guardar = () => {
+    if (!nombre.trim()) return setErr("Pon un nombre a la tarea.");
+    if (new Date(fin) < new Date(inicio)) return setErr("La fecha de fin no puede ser anterior al inicio.");
+    onGuardar({ nombre: nombre.trim(), inicio, fin, responsable: responsable.trim(), avance: Math.max(0, Math.min(100, Number(avance)||0)) });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"#0008", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, padding:16 }}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}
+        style={{ background:card, border:`1px solid ${border}`, borderRadius:16, padding:24, width:"min(440px,100%)", maxHeight:"90vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <h3 style={{ margin:0, color:textPri, fontSize:16, fontWeight:800 }}>{tarea ? "Editar tarea" : "Nueva tarea"}</h3>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:22 }}>×</button>
+        </div>
+        <p style={{ margin:"0 0 18px", color:muted, fontSize:12 }}>Fase: {fase?.nombre}</p>
+
+        <div style={{ marginBottom:14 }}>
+          <label style={lbl}>Nombre de la tarea</label>
+          <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej. Tendido de cables BT" />
+        </div>
+        <div className="form-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div><label style={lbl}>Inicio</label><input type="date" style={inp} value={inicio} onChange={e=>setInicio(e.target.value)} /></div>
+          <div><label style={lbl}>Fin</label><input type="date" style={inp} value={fin} onChange={e=>setFin(e.target.value)} /></div>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <label style={lbl}>Responsable</label>
+          <input style={inp} list="resp-sug" value={responsable} onChange={e=>setResponsable(e.target.value)} placeholder="Nombre o equipo" />
+          <datalist id="resp-sug">{sugeridos.map((n,i)=><option key={i} value={n} />)}</datalist>
+        </div>
+        <div style={{ marginBottom:18 }}>
+          <label style={lbl}>Avance: {avance}%</label>
+          <input type="range" min={0} max={100} step={5} value={avance} onChange={e=>setAvance(e.target.value)} style={{ width:"100%", accentColor: empColor }} />
+        </div>
+
+        {err && <p style={{ color:"#E53E3E", fontSize:12, margin:"0 0 12px" }}>{err}</p>}
+
+        <div style={{ display:"flex", gap:10 }}>
+          {onBorrar && <button onClick={onBorrar} style={{ background:"#E53E3E22", border:"1px solid #E53E3E44", borderRadius:8, padding:"10px 14px", color:"#E53E3E", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>🗑️</button>}
+          <button onClick={onClose} style={{ flex:1, background:"transparent", border:`1px solid ${border}`, borderRadius:8, padding:"10px", color:muted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Cancelar</button>
+          <button onClick={guardar} style={{ flex:2, background:empColor, border:"none", borderRadius:8, padding:"10px", color:"#fff", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
