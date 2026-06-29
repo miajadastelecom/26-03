@@ -6100,11 +6100,6 @@ function ModalNuevaReserva({ db, darkMode, usuario, empColor, salaId, fechaDefau
   const inp    = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
   const lbl    = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
 
-  // Opciones de hora: 08:00 a 15:00 cada 30min
-  const horasDisponibles = [];
-  for (let m = 8 * 60; m <= 15 * 60; m += 30) {
-    horasDisponibles.push(minToHora(m));
-  }
 
   const validar = () => {
     if (!fecha) return "Selecciona una fecha.";
@@ -6171,15 +6166,13 @@ function ModalNuevaReserva({ db, darkMode, usuario, empColor, salaId, fechaDefau
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={lbl}>⏰ Hora inicio</label>
-              <select style={inp} value={horaInicio} onChange={e => { setHoraInicio(e.target.value); setError(""); }}>
-                {horasDisponibles.filter(h => h < "15:00").map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
+              <input type="time" style={inp} value={horaInicio} min="08:00" max="14:59"
+                onChange={e => { setHoraInicio(e.target.value); setError(""); }} />
             </div>
             <div>
               <label style={lbl}>⏰ Hora fin</label>
-              <select style={inp} value={horaFin} onChange={e => { setHoraFin(e.target.value); setError(""); }}>
-                {horasDisponibles.filter(h => h > horaInicio).map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
+              <input type="time" style={inp} value={horaFin} min="08:01" max="15:00"
+                onChange={e => { setHoraFin(e.target.value); setError(""); }} />
             </div>
           </div>
 
