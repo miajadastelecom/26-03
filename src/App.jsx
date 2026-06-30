@@ -4990,7 +4990,6 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
   );
 }
 
-
 // ===== MÓDULO PROYECTOS: plantillas + helpers (integrado) =====
 // =============================================================
 //  Módulo Proyectos — Plantillas Gantt
@@ -5050,55 +5049,55 @@ const PLANTILLA_OBRA_ELECTRICA = {
       nombre: "Ingeniería y Proyecto",
       color: "#0077ab",
       tareas: [
-        { nombre: "Levantamiento de cargas",              offsetDias: 0,  duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
-        { nombre: "Diseño de esquemas unifilares",         offsetDias: 5,  duracionDias: 16, responsableSugerido: "Ana Torres",    avanceEjemplo: 100 },
-        { nombre: "Cálculo de secciones y protecciones",   offsetDias: 12, duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
-        { nombre: "Memoria técnica y planos",              offsetDias: 18, duracionDias: 13, responsableSugerido: "Laura Vidal",   avanceEjemplo: 85  },
-        { nombre: "Aprobación de proyecto",                offsetDias: 28, duracionDias: 11, responsableSugerido: "Dirección",     avanceEjemplo: 60  },
+        { nombre: "Levantamiento de cargas",              offsetDias: 0,  duracionDias: 11, responsableSugerido: "", avanceEjemplo: 100 },
+        { nombre: "Diseño de esquemas unifilares",         offsetDias: 5,  duracionDias: 16, responsableSugerido: "",    avanceEjemplo: 100 },
+        { nombre: "Cálculo de secciones y protecciones",   offsetDias: 12, duracionDias: 11, responsableSugerido: "", avanceEjemplo: 100 },
+        { nombre: "Memoria técnica y planos",              offsetDias: 18, duracionDias: 13, responsableSugerido: "",   avanceEjemplo: 85  },
+        { nombre: "Aprobación de proyecto",                offsetDias: 28, duracionDias: 11, responsableSugerido: "",     avanceEjemplo: 60  },
       ],
     },
     {
       nombre: "Obra Civil y Canalizaciones",
       color: "#6B7280",
       tareas: [
-        { nombre: "Replanteo de trazados",                 offsetDias: 30, duracionDias: 7,  responsableSugerido: "Pedro Sanz", avanceEjemplo: 50 },
-        { nombre: "Apertura de rozas y zanjas",            offsetDias: 33, duracionDias: 18, responsableSugerido: "Equipo A",   avanceEjemplo: 30 },
-        { nombre: "Instalación de tubos y bandejas",       offsetDias: 40, duracionDias: 21, responsableSugerido: "Equipo A",   avanceEjemplo: 10 },
-        { nombre: "Tendido de cables BT",                  offsetDias: 55, duracionDias: 21, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
-        { nombre: "Tendido de cables MT",                  offsetDias: 60, duracionDias: 26, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
-        { nombre: "Sellado y acabados civiles",            offsetDias: 80, duracionDias: 16, responsableSugerido: "Equipo A",   avanceEjemplo: 0  },
+        { nombre: "Replanteo de trazados",                 offsetDias: 30, duracionDias: 7,  responsableSugerido: "", avanceEjemplo: 50 },
+        { nombre: "Apertura de rozas y zanjas",            offsetDias: 33, duracionDias: 18, responsableSugerido: "",   avanceEjemplo: 30 },
+        { nombre: "Instalación de tubos y bandejas",       offsetDias: 40, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 10 },
+        { nombre: "Tendido de cables BT",                  offsetDias: 55, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 0  },
+        { nombre: "Tendido de cables MT",                  offsetDias: 60, duracionDias: 26, responsableSugerido: "",   avanceEjemplo: 0  },
+        { nombre: "Sellado y acabados civiles",            offsetDias: 80, duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 0  },
       ],
     },
     {
       nombre: "Cuadros y Equipos",
       color: "#e0ad12",
       tareas: [
-        { nombre: "Recepción y verificación de material",  offsetDias: 35, duracionDias: 8,  responsableSugerido: "Almacén",       avanceEjemplo: 40 },
-        { nombre: "Montaje CGD / CGBT principal",          offsetDias: 50, duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 5  },
-        { nombre: "Montaje cuadros secundarios",           offsetDias: 60, duracionDias: 21, responsableSugerido: "Juan Romero",   avanceEjemplo: 0  },
-        { nombre: "Instalación transformador MT/BT",       offsetDias: 65, duracionDias: 16, responsableSugerido: "Proveedor ext.", avanceEjemplo: 0 },
-        { nombre: "Montaje equipos de medida",             offsetDias: 75, duracionDias: 14, responsableSugerido: "Ana Torres",    avanceEjemplo: 0  },
+        { nombre: "Recepción y verificación de material",  offsetDias: 35, duracionDias: 8,  responsableSugerido: "",       avanceEjemplo: 40 },
+        { nombre: "Montaje CGD / CGBT principal",          offsetDias: 50, duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 5  },
+        { nombre: "Montaje cuadros secundarios",           offsetDias: 60, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 0  },
+        { nombre: "Instalación transformador MT/BT",       offsetDias: 65, duracionDias: 16, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Montaje equipos de medida",             offsetDias: 75, duracionDias: 14, responsableSugerido: "",    avanceEjemplo: 0  },
       ],
     },
     {
       nombre: "Conexiones y Pruebas",
       color: "#af4a85",
       tareas: [
-        { nombre: "Conexionado cuadros y circuitos",       offsetDias: 80,  duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 0 },
-        { nombre: "Pruebas de aislamiento (Megger)",       offsetDias: 92,  duracionDias: 7,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
-        { nombre: "Verificación de protecciones",          offsetDias: 95,  duracionDias: 8,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
-        { nombre: "Prueba funcional de circuitos",         offsetDias: 98,  duracionDias: 9,  responsableSugerido: "Equipo B",      avanceEjemplo: 0 },
-        { nombre: "Medición de tierras",                   offsetDias: 100, duracionDias: 9,  responsableSugerido: "Ana Torres",    avanceEjemplo: 0 },
+        { nombre: "Conexionado cuadros y circuitos",       offsetDias: 80,  duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 0 },
+        { nombre: "Pruebas de aislamiento (Megger)",       offsetDias: 92,  duracionDias: 7,  responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Verificación de protecciones",          offsetDias: 95,  duracionDias: 8,  responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Prueba funcional de circuitos",         offsetDias: 98,  duracionDias: 9,  responsableSugerido: "",      avanceEjemplo: 0 },
+        { nombre: "Medición de tierras",                   offsetDias: 100, duracionDias: 9,  responsableSugerido: "",    avanceEjemplo: 0 },
       ],
     },
     {
       nombre: "Legalización y Entrega",
       color: "#4F8C0d",
       tareas: [
-        { nombre: "Acta de puesta en servicio",            offsetDias: 105, duracionDias: 6, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
-        { nombre: "Documentación as-built",                offsetDias: 106, duracionDias: 9, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
-        { nombre: "Boletín eléctrico BCIE",                offsetDias: 108, duracionDias: 9, responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
-        { nombre: "Entrega a cliente",                     offsetDias: 114, duracionDias: 7, responsableSugerido: "Dirección",     avanceEjemplo: 0 },
+        { nombre: "Acta de puesta en servicio",            offsetDias: 105, duracionDias: 6, responsableSugerido: "",   avanceEjemplo: 0 },
+        { nombre: "Documentación as-built",                offsetDias: 106, duracionDias: 9, responsableSugerido: "",   avanceEjemplo: 0 },
+        { nombre: "Boletín eléctrico BCIE",                offsetDias: 108, duracionDias: 9, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Entrega a cliente",                     offsetDias: 114, duracionDias: 7, responsableSugerido: "",     avanceEjemplo: 0 },
       ],
     },
   ],
@@ -5134,6 +5133,7 @@ function crearProyectoDesdePlantilla(plantilla, opciones = {}) {
         inicio,
         fin,
         responsable: t.responsableSugerido || "",
+        responsableId: null,
         avance: usarAvanceEjemplo ? (t.avanceEjemplo || 0) : 0,
         dependencias: [],
       };
@@ -5241,6 +5241,7 @@ function parseExcelCronograma(XLSX, arrayBuffer, opciones = {}) {
         inicio,
         fin,
         responsable: String(r["Responsable"] || ""),
+        responsableId: null,
         avance: Number(r["% Avance"]) || 0,
         dependencias: [],
       });
@@ -5340,7 +5341,7 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
     if (esDirCeo || rol === "administrador") return true;
     if (rol === "encargado") return p.empresaId === usuario?.empresaId;
     if (p.empresaId === usuario?.empresaId) return true;
-    return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsable && usuario?.nombre && t.responsable.includes(usuario.nombre.split(" ")[0])));
+    return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsableId != null && t.responsableId === usuarioId));
   }), [proyectos, rol, usuario, esDirCeo]);
 
   const filtrados = visibles
@@ -5741,7 +5742,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
       )}
 
       {editTarea && (
-        <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} empresaId={p.empresaId}
+        <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empresaId={p.empresaId}
           fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
           onGuardar={(datos)=>guardarTarea(editTarea.faseId, datos, editTarea.tarea?.id)}
           onBorrar={editTarea.tarea ? ()=>borrarTarea(editTarea.faseId, editTarea.tarea.id) : null}
@@ -5867,12 +5868,15 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
 }
 
 // ─── Modal: editar / crear tarea ────────────────────────────
-function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
+function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
   const baseIni = tarea?.inicio || fechaBaseProyecto || hoyISO();
   const [nombre, setNombre] = useState(tarea?.nombre || "");
   const [inicio, setInicio] = useState(baseIni);
   const [fin, setFin] = useState(tarea?.fin || addDias(baseIni, 4));
-  const [responsable, setResponsable] = useState(tarea?.responsable || "");
+  const matchByName = tarea?.responsable ? USUARIOS.find(u => u.nombre === tarea.responsable) : null;
+  const initId = tarea?.responsableId != null ? String(tarea.responsableId) : (matchByName ? String(matchByName.id) : "");
+  const keepName = (initId === "" && tarea?.responsable) ? tarea.responsable : "";
+  const [responsableId, setResponsableId] = useState(keepName ? "__keep" : initId);
   const [avance, setAvance] = useState(tarea?.avance ?? 0);
   const [err, setErr] = useState("");
 
@@ -5883,12 +5887,13 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea
   const inp = { fontFamily:"inherit", fontSize:13, background: darkMode?"#0D1424":"#FFFFFF", border:`1px solid ${border}`, borderRadius:8, padding:"9px 12px", color:textPri, outline:"none", width:"100%", boxSizing:"border-box" };
   const lbl = { display:"block", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:6 };
 
-  const sugeridos = USUARIOS.filter(u => u.empresaId === empresaId).map(u => u.nombre);
-
   const guardar = () => {
     if (!nombre.trim()) return setErr("Pon un nombre a la tarea.");
     if (new Date(fin) < new Date(inicio)) return setErr("La fecha de fin no puede ser anterior al inicio.");
-    onGuardar({ nombre: nombre.trim(), inicio, fin, responsable: responsable.trim(), avance: Math.max(0, Math.min(100, Number(avance)||0)) });
+    let rId = null, rNombre = "";
+    if (responsableId === "__keep") { rNombre = keepName; }
+    else if (responsableId) { const u = USUARIOS.find(x => String(x.id) === String(responsableId)); if (u) { rId = u.id; rNombre = u.nombre; } }
+    onGuardar({ nombre: nombre.trim(), inicio, fin, responsable: rNombre, responsableId: rId, avance: Math.max(0, Math.min(100, Number(avance)||0)) });
   };
 
   return (
@@ -5912,8 +5917,20 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea
         </div>
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>Responsable</label>
-          <input style={inp} list="resp-sug" value={responsable} onChange={e=>setResponsable(e.target.value)} placeholder="Nombre o equipo" />
-          <datalist id="resp-sug">{sugeridos.map((n,i)=><option key={i} value={n} />)}</datalist>
+          <select style={inp} value={responsableId} onChange={e=>setResponsableId(e.target.value)}>
+            <option value="">Sin asignar</option>
+            {keepName && <option value="__keep">{keepName} (actual)</option>}
+            {EMPRESAS.map(emp => {
+              const us = USUARIOS.filter(u => u.empresaId === emp.id);
+              if (!us.length) return null;
+              return (
+                <optgroup key={emp.id} label={emp.nombre}>
+                  {us.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                </optgroup>
+              );
+            })}
+          </select>
+          <p style={{ margin:"6px 0 0", color:muted, fontSize:11 }}>Puedes asignar a personas de cualquier empresa.</p>
         </div>
         <div style={{ marginBottom:18 }}>
           <label style={lbl}>Avance: {avance}%</label>
