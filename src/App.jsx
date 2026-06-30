@@ -199,6 +199,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   const [geoError, setGeoError]       = useState("");
   const [acopio, setAcopio]           = useState(null); // null=sin responder, true=Sí, false=No
   const [materiales, setMateriales]   = useState("");
+  const [enviando, setEnviando]       = useState(false);
 
   const obtenerUbicacion = () => {
     if (!navigator.geolocation) {
@@ -254,7 +255,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   };
 
   const submit = () => {
-    if (!puedeCrear) return;
+    if (!puedeCrear || enviando) return;
+    setEnviando(true);
     const asignacionesPorEmpresa = {};
     empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = id === 6 ? comercialAsignados : []; });
     const tieneAsignadosComercial = empresasDestino.includes(6) && comercialAsignados.length > 0;
@@ -481,8 +483,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 
         <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ ...btnS, background: darkMode ? "#1E293B" : "#E2E8F0", color: darkMode ? "#94A3B8" : "#334155" }}>Cancelar</button>
-          <button onClick={submit} disabled={!puedeCrear} style={{ ...btnS, background: puedeCrear ? empColor : darkMode ? "#1E293B" : "#E2E8F0", color: puedeCrear ? "#fff" : "#475569", fontWeight: 800 }}>
-            Crear Ticket →
+          <button onClick={submit} disabled={!puedeCrear || enviando} style={{ ...btnS, background: (puedeCrear && !enviando) ? empColor : darkMode ? "#1E293B" : "#E2E8F0", color: (puedeCrear && !enviando) ? "#fff" : "#475569", fontWeight: 800, cursor: (puedeCrear && !enviando) ? "pointer" : "not-allowed" }}>
+            {enviando ? "Creando..." : "Crear Ticket →"}
           </button>
         </div>
       </div>
@@ -1696,6 +1698,7 @@ function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle })
   const [fecha, setFecha]     = useState("");
   const [hora, setHora]       = useState("");
   const [alerta, setAlerta]   = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const inp2 = { fontFamily: "inherit", fontSize: 13, background: darkMode ? "#1A2235" : "#F8FAFC", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 6, padding: "9px 12px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
 
@@ -1703,7 +1706,8 @@ function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle })
   const hechos     = tickets.filter(t => t.estado === "hecho");
 
   const submit = () => {
-    if (!titulo.trim()) return;
+    if (!titulo.trim() || enviando) return;
+    setEnviando(true);
     const fechaAlerta = fecha && hora ? `${fecha}T${hora}` : fecha ? `${fecha}T09:00` : null;
     onCrear({
       id: genId(),
@@ -1715,7 +1719,7 @@ function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle })
       estado: "pendiente",
       creadoPor: usuarioId,
     });
-    setTitulo(""); setDesc(""); setFecha(""); setHora(""); setAlerta(false); setCreando(false);
+    setTitulo(""); setDesc(""); setFecha(""); setHora(""); setAlerta(false); setCreando(false); setEnviando(false);
   };
 
   return (
@@ -1751,7 +1755,7 @@ function ModalMisTickets({ usuarioId, tickets, onClose, onCrear, onVerDetalle })
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
               <button onClick={() => setCreando(false)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: darkMode ? "#1E293B" : "#E2E8F0", color: darkMode ? "#94A3B8" : "#334155" }}>Cancelar</button>
-              <button onClick={submit} disabled={!titulo.trim()} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", background: titulo.trim() ? "#3182CE" : darkMode ? "#1E293B" : "#E2E8F0", color: titulo.trim() ? "#fff" : "#475569" }}>Crear</button>
+              <button onClick={submit} disabled={!titulo.trim() || enviando} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 6, border: "none", cursor: (titulo.trim() && !enviando) ? "pointer" : "not-allowed", background: (titulo.trim() && !enviando) ? "#3182CE" : darkMode ? "#1E293B" : "#E2E8F0", color: (titulo.trim() && !enviando) ? "#fff" : "#475569" }}>{enviando ? "Creando..." : "Crear"}</button>
             </div>
           </div>
         ) : (
