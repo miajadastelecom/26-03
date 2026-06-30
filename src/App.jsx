@@ -3273,6 +3273,7 @@ export default function App() {
 
             {/* ── RESTO ── */}
             {[
+              { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
