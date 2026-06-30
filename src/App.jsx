@@ -5135,6 +5135,8 @@ function crearProyectoDesdePlantilla(plantilla, opciones = {}) {
         responsable: t.responsableSugerido || "",
         responsableId: null,
         avance: usarAvanceEjemplo ? (t.avanceEjemplo || 0) : 0,
+        dependeDe: null,
+        lagDias: 1,
         dependencias: [],
       };
     }),
@@ -5243,6 +5245,8 @@ function parseExcelCronograma(XLSX, arrayBuffer, opciones = {}) {
         responsable: String(r["Responsable"] || ""),
         responsableId: null,
         avance: Number(r["% Avance"]) || 0,
+        dependeDe: null,
+        lagDias: 1,
         dependencias: [],
       });
     }
@@ -5316,6 +5320,29 @@ function avanceFase(f) {
   let td = 0, pond = 0;
   ts.forEach(t => { const d = (t.inicio && t.fin) ? Math.max(1, diffDias(t.inicio, t.fin)) : 1; td += d; pond += d * (t.avance||0); });
   return td ? Math.round(pond/td) : 0;
+}
+
+// Recalcula fechas de tareas con dependencia: inicio = fin(predecesora) + lagDias,
+// conservando la duración. Propaga en cascada (con tope anti-bucles).
+function aplicarDependencias(proj) {
+  const clone = JSON.parse(JSON.stringify(proj));
+  const map = {};
+  (clone.fases||[]).forEach(f => (f.tareas||[]).forEach(t => { map[String(t.id)] = t; }));
+  for (let pass = 0; pass < 100; pass++) {
+    let changed = false;
+    (clone.fases||[]).forEach(f => (f.tareas||[]).forEach(t => {
+      const pred = (t.dependeDe != null) ? map[String(t.dependeDe)] : null;
+      if (pred && pred.fin) {
+        const lag = Number(t.lagDias ?? 0);
+        const dur = (t.inicio && t.fin) ? Math.max(1, diffDias(t.inicio, t.fin)) : 1;
+        const ni = addDias(pred.fin, lag);
+        const nf = addDias(ni, dur - 1);
+        if (t.inicio !== ni || t.fin !== nf) { t.inicio = ni; t.fin = nf; changed = true; }
+      }
+    }));
+    if (!changed) break;
+  }
+  return clone;
 }
 
 // ─── Componente principal ───────────────────────────────────
@@ -5630,7 +5657,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
     const fins = todas.map(t=>t.fin).filter(Boolean).sort();
     return { ...proj, fechaInicio: inis[0] || proj.fechaInicio, fechaFin: fins[fins.length-1] || proj.fechaFin };
   };
-  const persistir = (proj) => { const r = recalcRango(proj); setP(r); onGuardar(r); };
+  const persistir = (proj) => { const r = recalcRango(aplicarDependencias(proj)); setP(r); onGuardar(r); };
 
   const setEstado = (estado) => persistir({ ...p, estado });
   const setEmpresa = (empresaId) => persistir({ ...p, empresaId: Number(empresaId) });
@@ -5639,7 +5666,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
     const fases = p.fases.map(f => {
       if (f.id !== faseId) return f;
       if (tareaId) return { ...f, tareas: f.tareas.map(t => t.id===tareaId ? { ...t, ...datos } : t) };
-      return { ...f, tareas: [...(f.tareas||[]), { id: genId(), dependencias:[], avance:0, ...datos }] };
+      return { ...f, tareas: [...(f.tareas||[]), { id: genId(), dependeDe:null, lagDias:1, dependencias:[], avance:0, ...datos }] };
     });
     persistir({ ...p, fases });
     setEditTarea(null);
@@ -5743,7 +5770,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
 
       {editTarea && (
         <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empresaId={p.empresaId}
-          fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
+          proyecto={p} fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
           onGuardar={(datos)=>guardarTarea(editTarea.faseId, datos, editTarea.tarea?.id)}
           onBorrar={editTarea.tarea ? ()=>borrarTarea(editTarea.faseId, editTarea.tarea.id) : null}
           onClose={()=>setEditTarea(null)} />
@@ -5761,6 +5788,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
   const grid = darkMode ? "#1E293B" : "#EEF2F7";
 
   const fases = p.fases || [];
+  const allById = Object.fromEntries(fases.flatMap(f => (f.tareas||[]).map(t => [String(t.id), t])));
 
   // Solo el estado totalmente vacío (sin fases) muestra el placeholder grande
   if (fases.length === 0) {
@@ -5834,6 +5862,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
                       style={{ width:LABEL_W, flexShrink:0, padding:"7px 12px 7px 28px", borderRight:`1px solid ${border}`, cursor: onEditarTarea?"pointer":"default" }}>
                       <p style={{ margin:0, color:textPri, fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.nombre}</p>
                       <p style={{ margin:0, color:muted, fontSize:10 }}>{t.responsable||"Sin asignar"}{!tieneFechas && " · sin fechas"}</p>
+                      {t.dependeDe != null && allById[String(t.dependeDe)] && <p style={{ margin:0, color:muted, fontSize:9.5 }}>↳ tras: {allById[String(t.dependeDe)].nombre}</p>}
                     </div>
                     <div style={{ position:"relative", width:anchoTimeline, height:40, display:"flex", alignItems:"center" }}>
                       {marcas.map((m,i)=><div key={i} style={{ position:"absolute", left:m.left, top:0, bottom:0, borderLeft:`1px solid ${grid}` }} />)}
@@ -5868,7 +5897,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
 }
 
 // ─── Modal: editar / crear tarea ────────────────────────────
-function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
+function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, proyecto, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
   const baseIni = tarea?.inicio || fechaBaseProyecto || hoyISO();
   const [nombre, setNombre] = useState(tarea?.nombre || "");
   const [inicio, setInicio] = useState(baseIni);
@@ -5880,6 +5909,26 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, f
   const [avance, setAvance] = useState(tarea?.avance ?? 0);
   const [err, setErr] = useState("");
 
+  // Dependencias
+  const todasTareas = (proyecto?.fases||[]).flatMap(f => (f.tareas||[]).map(t => ({ ...t, faseNombre: f.nombre })));
+  const tareasMap = Object.fromEntries(todasTareas.map(t => [String(t.id), t]));
+  const descend = (() => {
+    const set = new Set(); if (!tarea) return set;
+    let added = true;
+    while (added) { added = false;
+      todasTareas.forEach(t => {
+        if (t.dependeDe != null && (String(t.dependeDe) === String(tarea.id) || set.has(String(t.dependeDe))) && !set.has(String(t.id))) { set.add(String(t.id)); added = true; }
+      });
+    }
+    return set;
+  })();
+  const candidatos = todasTareas.filter(t => (!tarea || t.id !== tarea.id) && !descend.has(String(t.id)));
+  const [dependeDe, setDependeDe] = useState(tarea?.dependeDe != null ? String(tarea.dependeDe) : "");
+  const [lagDias, setLagDias] = useState(tarea?.lagDias ?? 1);
+  const pred = dependeDe ? tareasMap[dependeDe] : null;
+  const inicioAuto = (pred && pred.fin) ? addDias(pred.fin, Number(lagDias)||0) : null;
+  const inicioEff = inicioAuto || inicio;
+
   const card = darkMode ? "#111827" : "#FFFFFF";
   const border = darkMode ? "#1E293B" : "#E2E8F0";
   const textPri = darkMode ? "#E2E8F0" : "#0F172A";
@@ -5889,11 +5938,11 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, f
 
   const guardar = () => {
     if (!nombre.trim()) return setErr("Pon un nombre a la tarea.");
-    if (new Date(fin) < new Date(inicio)) return setErr("La fecha de fin no puede ser anterior al inicio.");
+    if (new Date(fin) < new Date(inicioEff)) return setErr("La fecha de fin no puede ser anterior al inicio.");
     let rId = null, rNombre = "";
     if (responsableId === "__keep") { rNombre = keepName; }
     else if (responsableId) { const u = USUARIOS.find(x => String(x.id) === String(responsableId)); if (u) { rId = u.id; rNombre = u.nombre; } }
-    onGuardar({ nombre: nombre.trim(), inicio, fin, responsable: rNombre, responsableId: rId, avance: Math.max(0, Math.min(100, Number(avance)||0)) });
+    onGuardar({ nombre: nombre.trim(), inicio: inicioEff, fin, responsable: rNombre, responsableId: rId, dependeDe: dependeDe ? Number(dependeDe) : null, lagDias: Number(lagDias)||0, avance: Math.max(0, Math.min(100, Number(avance)||0)) });
   };
 
   return (
@@ -5912,8 +5961,27 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, f
           <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej. Tendido de cables BT" />
         </div>
         <div className="form-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-          <div><label style={lbl}>Inicio</label><input type="date" style={inp} value={inicio} onChange={e=>setInicio(e.target.value)} /></div>
+          <div>
+            <label style={lbl}>Inicio</label>
+            <input type="date" style={{ ...inp, opacity: inicioAuto?0.6:1 }} value={inicioEff} disabled={!!inicioAuto} onChange={e=>setInicio(e.target.value)} />
+          </div>
           <div><label style={lbl}>Fin</label><input type="date" style={inp} value={fin} onChange={e=>setFin(e.target.value)} /></div>
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <label style={lbl}>Depende de (empezar tras otra tarea)</label>
+          <select style={inp} value={dependeDe} onChange={e=>setDependeDe(e.target.value)}>
+            <option value="">Sin dependencia (fecha manual)</option>
+            {candidatos.map(t => <option key={t.id} value={t.id}>{t.faseNombre} · {t.nombre}</option>)}
+          </select>
+          {dependeDe && (
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, flexWrap:"wrap" }}>
+              <span style={{ color:muted, fontSize:12 }}>Empezar</span>
+              <input type="number" min={0} style={{ ...inp, width:72, padding:"7px 10px" }} value={lagDias} onChange={e=>setLagDias(e.target.value)} />
+              <span style={{ color:muted, fontSize:12 }}>día(s) tras finalizar «{pred?.nombre || "—"}»</span>
+            </div>
+          )}
+          {dependeDe && !pred?.fin && <p style={{ margin:"6px 0 0", color:"#E0AD12", fontSize:11 }}>La tarea anterior aún no tiene fechas; el inicio se recalculará cuando las tenga.</p>}
         </div>
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>Responsable</label>
