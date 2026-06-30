@@ -493,7 +493,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 }
 
 // ─── MODAL DETALLE ────────────────────────────────────────────────────────────
-function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
+function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onBorrar }) {
   const darkMode = __darkMode;
   const asignacionesIniciales = (ticket.asignacionesPorEmpresa || {})[usuarioActual.empresaId] || [];
   const [comentario, setComentario]   = useState("");
@@ -654,7 +654,17 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar }) {
             </div>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: darkMode ? "#E2E8F0" : "#0F172A", lineHeight: 1.3 }}>{ticket.titulo}</h2>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: darkMode ? "#64748B" : "#475569", fontSize: 24, cursor: "pointer" }}>×</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {(esCreadoPor || esDirector || esAdmin) && onBorrar && (
+              <button
+                onClick={() => { if (window.confirm(`¿Seguro que quieres eliminar el ticket "${ticket.titulo}"? Esta acción no se puede deshacer.`)) onBorrar(); }}
+                title="Eliminar ticket"
+                style={{ background: "#E53E3E18", border: "1px solid #E53E3E44", borderRadius: 8, padding: "6px 10px", color: "#E53E3E", fontSize: 15, cursor: "pointer" }}>
+                🗑️
+              </button>
+            )}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: darkMode ? "#64748B" : "#475569", fontSize: 24, cursor: "pointer" }}>×</button>
+          </div>
         </div>
 
         {/* Info básica */}
@@ -2931,6 +2941,12 @@ export default function App() {
     }
   };
 
+  const borrarTicket = (t) => {
+    setTickets(ts => ts.filter(x => x.id !== t.id));
+    deleteDoc(doc(db, "tickets", String(t.id))).catch(e => console.error("Error borrando ticket:", e));
+    setDetalle(null);
+  };
+
   const crearTicket = (t) => {
     // Actualizar UI inmediatamente
     setTickets(ts => [t, ...ts]);
@@ -3734,7 +3750,7 @@ export default function App() {
       </div>{/* /layout sidebar+contenido */}
 
       {modalCrear && <ModalCrearTicket usuarioActual={usuario} onClose={() => setModalCrear(false)} onCrear={crearTicket} />}
-      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} />}
+      {detalle    && <ModalDetalle ticket={detalle} usuarioActual={usuario} onClose={() => setDetalle(null)} onActualizar={(t) => actualizarTicket(t)} onBorrar={() => borrarTicket(detalle)} />}
       {modalMisTickets && <ModalMisTickets usuarioId={usuarioId} tickets={misTicketsPersonales.filter(t => t.creadoPor === usuarioId)} onClose={() => setModalMisTickets(false)} onCrear={guardarTicketPersonal} onVerDetalle={t => { setDetalleMiTicket(t); setModalMisTickets(false); }} />}
       {detalleMiTicket && <ModalDetalleMiTicket ticket={detalleMiTicket} onClose={() => setDetalleMiTicket(null)} onActualizar={actualizarTicketPersonal} />}
       {modalAdmin && <ModalAdministracion key={configVersion} onClose={() => setModalAdmin(false)} />}
