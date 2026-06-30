@@ -3278,6 +3278,7 @@ export default function App() {
               { id:"nominas",      icon:"💰", label:"Nóminas" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
+              ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
@@ -3353,7 +3354,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3713,6 +3714,11 @@ export default function App() {
         {/* ── SALAS ── */}
         {seccion === "salas" && USUARIOS_SALAS_IDS.includes(usuario?.id) && (
           <SeccionSalas db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
+        )}
+
+        {/* ── COCHES ── */}
+        {seccion === "coches" && USUARIOS_COCHES_IDS.includes(usuario?.id) && (
+          <SeccionCoches db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
         )}
 
         {/* ── PERFIL ── */}
@@ -6297,3 +6303,455 @@ function ModalDetalleReserva({ db, darkMode, reserva, usuario, empColor, onClose
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  MÓDULO COCHES — Reserva de vehículos de empresa
+//  Horario: libre (24h) · Cancelación: creador + responsables del coche
+// ═══════════════════════════════════════════════════════════════
+
+const COCHES = [
+  { id: "auris",       nombre: "Toyota Auris",       icon: "🚗", color: "#2B6CB0", responsables: [11, 12]     },
+  { id: "bigster",     nombre: "Dacia Bigster",      icon: "🚙", color: "#C05621", responsables: [11, 12, 15] },
+  { id: "landcruiser", nombre: "Toyota LandCruiser", icon: "🛻", color: "#2F855A", responsables: [8]          },
+];
+
+// Mismos usuarios con acceso que el módulo de Salas
+const USUARIOS_COCHES_IDS = USUARIOS_SALAS_IDS;
+
+// ¿Puede el usuario cancelar esta reserva? (creador o responsable del coche)
+function puedeCancelarCoche(reserva, usuario) {
+  if (!usuario) return false;
+  if (reserva.usuarioId === usuario.id) return true;
+  const coche = COCHES.find(c => c.id === reserva.cocheId);
+  return !!coche && coche.responsables.includes(usuario.id);
+}
+
+// ── Componente principal de Coches ─────────────────────────────
+function SeccionCoches({ db, darkMode, usuario, empColor }) {
+  const [reservas,   setReservas]   = useState([]);
+  const [fechaSel,   setFechaSel]   = useState(new Date().toISOString().split("T")[0]);
+  const [modalNueva, setModalNueva] = useState(null);  // { cocheId } | null
+  const [verDetalle, setVerDetalle] = useState(null);  // reserva | null
+  const [loading,    setLoading]    = useState(true);
+
+  const dm      = darkMode;
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "reservasCoches"), snap => {
+      setReservas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [db]);
+
+  const reservasHoy = reservas.filter(r => r.fecha === fechaSel);
+
+  const navFecha = (dir) => {
+    const d = new Date(fechaSel + "T12:00:00");
+    d.setDate(d.getDate() + dir);
+    setFechaSel(d.toISOString().split("T")[0]);
+  };
+
+  const fechaLabel = new Date(fechaSel + "T12:00:00").toLocaleDateString("es-ES", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  });
+  const esHoy = fechaSel === new Date().toISOString().split("T")[0];
+
+  const cancelarReserva = async (r) => {
+    if (!puedeCancelarCoche(r, usuario)) return;
+    if (!window.confirm(`¿Cancelar la reserva de "${COCHES.find(c => c.id === r.cocheId)?.nombre}" el ${r.fecha} de ${r.horaInicio} a ${r.horaFin}?`)) return;
+    await deleteDoc(doc(db, "reservasCoches", r.id));
+    setVerDetalle(null);
+  };
+
+  // Franja horaria visual: 00:00 – 24:00 (libre)
+  const HORA_INI  = 0;
+  const HORA_FIN  = 24 * 60;  // 1440 min
+  const TOTAL_MIN = HORA_FIN - HORA_INI;
+  const MARCAS    = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+
+  const pct = (h) => ((horaToMin(h) - HORA_INI) / TOTAL_MIN) * 100;
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      {/* Cabecera */}
+      <div style={{ marginBottom: 22 }}>
+        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🚗 Reserva de Coches</h2>
+        <p style={{ margin: 0, color: muted, fontSize: 13 }}>Gestión de vehículos compartidos · Horario libre</p>
+      </div>
+
+      {/* Navegador de fecha */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+        <button onClick={() => navFecha(-1)}
+          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>‹</button>
+        <input type="date" value={fechaSel} onChange={e => setFechaSel(e.target.value)}
+          style={{ fontFamily: "inherit", fontSize: 13, background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", color: textPri, outline: "none", colorScheme: dm ? "dark" : "light" }} />
+        <button onClick={() => navFecha(1)}
+          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>›</button>
+        <span style={{ color: textPri, fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>{fechaLabel}</span>
+        {esHoy && <span style={{ background: empColor + "22", color: empColor, border: `1px solid ${empColor}44`, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>Hoy</span>}
+        <button onClick={() => setFechaSel(new Date().toISOString().split("T")[0])}
+          style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${border}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", color: muted, fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+          Ir a hoy
+        </button>
+      </div>
+
+      {/* Tarjetas de coches */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "60px 0", color: muted }}>Cargando reservas...</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {COCHES.map(coche => {
+            const reservasCoche = reservasHoy.filter(r => r.cocheId === coche.id).sort((a, b) => horaToMin(a.horaInicio) - horaToMin(b.horaInicio));
+            const nombresResp = coche.responsables.map(rid => USUARIOS.find(u => u.id === rid)?.nombre?.split(" ").slice(0, 2).join(" ")).filter(Boolean);
+            return (
+              <div key={coche.id} style={{ background: cardBg, border: `1px solid ${coche.color}44`, borderRadius: 14, overflow: "hidden" }}>
+                {/* Header de coche */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${border}`, background: coche.color + "11" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 22 }}>{coche.icon}</span>
+                    <div>
+                      <p style={{ margin: 0, color: coche.color, fontWeight: 800, fontSize: 15 }}>{coche.nombre}</p>
+                      <p style={{ margin: 0, color: muted, fontSize: 11 }}>
+                        {reservasCoche.length === 0 ? "Libre todo el día" : `${reservasCoche.length} reserva${reservasCoche.length > 1 ? "s" : ""}`}
+                        {nombresResp.length > 0 && <span> · Resp.: {nombresResp.join(", ")}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setModalNueva({ cocheId: coche.id })}
+                    style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: coche.color, color: "#fff" }}>
+                    + Reservar
+                  </button>
+                </div>
+
+                {/* Timeline visual 00:00–24:00 */}
+                <div style={{ padding: "16px 20px" }}>
+                  {/* Horas */}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    {MARCAS.map(h => (
+                      <span key={h} style={{ color: muted, fontSize: 10, fontWeight: 600 }}>{String(h).padStart(2,"0")}:00</span>
+                    ))}
+                  </div>
+
+                  {/* Barra de disponibilidad */}
+                  <div style={{ position: "relative", height: 36, background: dm ? "#1A2235" : "#F0F7FF", borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+                    {/* Línea de hora actual */}
+                    {esHoy && (() => {
+                      const ahora = new Date();
+                      const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+                      const left = pct(minToHora(minAhora));
+                      return <div style={{ position: "absolute", left: `${left}%`, top: 0, bottom: 0, width: 2, background: "#E53E3E", zIndex: 3 }} />;
+                    })()}
+                    {/* Bloques ocupados */}
+                    {reservasCoche.map(r => {
+                      const left  = pct(r.horaInicio);
+                      const width = ((horaToMin(r.horaFin) - horaToMin(r.horaInicio)) / TOTAL_MIN) * 100;
+                      const esMia = r.usuarioId === usuario?.id;
+                      return (
+                        <div key={r.id} onClick={() => setVerDetalle(r)}
+                          title={`${r.usuarioNombre} · ${r.horaInicio}–${r.horaFin}${r.motivo ? ` · ${r.motivo}` : ""}`}
+                          style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 4, bottom: 4, borderRadius: 5, background: esMia ? coche.color : coche.color + "88", border: `1px solid ${coche.color}`, cursor: "pointer", display: "flex", alignItems: "center", paddingLeft: 6, overflow: "hidden", zIndex: 2 }}>
+                          <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+                            {esMia ? "Yo" : r.usuarioNombre?.split(" ")[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Lista de reservas del día */}
+                  {reservasCoche.length === 0 ? (
+                    <p style={{ margin: 0, color: muted, fontSize: 12, fontStyle: "italic" }}>Sin reservas para este día. ¡Disponible a cualquier hora!</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {reservasCoche.map(r => {
+                        const esMia    = r.usuarioId === usuario?.id;
+                        const userInfo = USUARIOS.find(u => u.id === r.usuarioId);
+                        const emp      = EMPRESAS.find(e => e.id === userInfo?.empresaId);
+                        return (
+                          <div key={r.id} onClick={() => setVerDetalle(r)}
+                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: esMia ? coche.color + "18" : (dm ? "#1A2235" : "#F8FAFC"), borderRadius: 8, border: `1px solid ${esMia ? coche.color + "44" : border}`, cursor: "pointer" }}>
+                            <span style={{ color: coche.color, fontSize: 13, fontWeight: 800, minWidth: 100 }}>{r.horaInicio} – {r.horaFin}</span>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: (emp?.color || coche.color) + "33", border: `1.5px solid ${emp?.color || coche.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: emp?.color || coche.color, flexShrink: 0 }}>
+                              {r.usuarioNombre?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ margin: 0, color: textPri, fontSize: 12, fontWeight: esMia ? 700 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {r.usuarioNombre} {esMia && <span style={{ color: coche.color, fontSize: 10 }}>(tú)</span>}
+                              </p>
+                              {r.motivo && <p style={{ margin: 0, color: muted, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.motivo}</p>}
+                            </div>
+                            {esMia && (
+                              <span style={{ background: coche.color + "22", color: coche.color, border: `1px solid ${coche.color}44`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>Tu reserva</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal nueva reserva */}
+      {modalNueva && (
+        <ModalNuevaReservaCoche
+          db={db}
+          darkMode={dm}
+          usuario={usuario}
+          empColor={empColor}
+          cocheId={modalNueva.cocheId}
+          fechaDefault={fechaSel}
+          reservasExistentes={reservas}
+          onClose={() => setModalNueva(null)}
+        />
+      )}
+
+      {/* Modal detalle */}
+      {verDetalle && (
+        <ModalDetalleReservaCoche
+          db={db}
+          darkMode={dm}
+          reserva={verDetalle}
+          usuario={usuario}
+          empColor={empColor}
+          onClose={() => setVerDetalle(null)}
+          onCancelar={() => cancelarReserva(verDetalle)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Modal: nueva reserva de coche ───────────────────────────────
+function ModalNuevaReservaCoche({ db, darkMode, usuario, empColor, cocheId, fechaDefault, reservasExistentes, onClose }) {
+  const coche = COCHES.find(c => c.id === cocheId);
+  const dm    = darkMode;
+
+  const hoyStr = new Date().toISOString().split("T")[0];
+
+  const [fecha,      setFecha]      = useState(fechaDefault || hoyStr);
+  const [horaInicio, setHoraInicio] = useState("09:00");
+  const [horaFin,    setHoraFin]    = useState("10:00");
+  const [motivo,     setMotivo]     = useState("");
+  const [error,      setError]      = useState("");
+  const [guardando,  setGuardando]  = useState(false);
+
+  const card   = dm ? "#111827" : "#FFFFFF";
+  const border = dm ? "#2E3A55" : "#E2E8F0";
+  const text   = dm ? "#E2E8F0" : "#0F172A";
+  const muted  = dm ? "#64748B" : "#94A3B8";
+  const inp    = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
+  const lbl    = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
+
+  const validar = () => {
+    if (!fecha) return "Selecciona una fecha.";
+    if (fecha < hoyStr) return "No puedes reservar en el pasado.";
+    const ini = horaToMin(horaInicio);
+    const fin = horaToMin(horaFin);
+    if (fin <= ini) return "La hora de fin debe ser posterior a la hora de inicio.";
+    // Comprobar solapamiento (mismo coche, misma fecha)
+    const reservasCoche = reservasExistentes.filter(r => r.cocheId === cocheId && r.fecha === fecha);
+    const nueva = { horaInicio, horaFin };
+    const conflicto = reservasCoche.find(r => solapan(nueva, r));
+    if (conflicto) return `Conflicto con reserva de ${conflicto.usuarioNombre} (${conflicto.horaInicio}–${conflicto.horaFin}).`;
+    return null;
+  };
+
+  const guardar = async () => {
+    const err = validar();
+    if (err) { setError(err); return; }
+    setGuardando(true);
+    try {
+      const id = "resc_" + Date.now();
+      await setDoc(doc(db, "reservasCoches", id), {
+        id,
+        cocheId,
+        fecha,
+        horaInicio,
+        horaFin,
+        motivo:        motivo.trim() || null,
+        usuarioId:     usuario.id,
+        usuarioNombre: usuario.nombre,
+        empresaId:     usuario.empresaId,
+        creadoEn:      new Date().toISOString(),
+      });
+      onClose();
+    } catch (e) {
+      setError("Error al guardar. Inténtalo de nuevo.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 460, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <h3 style={{ margin: 0, color: coche.color, fontSize: 17, fontWeight: 800 }}>{coche.icon} {coche.nombre}</h3>
+            <p style={{ margin: "3px 0 0", color: muted, fontSize: 12 }}>Nueva reserva</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Fecha */}
+          <div>
+            <label style={lbl}>📅 Fecha</label>
+            <input type="date" style={inp} value={fecha} min={hoyStr} onChange={e => { setFecha(e.target.value); setError(""); }} />
+          </div>
+
+          {/* Horas (libre) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={lbl}>⏰ Hora inicio</label>
+              <input type="time" style={inp} value={horaInicio}
+                onChange={e => { setHoraInicio(e.target.value); setError(""); }} />
+            </div>
+            <div>
+              <label style={lbl}>⏰ Hora fin</label>
+              <input type="time" style={inp} value={horaFin}
+                onChange={e => { setHoraFin(e.target.value); setError(""); }} />
+            </div>
+          </div>
+
+          {/* Motivo */}
+          <div>
+            <label style={lbl}>📝 Motivo (opcional)</label>
+            <input style={inp} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Visita a obra, Desplazamiento cliente..." maxLength={100} />
+          </div>
+
+          {/* Info duración */}
+          {horaInicio && horaFin && horaToMin(horaFin) > horaToMin(horaInicio) && (
+            <div style={{ background: coche.color + "11", border: `1px solid ${coche.color}33`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⏱️</span>
+              <span style={{ color: coche.color, fontSize: 13, fontWeight: 700 }}>
+                {horaInicio} – {horaFin} · {Math.round((horaToMin(horaFin) - horaToMin(horaInicio)) / 60 * 10) / 10}h
+              </span>
+            </div>
+          )}
+
+          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando}
+              style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? coche.color + "88" : coche.color, color: "#fff" }}>
+              {guardando ? "Guardando..." : "✓ Confirmar reserva"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal: detalle de reserva de coche ──────────────────────────
+function ModalDetalleReservaCoche({ db, darkMode, reserva, usuario, empColor, onClose, onCancelar }) {
+  const dm     = darkMode;
+  const coche  = COCHES.find(c => c.id === reserva.cocheId);
+  const card   = dm ? "#111827" : "#FFFFFF";
+  const border = dm ? "#2E3A55" : "#E2E8F0";
+  const text   = dm ? "#E2E8F0" : "#0F172A";
+  const muted  = dm ? "#64748B" : "#94A3B8";
+
+  const esMia        = reserva.usuarioId === usuario?.id;
+  const puedeCancelar = puedeCancelarCoche(reserva, usuario);
+  const esResponsable = puedeCancelar && !esMia;
+  const emp    = EMPRESAS.find(e => e.id === reserva.empresaId);
+  const durMin = horaToMin(reserva.horaFin) - horaToMin(reserva.horaInicio);
+  const durStr = durMin >= 60 ? `${Math.floor(durMin/60)}h${durMin%60>0?` ${durMin%60}min`:""}` : `${durMin}min`;
+
+  const fechaFmt = new Date(reserva.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
+      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 420, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: coche.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{coche.icon}</div>
+            <div>
+              <h3 style={{ margin: 0, color: coche.color, fontSize: 16, fontWeight: 800 }}>{coche.nombre}</h3>
+              <p style={{ margin: 0, color: muted, fontSize: 12 }}>Detalles de la reserva</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Fecha */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+            <span style={{ fontSize: 18 }}>📅</span>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Fecha</p>
+              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{fechaFmt}</p>
+            </div>
+          </div>
+
+          {/* Horario */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: coche.color + "11", borderRadius: 8, border: `1px solid ${coche.color}33` }}>
+            <span style={{ fontSize: 18 }}>⏰</span>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Horario</p>
+              <p style={{ margin: 0, color: coche.color, fontSize: 15, fontWeight: 800 }}>{reserva.horaInicio} – {reserva.horaFin} <span style={{ fontSize: 12, fontWeight: 600 }}>({durStr})</span></p>
+            </div>
+          </div>
+
+          {/* Reservado por */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: (emp?.color || empColor) + "33", border: `1.5px solid ${emp?.color || empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: emp?.color || empColor, flexShrink: 0 }}>
+              {reserva.usuarioNombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
+            </div>
+            <div>
+              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Reservado por</p>
+              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700 }}>{reserva.usuarioNombre} {esMia && <span style={{ color: coche.color, fontSize: 11 }}>(tú)</span>}</p>
+              {emp && <p style={{ margin: 0, color: emp.color, fontSize: 11 }}>{emp.nombre}</p>}
+            </div>
+          </div>
+
+          {/* Motivo */}
+          {reserva.motivo && (
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
+              <span style={{ fontSize: 18 }}>📝</span>
+              <div>
+                <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Motivo</p>
+                <p style={{ margin: 0, color: text, fontSize: 13 }}>{reserva.motivo}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Aviso de responsable */}
+          {esResponsable && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 12px", background: "#F6AD5518", borderRadius: 8, border: "1px solid #F6AD5544" }}>
+              <span style={{ fontSize: 14 }}>🔑</span>
+              <span style={{ color: "#DD8B1E", fontSize: 11, fontWeight: 600 }}>Eres responsable de este vehículo: puedes cancelar esta reserva.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Botones */}
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cerrar</button>
+          {puedeCancelar && (
+            <button onClick={onCancelar}
+              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
+              🗑️ Cancelar reserva
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
