@@ -3273,7 +3273,6 @@ export default function App() {
 
             {/* ── RESTO ── */}
             {[
-              { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
@@ -4991,6 +4990,7 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
   );
 }
 
+
 // ===== MÓDULO PROYECTOS: plantillas + helpers (integrado) =====
 // =============================================================
 //  Módulo Proyectos — Plantillas Gantt
@@ -5050,55 +5050,55 @@ const PLANTILLA_OBRA_ELECTRICA = {
       nombre: "Ingeniería y Proyecto",
       color: "#0077ab",
       tareas: [
-        { nombre: "Levantamiento de cargas",              offsetDias: 0,  duracionDias: 11, responsableSugerido: "", avanceEjemplo: 100 },
-        { nombre: "Diseño de esquemas unifilares",         offsetDias: 5,  duracionDias: 16, responsableSugerido: "",    avanceEjemplo: 100 },
-        { nombre: "Cálculo de secciones y protecciones",   offsetDias: 12, duracionDias: 11, responsableSugerido: "", avanceEjemplo: 100 },
-        { nombre: "Memoria técnica y planos",              offsetDias: 18, duracionDias: 13, responsableSugerido: "",   avanceEjemplo: 85  },
-        { nombre: "Aprobación de proyecto",                offsetDias: 28, duracionDias: 11, responsableSugerido: "",     avanceEjemplo: 60  },
+        { nombre: "Levantamiento de cargas",              offsetDias: 0,  duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
+        { nombre: "Diseño de esquemas unifilares",         offsetDias: 5,  duracionDias: 16, responsableSugerido: "Ana Torres",    avanceEjemplo: 100 },
+        { nombre: "Cálculo de secciones y protecciones",   offsetDias: 12, duracionDias: 11, responsableSugerido: "Carlos Méndez", avanceEjemplo: 100 },
+        { nombre: "Memoria técnica y planos",              offsetDias: 18, duracionDias: 13, responsableSugerido: "Laura Vidal",   avanceEjemplo: 85  },
+        { nombre: "Aprobación de proyecto",                offsetDias: 28, duracionDias: 11, responsableSugerido: "Dirección",     avanceEjemplo: 60  },
       ],
     },
     {
       nombre: "Obra Civil y Canalizaciones",
       color: "#6B7280",
       tareas: [
-        { nombre: "Replanteo de trazados",                 offsetDias: 30, duracionDias: 7,  responsableSugerido: "", avanceEjemplo: 50 },
-        { nombre: "Apertura de rozas y zanjas",            offsetDias: 33, duracionDias: 18, responsableSugerido: "",   avanceEjemplo: 30 },
-        { nombre: "Instalación de tubos y bandejas",       offsetDias: 40, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 10 },
-        { nombre: "Tendido de cables BT",                  offsetDias: 55, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 0  },
-        { nombre: "Tendido de cables MT",                  offsetDias: 60, duracionDias: 26, responsableSugerido: "",   avanceEjemplo: 0  },
-        { nombre: "Sellado y acabados civiles",            offsetDias: 80, duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 0  },
+        { nombre: "Replanteo de trazados",                 offsetDias: 30, duracionDias: 7,  responsableSugerido: "Pedro Sanz", avanceEjemplo: 50 },
+        { nombre: "Apertura de rozas y zanjas",            offsetDias: 33, duracionDias: 18, responsableSugerido: "Equipo A",   avanceEjemplo: 30 },
+        { nombre: "Instalación de tubos y bandejas",       offsetDias: 40, duracionDias: 21, responsableSugerido: "Equipo A",   avanceEjemplo: 10 },
+        { nombre: "Tendido de cables BT",                  offsetDias: 55, duracionDias: 21, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
+        { nombre: "Tendido de cables MT",                  offsetDias: 60, duracionDias: 26, responsableSugerido: "Equipo B",   avanceEjemplo: 0  },
+        { nombre: "Sellado y acabados civiles",            offsetDias: 80, duracionDias: 16, responsableSugerido: "Equipo A",   avanceEjemplo: 0  },
       ],
     },
     {
       nombre: "Cuadros y Equipos",
       color: "#e0ad12",
       tareas: [
-        { nombre: "Recepción y verificación de material",  offsetDias: 35, duracionDias: 8,  responsableSugerido: "",       avanceEjemplo: 40 },
-        { nombre: "Montaje CGD / CGBT principal",          offsetDias: 50, duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 5  },
-        { nombre: "Montaje cuadros secundarios",           offsetDias: 60, duracionDias: 21, responsableSugerido: "",   avanceEjemplo: 0  },
-        { nombre: "Instalación transformador MT/BT",       offsetDias: 65, duracionDias: 16, responsableSugerido: "", avanceEjemplo: 0 },
-        { nombre: "Montaje equipos de medida",             offsetDias: 75, duracionDias: 14, responsableSugerido: "",    avanceEjemplo: 0  },
+        { nombre: "Recepción y verificación de material",  offsetDias: 35, duracionDias: 8,  responsableSugerido: "Almacén",       avanceEjemplo: 40 },
+        { nombre: "Montaje CGD / CGBT principal",          offsetDias: 50, duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 5  },
+        { nombre: "Montaje cuadros secundarios",           offsetDias: 60, duracionDias: 21, responsableSugerido: "Juan Romero",   avanceEjemplo: 0  },
+        { nombre: "Instalación transformador MT/BT",       offsetDias: 65, duracionDias: 16, responsableSugerido: "Proveedor ext.", avanceEjemplo: 0 },
+        { nombre: "Montaje equipos de medida",             offsetDias: 75, duracionDias: 14, responsableSugerido: "Ana Torres",    avanceEjemplo: 0  },
       ],
     },
     {
       nombre: "Conexiones y Pruebas",
       color: "#af4a85",
       tareas: [
-        { nombre: "Conexionado cuadros y circuitos",       offsetDias: 80,  duracionDias: 16, responsableSugerido: "",   avanceEjemplo: 0 },
-        { nombre: "Pruebas de aislamiento (Megger)",       offsetDias: 92,  duracionDias: 7,  responsableSugerido: "", avanceEjemplo: 0 },
-        { nombre: "Verificación de protecciones",          offsetDias: 95,  duracionDias: 8,  responsableSugerido: "", avanceEjemplo: 0 },
-        { nombre: "Prueba funcional de circuitos",         offsetDias: 98,  duracionDias: 9,  responsableSugerido: "",      avanceEjemplo: 0 },
-        { nombre: "Medición de tierras",                   offsetDias: 100, duracionDias: 9,  responsableSugerido: "",    avanceEjemplo: 0 },
+        { nombre: "Conexionado cuadros y circuitos",       offsetDias: 80,  duracionDias: 16, responsableSugerido: "Juan Romero",   avanceEjemplo: 0 },
+        { nombre: "Pruebas de aislamiento (Megger)",       offsetDias: 92,  duracionDias: 7,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Verificación de protecciones",          offsetDias: 95,  duracionDias: 8,  responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Prueba funcional de circuitos",         offsetDias: 98,  duracionDias: 9,  responsableSugerido: "Equipo B",      avanceEjemplo: 0 },
+        { nombre: "Medición de tierras",                   offsetDias: 100, duracionDias: 9,  responsableSugerido: "Ana Torres",    avanceEjemplo: 0 },
       ],
     },
     {
       nombre: "Legalización y Entrega",
       color: "#4F8C0d",
       tareas: [
-        { nombre: "Acta de puesta en servicio",            offsetDias: 105, duracionDias: 6, responsableSugerido: "",   avanceEjemplo: 0 },
-        { nombre: "Documentación as-built",                offsetDias: 106, duracionDias: 9, responsableSugerido: "",   avanceEjemplo: 0 },
-        { nombre: "Boletín eléctrico BCIE",                offsetDias: 108, duracionDias: 9, responsableSugerido: "", avanceEjemplo: 0 },
-        { nombre: "Entrega a cliente",                     offsetDias: 114, duracionDias: 7, responsableSugerido: "",     avanceEjemplo: 0 },
+        { nombre: "Acta de puesta en servicio",            offsetDias: 105, duracionDias: 6, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
+        { nombre: "Documentación as-built",                offsetDias: 106, duracionDias: 9, responsableSugerido: "Laura Vidal",   avanceEjemplo: 0 },
+        { nombre: "Boletín eléctrico BCIE",                offsetDias: 108, duracionDias: 9, responsableSugerido: "Carlos Méndez", avanceEjemplo: 0 },
+        { nombre: "Entrega a cliente",                     offsetDias: 114, duracionDias: 7, responsableSugerido: "Dirección",     avanceEjemplo: 0 },
       ],
     },
   ],
@@ -5134,10 +5134,7 @@ function crearProyectoDesdePlantilla(plantilla, opciones = {}) {
         inicio,
         fin,
         responsable: t.responsableSugerido || "",
-        responsableId: null,
         avance: usarAvanceEjemplo ? (t.avanceEjemplo || 0) : 0,
-        dependeDe: null,
-        lagDias: 1,
         dependencias: [],
       };
     }),
@@ -5244,10 +5241,7 @@ function parseExcelCronograma(XLSX, arrayBuffer, opciones = {}) {
         inicio,
         fin,
         responsable: String(r["Responsable"] || ""),
-        responsableId: null,
         avance: Number(r["% Avance"]) || 0,
-        dependeDe: null,
-        lagDias: 1,
         dependencias: [],
       });
     }
@@ -5323,29 +5317,6 @@ function avanceFase(f) {
   return td ? Math.round(pond/td) : 0;
 }
 
-// Recalcula fechas de tareas con dependencia: inicio = fin(predecesora) + lagDias,
-// conservando la duración. Propaga en cascada (con tope anti-bucles).
-function aplicarDependencias(proj) {
-  const clone = JSON.parse(JSON.stringify(proj));
-  const map = {};
-  (clone.fases||[]).forEach(f => (f.tareas||[]).forEach(t => { map[String(t.id)] = t; }));
-  for (let pass = 0; pass < 100; pass++) {
-    let changed = false;
-    (clone.fases||[]).forEach(f => (f.tareas||[]).forEach(t => {
-      const pred = (t.dependeDe != null) ? map[String(t.dependeDe)] : null;
-      if (pred && pred.fin) {
-        const lag = Number(t.lagDias ?? 0);
-        const dur = (t.inicio && t.fin) ? Math.max(1, diffDias(t.inicio, t.fin)) : 1;
-        const ni = addDias(pred.fin, lag);
-        const nf = addDias(ni, dur - 1);
-        if (t.inicio !== ni || t.fin !== nf) { t.inicio = ni; t.fin = nf; changed = true; }
-      }
-    }));
-    if (!changed) break;
-  }
-  return clone;
-}
-
 // ─── Componente principal ───────────────────────────────────
 function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS, EMPRESAS }) {
   const [proyectos, setProyectos] = useState([]);
@@ -5369,7 +5340,7 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
     if (esDirCeo || rol === "administrador") return true;
     if (rol === "encargado") return p.empresaId === usuario?.empresaId;
     if (p.empresaId === usuario?.empresaId) return true;
-    return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsableId != null && t.responsableId === usuarioId));
+    return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsable && usuario?.nombre && t.responsable.includes(usuario.nombre.split(" ")[0])));
   }), [proyectos, rol, usuario, esDirCeo]);
 
   const filtrados = visibles
@@ -5658,7 +5629,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
     const fins = todas.map(t=>t.fin).filter(Boolean).sort();
     return { ...proj, fechaInicio: inis[0] || proj.fechaInicio, fechaFin: fins[fins.length-1] || proj.fechaFin };
   };
-  const persistir = (proj) => { const r = recalcRango(aplicarDependencias(proj)); setP(r); onGuardar(r); };
+  const persistir = (proj) => { const r = recalcRango(proj); setP(r); onGuardar(r); };
 
   const setEstado = (estado) => persistir({ ...p, estado });
   const setEmpresa = (empresaId) => persistir({ ...p, empresaId: Number(empresaId) });
@@ -5667,7 +5638,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
     const fases = p.fases.map(f => {
       if (f.id !== faseId) return f;
       if (tareaId) return { ...f, tareas: f.tareas.map(t => t.id===tareaId ? { ...t, ...datos } : t) };
-      return { ...f, tareas: [...(f.tareas||[]), { id: genId(), dependeDe:null, lagDias:1, dependencias:[], avance:0, ...datos }] };
+      return { ...f, tareas: [...(f.tareas||[]), { id: genId(), dependencias:[], avance:0, ...datos }] };
     });
     persistir({ ...p, fases });
     setEditTarea(null);
@@ -5770,8 +5741,8 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
       )}
 
       {editTarea && (
-        <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empresaId={p.empresaId}
-          proyecto={p} fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
+        <ModalEditarTarea darkMode={darkMode} empColor={empColor} USUARIOS={USUARIOS} empresaId={p.empresaId}
+          fase={p.fases.find(f=>f.id===editTarea.faseId)} tarea={editTarea.tarea} fechaBaseProyecto={p.fechaInicio}
           onGuardar={(datos)=>guardarTarea(editTarea.faseId, datos, editTarea.tarea?.id)}
           onBorrar={editTarea.tarea ? ()=>borrarTarea(editTarea.faseId, editTarea.tarea.id) : null}
           onClose={()=>setEditTarea(null)} />
@@ -5789,7 +5760,6 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
   const grid = darkMode ? "#1E293B" : "#EEF2F7";
 
   const fases = p.fases || [];
-  const allById = Object.fromEntries(fases.flatMap(f => (f.tareas||[]).map(t => [String(t.id), t])));
 
   // Solo el estado totalmente vacío (sin fases) muestra el placeholder grande
   if (fases.length === 0) {
@@ -5863,7 +5833,6 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
                       style={{ width:LABEL_W, flexShrink:0, padding:"7px 12px 7px 28px", borderRight:`1px solid ${border}`, cursor: onEditarTarea?"pointer":"default" }}>
                       <p style={{ margin:0, color:textPri, fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.nombre}</p>
                       <p style={{ margin:0, color:muted, fontSize:10 }}>{t.responsable||"Sin asignar"}{!tieneFechas && " · sin fechas"}</p>
-                      {t.dependeDe != null && allById[String(t.dependeDe)] && <p style={{ margin:0, color:muted, fontSize:9.5 }}>↳ tras: {allById[String(t.dependeDe)].nombre}</p>}
                     </div>
                     <div style={{ position:"relative", width:anchoTimeline, height:40, display:"flex", alignItems:"center" }}>
                       {marcas.map((m,i)=><div key={i} style={{ position:"absolute", left:m.left, top:0, bottom:0, borderLeft:`1px solid ${grid}` }} />)}
@@ -5898,37 +5867,14 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
 }
 
 // ─── Modal: editar / crear tarea ────────────────────────────
-function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, proyecto, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
+function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
   const baseIni = tarea?.inicio || fechaBaseProyecto || hoyISO();
   const [nombre, setNombre] = useState(tarea?.nombre || "");
   const [inicio, setInicio] = useState(baseIni);
   const [fin, setFin] = useState(tarea?.fin || addDias(baseIni, 4));
-  const matchByName = tarea?.responsable ? USUARIOS.find(u => u.nombre === tarea.responsable) : null;
-  const initId = tarea?.responsableId != null ? String(tarea.responsableId) : (matchByName ? String(matchByName.id) : "");
-  const keepName = (initId === "" && tarea?.responsable) ? tarea.responsable : "";
-  const [responsableId, setResponsableId] = useState(keepName ? "__keep" : initId);
+  const [responsable, setResponsable] = useState(tarea?.responsable || "");
   const [avance, setAvance] = useState(tarea?.avance ?? 0);
   const [err, setErr] = useState("");
-
-  // Dependencias
-  const todasTareas = (proyecto?.fases||[]).flatMap(f => (f.tareas||[]).map(t => ({ ...t, faseNombre: f.nombre })));
-  const tareasMap = Object.fromEntries(todasTareas.map(t => [String(t.id), t]));
-  const descend = (() => {
-    const set = new Set(); if (!tarea) return set;
-    let added = true;
-    while (added) { added = false;
-      todasTareas.forEach(t => {
-        if (t.dependeDe != null && (String(t.dependeDe) === String(tarea.id) || set.has(String(t.dependeDe))) && !set.has(String(t.id))) { set.add(String(t.id)); added = true; }
-      });
-    }
-    return set;
-  })();
-  const candidatos = todasTareas.filter(t => (!tarea || t.id !== tarea.id) && !descend.has(String(t.id)));
-  const [dependeDe, setDependeDe] = useState(tarea?.dependeDe != null ? String(tarea.dependeDe) : "");
-  const [lagDias, setLagDias] = useState(tarea?.lagDias ?? 1);
-  const pred = dependeDe ? tareasMap[dependeDe] : null;
-  const inicioAuto = (pred && pred.fin) ? addDias(pred.fin, Number(lagDias)||0) : null;
-  const inicioEff = inicioAuto || inicio;
 
   const card = darkMode ? "#111827" : "#FFFFFF";
   const border = darkMode ? "#1E293B" : "#E2E8F0";
@@ -5937,13 +5883,12 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, p
   const inp = { fontFamily:"inherit", fontSize:13, background: darkMode?"#0D1424":"#FFFFFF", border:`1px solid ${border}`, borderRadius:8, padding:"9px 12px", color:textPri, outline:"none", width:"100%", boxSizing:"border-box" };
   const lbl = { display:"block", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:6 };
 
+  const sugeridos = USUARIOS.filter(u => u.empresaId === empresaId).map(u => u.nombre);
+
   const guardar = () => {
     if (!nombre.trim()) return setErr("Pon un nombre a la tarea.");
-    if (new Date(fin) < new Date(inicioEff)) return setErr("La fecha de fin no puede ser anterior al inicio.");
-    let rId = null, rNombre = "";
-    if (responsableId === "__keep") { rNombre = keepName; }
-    else if (responsableId) { const u = USUARIOS.find(x => String(x.id) === String(responsableId)); if (u) { rId = u.id; rNombre = u.nombre; } }
-    onGuardar({ nombre: nombre.trim(), inicio: inicioEff, fin, responsable: rNombre, responsableId: rId, dependeDe: dependeDe ? Number(dependeDe) : null, lagDias: Number(lagDias)||0, avance: Math.max(0, Math.min(100, Number(avance)||0)) });
+    if (new Date(fin) < new Date(inicio)) return setErr("La fecha de fin no puede ser anterior al inicio.");
+    onGuardar({ nombre: nombre.trim(), inicio, fin, responsable: responsable.trim(), avance: Math.max(0, Math.min(100, Number(avance)||0)) });
   };
 
   return (
@@ -5962,44 +5907,13 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, EMPRESAS, empresaId, p
           <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Ej. Tendido de cables BT" />
         </div>
         <div className="form-grid-2" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-          <div>
-            <label style={lbl}>Inicio</label>
-            <input type="date" style={{ ...inp, opacity: inicioAuto?0.6:1 }} value={inicioEff} disabled={!!inicioAuto} onChange={e=>setInicio(e.target.value)} />
-          </div>
+          <div><label style={lbl}>Inicio</label><input type="date" style={inp} value={inicio} onChange={e=>setInicio(e.target.value)} /></div>
           <div><label style={lbl}>Fin</label><input type="date" style={inp} value={fin} onChange={e=>setFin(e.target.value)} /></div>
-        </div>
-
-        <div style={{ marginBottom:14 }}>
-          <label style={lbl}>Depende de (empezar tras otra tarea)</label>
-          <select style={inp} value={dependeDe} onChange={e=>setDependeDe(e.target.value)}>
-            <option value="">Sin dependencia (fecha manual)</option>
-            {candidatos.map(t => <option key={t.id} value={t.id}>{t.faseNombre} · {t.nombre}</option>)}
-          </select>
-          {dependeDe && (
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, flexWrap:"wrap" }}>
-              <span style={{ color:muted, fontSize:12 }}>Empezar</span>
-              <input type="number" min={0} style={{ ...inp, width:72, padding:"7px 10px" }} value={lagDias} onChange={e=>setLagDias(e.target.value)} />
-              <span style={{ color:muted, fontSize:12 }}>día(s) tras finalizar «{pred?.nombre || "—"}»</span>
-            </div>
-          )}
-          {dependeDe && !pred?.fin && <p style={{ margin:"6px 0 0", color:"#E0AD12", fontSize:11 }}>La tarea anterior aún no tiene fechas; el inicio se recalculará cuando las tenga.</p>}
         </div>
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>Responsable</label>
-          <select style={inp} value={responsableId} onChange={e=>setResponsableId(e.target.value)}>
-            <option value="">Sin asignar</option>
-            {keepName && <option value="__keep">{keepName} (actual)</option>}
-            {EMPRESAS.map(emp => {
-              const us = USUARIOS.filter(u => u.empresaId === emp.id);
-              if (!us.length) return null;
-              return (
-                <optgroup key={emp.id} label={emp.nombre}>
-                  {us.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-                </optgroup>
-              );
-            })}
-          </select>
-          <p style={{ margin:"6px 0 0", color:muted, fontSize:11 }}>Puedes asignar a personas de cualquier empresa.</p>
+          <input style={inp} list="resp-sug" value={responsable} onChange={e=>setResponsable(e.target.value)} placeholder="Nombre o equipo" />
+          <datalist id="resp-sug">{sugeridos.map((n,i)=><option key={i} value={n} />)}</datalist>
         </div>
         <div style={{ marginBottom:18 }}>
           <label style={lbl}>Avance: {avance}%</label>
