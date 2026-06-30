@@ -3277,8 +3277,6 @@ export default function App() {
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
               { id:"nominas",      icon:"💰", label:"Nóminas" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
-              ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
-              ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
@@ -3354,7 +3352,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3710,16 +3708,6 @@ export default function App() {
             </div>
           );
         })()}
-
-        {/* ── SALAS ── */}
-        {seccion === "salas" && USUARIOS_SALAS_IDS.includes(usuario?.id) && (
-          <SeccionSalas db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
-        )}
-
-        {/* ── COCHES ── */}
-        {seccion === "coches" && USUARIOS_COCHES_IDS.includes(usuario?.id) && (
-          <SeccionCoches db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
-        )}
 
         {/* ── PERFIL ── */}
         {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
@@ -5292,7 +5280,7 @@ function exportarProyectoExcel(XLSX, proyecto) {
 
 // ===== MÓDULO PROYECTOS: componentes UI (integrado) =====
 // =============================================================
-//  SeccionProyectos.jsx — Módulo Proyectos con Gantt
+//  SeccionProyectos.jsx — Módulo Proyectos con Gantt (v2)
 //  Grupo Laura Otero · App Gestión Empresarial
 //  Requiere: ./plantillaProyectos.js  y (para Excel) `npm i xlsx`
 // =============================================================
@@ -5306,11 +5294,33 @@ const ESTADOS_PROY = {
 };
 const MESES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const fmtES = (iso) => { if (!iso) return "—"; const [a,m,d]=iso.split("-"); return `${d}/${m}/${a}`; };
+const hoyISO = () => new Date().toISOString().slice(0,10);
+
+// Estadísticas de un proyecto
+function statsProyecto(p) {
+  const tareas = (p.fases||[]).flatMap(f => f.tareas||[]);
+  const hoy = hoyISO();
+  return {
+    total: tareas.length,
+    completadas: tareas.filter(t => (t.avance||0) >= 100).length,
+    enCurso: tareas.filter(t => (t.avance||0) > 0 && (t.avance||0) < 100).length,
+    sinIniciar: tareas.filter(t => (t.avance||0) === 0).length,
+    vencidas: tareas.filter(t => t.fin && t.fin < hoy && (t.avance||0) < 100).length,
+    avance: progresoProyecto(p),
+  };
+}
+function avanceFase(f) {
+  const ts = f.tareas || [];
+  if (!ts.length) return 0;
+  let td = 0, pond = 0;
+  ts.forEach(t => { const d = (t.inicio && t.fin) ? Math.max(1, diffDias(t.inicio, t.fin)) : 1; td += d; pond += d * (t.avance||0); });
+  return td ? Math.round(pond/td) : 0;
+}
 
 // ─── Componente principal ───────────────────────────────────
 function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS, EMPRESAS }) {
   const [proyectos, setProyectos] = useState([]);
-  const [abierto, setAbierto] = useState(null);     // id del proyecto en detalle
+  const [abierto, setAbierto] = useState(null);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [filtroEmp, setFiltroEmp] = useState("todas");
   const [buscar, setBuscar] = useState("");
@@ -5319,7 +5329,6 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
   const esDirCeo = ["director","ceo"].includes(rol);
   const puedeEditar = ["director","ceo","encargado","administrador"].includes(rol);
 
-  // ── Firestore: proyectos en tiempo real ──
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "proyectos"), snap => {
       setProyectos(snap.docs.map(d => d.data()).sort((a,b) => new Date(b.creadoEn||0) - new Date(a.creadoEn||0)));
@@ -5327,11 +5336,9 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
     return () => unsub();
   }, [db]);
 
-  // ── Visibilidad por rol ──
   const visibles = useMemo(() => proyectos.filter(p => {
     if (esDirCeo || rol === "administrador") return true;
     if (rol === "encargado") return p.empresaId === usuario?.empresaId;
-    // trabajador: proyectos de su empresa o donde figura como responsable de alguna tarea
     if (p.empresaId === usuario?.empresaId) return true;
     return (p.fases||[]).some(f => (f.tareas||[]).some(t => t.responsable && usuario?.nombre && t.responsable.includes(usuario.nombre.split(" ")[0])));
   }), [proyectos, rol, usuario, esDirCeo]);
@@ -5340,7 +5347,6 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
     .filter(p => filtroEmp === "todas" || p.empresaId === Number(filtroEmp))
     .filter(p => !buscar || p.nombre.toLowerCase().includes(buscar.toLowerCase()));
 
-  // ── Persistencia ──
   const guardar = async (p) => { await setDoc(doc(db, "proyectos", String(p.id)), p); };
   const eliminar = async (id) => {
     if (!window.confirm("¿Eliminar este proyecto? No se puede deshacer.")) return;
@@ -5353,15 +5359,25 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
   const textPri = darkMode ? "#E2E8F0" : "#0F172A";
   const muted = darkMode ? "#64748B" : "#94A3B8";
 
-  // KPIs
+  // ── Dashboard general ──
   const kpis = {
     total: visibles.length,
     progreso: visibles.filter(p => p.estado === "En progreso").length,
     completados: visibles.filter(p => p.estado === "Completado").length,
     avance: visibles.length ? Math.round(visibles.reduce((s,p)=>s+progresoProyecto(p),0)/visibles.length) : 0,
+    vencidas: visibles.reduce((s,p)=>s+statsProyecto(p).vencidas,0),
   };
+  const porEmpresa = useMemo(() => {
+    const m = {};
+    visibles.forEach(p => {
+      const e = EMPRESAS.find(x => x.id === p.empresaId);
+      const k = p.empresaId;
+      if (!m[k]) m[k] = { nombre: e?.nombre||"—", color: e?.color||empColor, count:0, sum:0 };
+      m[k].count++; m[k].sum += progresoProyecto(p);
+    });
+    return Object.values(m).map(o => ({ ...o, avance: o.count ? Math.round(o.sum/o.count) : 0 })).sort((a,b)=>b.count-a.count);
+  }, [visibles, EMPRESAS, empColor]);
 
-  // ── Vista detalle (Gantt) ──
   const proyAbierto = proyectos.find(p => p.id === abierto);
   if (proyAbierto) {
     return <DetalleProyecto
@@ -5370,7 +5386,6 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
       onVolver={() => setAbierto(null)} onGuardar={guardar} onEliminar={eliminar} />;
   }
 
-  // ── Vista lista ──
   return (
     <div>
       <div className="page-header" style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:12 }}>
@@ -5388,13 +5403,14 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
         )}
       </div>
 
-      {/* KPIs */}
-      <div className="stats-grid" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+      {/* ── DASHBOARD GENERAL ── */}
+      <div className="stats-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:12, marginBottom:14 }}>
         {[
           ["Total", kpis.total, "📊", "#3182CE"],
           ["En progreso", kpis.progreso, "🔵", "#3182CE"],
           ["Completados", kpis.completados, "✅", "#38A169"],
           ["Avance medio", kpis.avance + "%", "📈", empColor],
+          ["Tareas vencidas", kpis.vencidas, "⚠️", kpis.vencidas ? "#E53E3E" : muted],
         ].map(([l,v,ic,col]) => (
           <div key={l} style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"14px 16px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
@@ -5406,11 +5422,29 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
         ))}
       </div>
 
-      {/* Filtros */}
+      {porEmpresa.length > 0 && (
+        <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"14px 18px", marginBottom:20 }}>
+          <p style={{ margin:"0 0 12px", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>Avance por empresa</p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:12 }}>
+            {porEmpresa.map((e,i) => (
+              <div key={i}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                  <span style={{ color:textPri, fontSize:12, fontWeight:700 }}>{e.nombre} <span style={{ color:muted, fontWeight:500 }}>({e.count})</span></span>
+                  <span style={{ color:e.color, fontSize:12, fontWeight:800 }}>{e.avance}%</span>
+                </div>
+                <div style={{ background: darkMode?"#0D1424":"#F1F5F9", borderRadius:6, height:7, overflow:"hidden" }}>
+                  <div style={{ width:`${e.avance}%`, height:"100%", background:e.color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="filters-row" style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
         <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar proyecto..."
           style={{ fontFamily:"inherit", fontSize:13, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color:textPri, outline:"none", minWidth:220 }} />
-        {esDirCeo && (
+        {(esDirCeo || rol === "administrador") && (
           <select value={filtroEmp} onChange={e=>setFiltroEmp(e.target.value)}
             style={{ fontFamily:"inherit", fontSize:13, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color:textPri, outline:"none" }}>
             <option value="todas">Todas las empresas</option>
@@ -5419,7 +5453,6 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
         )}
       </div>
 
-      {/* Lista */}
       {filtrados.length === 0 ? (
         <div style={{ textAlign:"center", padding:"70px 20px" }}>
           <p style={{ fontSize:50, marginBottom:12 }}>📊</p>
@@ -5431,7 +5464,7 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
           {filtrados.map(p => {
             const emp = EMPRESAS.find(e => e.id === p.empresaId);
             const prog = progresoProyecto(p);
-            const nT = (p.fases||[]).reduce((s,f)=>s+(f.tareas||[]).length,0);
+            const st = statsProyecto(p);
             return (
               <div key={p.id} onClick={() => setAbierto(p.id)}
                 style={{ background:card, border:`1px solid ${border}`, borderLeft:`4px solid ${emp?.color||empColor}`, borderRadius:12, padding:"16px 18px", cursor:"pointer" }}>
@@ -5440,7 +5473,8 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
                   <span style={{ background: ESTADOS_PROY[p.estado]+"22", color: ESTADOS_PROY[p.estado], borderRadius:5, padding:"2px 8px", fontSize:10, fontWeight:800, whiteSpace:"nowrap" }}>{p.estado}</span>
                 </div>
                 <p style={{ margin:"0 0 12px", color:muted, fontSize:12 }}>
-                  {emp && <span style={{ color: emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {nT} tareas · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)}
+                  {emp && <span style={{ color: emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {st.total} tareas · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)}
+                  {st.vencidas > 0 && <span style={{ color:"#E53E3E", fontWeight:700 }}> · ⚠️ {st.vencidas} vencida(s)</span>}
                 </p>
                 <div style={{ background: darkMode?"#0D1424":"#F1F5F9", borderRadius:6, height:8, overflow:"hidden" }}>
                   <div style={{ width:`${prog}%`, height:"100%", background: prog===100?"#38A169":(emp?.color||empColor), transition:"width .3s" }} />
@@ -5454,7 +5488,7 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
 
       {modalNuevo && (
         <ModalNuevoProyecto darkMode={darkMode} empColor={empColor} usuario={usuario} usuarioId={usuarioId}
-          esDirCeo={esDirCeo} EMPRESAS={EMPRESAS}
+          EMPRESAS={EMPRESAS}
           onClose={() => setModalNuevo(false)}
           onCrear={async (p) => { await guardar(p); setModalNuevo(false); setAbierto(p.id); }} />
       )}
@@ -5462,12 +5496,12 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
   );
 }
 
-// ─── Modal: nuevo proyecto (blanco / plantilla / Excel) ─────
-function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, EMPRESAS, onClose, onCrear }) {
-  const [modo, setModo] = useState("plantilla"); // plantilla | blanco | excel
+// ─── Modal: nuevo proyecto ──────────────────────────────────
+function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, EMPRESAS, onClose, onCrear }) {
+  const [modo, setModo] = useState("plantilla");
   const [nombre, setNombre] = useState("");
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().slice(0,10));
-  const [empresaId, setEmpresaId] = useState(esDirCeo ? 0 : (usuario?.empresaId ?? 0));
+  const [fechaInicio, setFechaInicio] = useState(hoyISO());
+  const [empresaId, setEmpresaId] = useState(usuario?.empresaId ?? (EMPRESAS[0]?.id ?? 0));
   const [plantillaId, setPlantillaId] = useState(PLANTILLAS[0]?.id || "");
   const [archivo, setArchivo] = useState(null);
   const [err, setErr] = useState("");
@@ -5515,7 +5549,6 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
           <button onClick={onClose} style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:22 }}>×</button>
         </div>
 
-        {/* Selector de modo */}
         <div style={{ display:"flex", gap:6, marginBottom:18, background: darkMode?"#0D1424":"#F1F5F9", borderRadius:9, padding:3 }}>
           {[["plantilla","📋 Plantilla"],["blanco","➕ En blanco"],["excel","📥 Excel"]].map(([v,l]) => (
             <button key={v} onClick={()=>setModo(v)}
@@ -5551,8 +5584,7 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
         {modo === "excel" && (
           <div style={{ marginBottom:14 }}>
             <label style={lbl}>Archivo Excel (columnas: Fase · Tarea / Actividad · Inicio · Fin · Responsable · % Avance)</label>
-            <input type="file" accept=".xlsx,.xls" onChange={e=>setArchivo(e.target.files?.[0]||null)}
-              style={{ ...inp, padding:"8px" }} />
+            <input type="file" accept=".xlsx,.xls" onChange={e=>setArchivo(e.target.files?.[0]||null)} style={{ ...inp, padding:"8px" }} />
             <div style={{ marginTop:14 }}>
               <label style={lbl}>Nombre (opcional)</label>
               <input style={inp} value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Se usa el nombre del archivo si lo dejas vacío" />
@@ -5560,14 +5592,13 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
           </div>
         )}
 
-        {esDirCeo && (
-          <div style={{ marginBottom:14 }}>
-            <label style={lbl}>Empresa</label>
-            <select style={inp} value={empresaId} onChange={e=>setEmpresaId(e.target.value)}>
-              {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-            </select>
-          </div>
-        )}
+        {/* Empresa: siempre seleccionable, desde la tabla EMPRESAS (igual que tickets) */}
+        <div style={{ marginBottom:14 }}>
+          <label style={lbl}>Empresa</label>
+          <select style={inp} value={empresaId} onChange={e=>setEmpresaId(e.target.value)}>
+            {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+          </select>
+        </div>
 
         {err && <p style={{ color:"#E53E3E", fontSize:12, margin:"0 0 12px" }}>{err}</p>}
 
@@ -5580,10 +5611,10 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
   );
 }
 
-// ─── Detalle del proyecto + Gantt ───────────────────────────
+// ─── Detalle del proyecto ───────────────────────────────────
 function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARIOS, EMPRESAS, onVolver, onGuardar, onEliminar }) {
   const [p, setP] = useState(proyecto);
-  const [editTarea, setEditTarea] = useState(null); // { faseId, tarea } o { faseId, tarea:null } para nueva
+  const [editTarea, setEditTarea] = useState(null);
   useEffect(() => { setP(proyecto); }, [proyecto.id]);
 
   const card = darkMode ? "#111827" : "#FFFFFF";
@@ -5592,22 +5623,22 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
   const muted = darkMode ? "#64748B" : "#94A3B8";
   const emp = EMPRESAS.find(e => e.id === p.empresaId);
 
-  // Recalcular rango y persistir
   const recalcRango = (proj) => {
     const todas = (proj.fases||[]).flatMap(f => f.tareas||[]);
     const inis = todas.map(t=>t.inicio).filter(Boolean).sort();
     const fins = todas.map(t=>t.fin).filter(Boolean).sort();
-    return { ...proj, fechaInicio: inis[0] || proj.fechaInicio, fechaFin: fins.at(-1) || proj.fechaFin };
+    return { ...proj, fechaInicio: inis[0] || proj.fechaInicio, fechaFin: fins[fins.length-1] || proj.fechaFin };
   };
   const persistir = (proj) => { const r = recalcRango(proj); setP(r); onGuardar(r); };
 
   const setEstado = (estado) => persistir({ ...p, estado });
+  const setEmpresa = (empresaId) => persistir({ ...p, empresaId: Number(empresaId) });
 
   const guardarTarea = (faseId, datos, tareaId) => {
     const fases = p.fases.map(f => {
       if (f.id !== faseId) return f;
       if (tareaId) return { ...f, tareas: f.tareas.map(t => t.id===tareaId ? { ...t, ...datos } : t) };
-      return { ...f, tareas: [...f.tareas, { id: genId(), dependencias:[], avance:0, ...datos }] };
+      return { ...f, tareas: [...(f.tareas||[]), { id: genId(), dependencias:[], avance:0, ...datos }] };
     });
     persistir({ ...p, fases });
     setEditTarea(null);
@@ -5633,7 +5664,7 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
     exportarProyectoExcel(XLSX, p);
   };
 
-  const prog = progresoProyecto(p);
+  const st = statsProyecto(p);
 
   return (
     <div>
@@ -5643,10 +5674,16 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
           <button onClick={onVolver} style={{ background:"none", border:"none", color: empColor, cursor:"pointer", fontSize:13, fontWeight:700, padding:0, marginBottom:6 }}>← Volver a proyectos</button>
           <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:18 }}>{p.nombre}</h2>
           <p style={{ margin:0, color:muted, fontSize:13 }}>
-            {emp && <span style={{ color:emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)} · {prog}% completado
+            {emp && <span style={{ color:emp.color, fontWeight:700 }}>{emp.nombre}</span>} · {fmtES(p.fechaInicio)} → {fmtES(p.fechaFin)} · {st.avance}% completado
           </p>
         </div>
         <div className="page-header-actions" style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {puedeEditar && (
+            <select value={p.empresaId} onChange={e=>setEmpresa(e.target.value)}
+              style={{ fontFamily:"inherit", fontSize:12, fontWeight:700, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color: emp?.color||textPri, outline:"none", cursor:"pointer" }}>
+              {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </select>
+          )}
           {puedeEditar && (
             <select value={p.estado} onChange={e=>setEstado(e.target.value)}
               style={{ fontFamily:"inherit", fontSize:12, fontWeight:700, background:card, border:`1px solid ${border}`, borderRadius:8, padding:"8px 12px", color: ESTADOS_PROY[p.estado], outline:"none", cursor:"pointer" }}>
@@ -5657,6 +5694,40 @@ function DetalleProyecto({ proyecto, db, darkMode, empColor, puedeEditar, USUARI
           {puedeEditar && <button onClick={()=>onEliminar(p.id)} style={{ background:"#E53E3E22", border:"1px solid #E53E3E44", borderRadius:8, padding:"8px 14px", color:"#E53E3E", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>🗑️ Eliminar</button>}
         </div>
       </div>
+
+      {/* ── DASHBOARD DEL PROYECTO ── */}
+      <div className="stats-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:12, marginBottom:14 }}>
+        {[
+          ["Tareas", st.total, textPri],
+          ["Completadas", st.completadas, "#38A169"],
+          ["En curso", st.enCurso, "#3182CE"],
+          ["Sin iniciar", st.sinIniciar, muted],
+          ["Vencidas", st.vencidas, st.vencidas ? "#E53E3E" : muted],
+        ].map(([l,v,col]) => (
+          <div key={l} style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"12px 14px" }}>
+            <p style={{ margin:"0 0 4px", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>{l}</p>
+            <p style={{ margin:0, color:col, fontSize:22, fontWeight:900 }}>{v}</p>
+          </div>
+        ))}
+      </div>
+      {(p.fases||[]).length > 0 && (
+        <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"14px 18px", marginBottom:16 }}>
+          <p style={{ margin:"0 0 12px", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase" }}>Avance por fase</p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:12 }}>
+            {p.fases.map(f => { const a = avanceFase(f); return (
+              <div key={f.id}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                  <span style={{ color:textPri, fontSize:12, fontWeight:700 }}>{f.nombre}</span>
+                  <span style={{ color:f.color||empColor, fontSize:12, fontWeight:800 }}>{a}%</span>
+                </div>
+                <div style={{ background: darkMode?"#0D1424":"#F1F5F9", borderRadius:6, height:7, overflow:"hidden" }}>
+                  <div style={{ width:`${a}%`, height:"100%", background:f.color||empColor }} />
+                </div>
+              </div>
+            ); })}
+          </div>
+        </div>
+      )}
 
       {/* Gantt */}
       <GanttChart p={p} darkMode={darkMode} empColor={empColor}
@@ -5688,20 +5759,30 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
   const muted = darkMode ? "#64748B" : "#94A3B8";
   const grid = darkMode ? "#1E293B" : "#EEF2F7";
 
-  const todas = (p.fases||[]).flatMap(f => f.tareas||[]).filter(t=>t.inicio && t.fin);
-  if (todas.length === 0) {
+  const fases = p.fases || [];
+
+  // Solo el estado totalmente vacío (sin fases) muestra el placeholder grande
+  if (fases.length === 0) {
     return <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, padding:"40px 20px", textAlign:"center", color:muted, fontSize:13 }}>
-      Sin tareas todavía. {onEditarTarea && "Añade una fase y empieza a planificar."}
+      Este proyecto aún no tiene fases. {onEditarTarea && "Pulsa “+ Añadir fase” para empezar a planificar."}
     </div>;
   }
-  const ini = todas.map(t=>t.inicio).sort()[0];
-  const fin = todas.map(t=>t.fin).sort().at(-1);
+
+  const conFechas = fases.flatMap(f => f.tareas||[]).filter(t=>t.inicio && t.fin);
+  // Rango: si hay tareas con fecha lo usamos; si no, una ventana por defecto desde el inicio del proyecto
+  let ini, fin;
+  if (conFechas.length) {
+    ini = conFechas.map(t=>t.inicio).sort()[0];
+    fin = conFechas.map(t=>t.fin).sort()[conFechas.length-1];
+  } else {
+    ini = p.fechaInicio || hoyISO();
+    fin = addDias(ini, 30);
+  }
   const totalDias = Math.max(1, diffDias(ini, fin));
   const pxPorDia = 14;
   const anchoTimeline = totalDias * pxPorDia;
   const LABEL_W = 220;
 
-  // Marcas de mes
   const marcas = [];
   let d = new Date(ini);
   while (d <= new Date(fin)) {
@@ -5710,7 +5791,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
     d.setMonth(d.getMonth()+1, 1);
   }
   const hoyOffset = (() => {
-    const hoy = new Date().toISOString().slice(0,10);
+    const hoy = hoyISO();
     if (hoy < ini || hoy > fin) return null;
     return (diffDias(ini, hoy)-1) * pxPorDia;
   })();
@@ -5719,8 +5800,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
     <div style={{ background:card, border:`1px solid ${border}`, borderRadius:12, overflow:"hidden" }}>
       <div style={{ overflowX:"auto" }}>
         <div style={{ minWidth: LABEL_W + anchoTimeline }}>
-          {/* Cabecera meses */}
-          <div style={{ display:"flex", borderBottom:`1px solid ${border}`, position:"sticky", top:0 }}>
+          <div style={{ display:"flex", borderBottom:`1px solid ${border}` }}>
             <div style={{ width:LABEL_W, flexShrink:0, padding:"8px 12px", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", borderRight:`1px solid ${border}` }}>Tarea</div>
             <div style={{ position:"relative", height:34, width:anchoTimeline }}>
               {marcas.map((m,i)=>(
@@ -5729,21 +5809,19 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
             </div>
           </div>
 
-          {/* Filas por fase */}
-          {(p.fases||[]).map(fase => (
+          {fases.map(fase => (
             <div key={fase.id}>
-              {/* Fila de fase */}
               <div style={{ display:"flex", background: darkMode?"#0D1424":"#F8FAFC", borderBottom:`1px solid ${border}` }}>
                 <div style={{ width:LABEL_W, flexShrink:0, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, borderRight:`1px solid ${border}` }}>
                   <span style={{ width:9, height:9, borderRadius:2, background: fase.color||empColor, flexShrink:0 }} />
                   <span style={{ color:textPri, fontSize:12, fontWeight:800, flex:1 }}>{fase.nombre}</span>
-                  {onBorrarFase && <button onClick={()=>onBorrarFase(fase.id)} title="Eliminar fase" style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:12 }}>×</button>}
+                  {onBorrarFase && <button onClick={()=>onBorrarFase(fase.id)} title="Eliminar fase" style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:14 }}>×</button>}
                 </div>
                 <div style={{ position:"relative", width:anchoTimeline, height:33 }}>
                   {hoyOffset!=null && <div style={{ position:"absolute", left:hoyOffset, top:0, bottom:0, width:2, background:"#E53E3E88" }} />}
                 </div>
               </div>
-              {/* Tareas */}
+
               {(fase.tareas||[]).map(t => {
                 const tieneFechas = t.inicio && t.fin;
                 const left = tieneFechas ? (diffDias(ini, t.inicio)-1)*pxPorDia : 0;
@@ -5754,7 +5832,7 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
                     <div onClick={onEditarTarea ? ()=>onEditarTarea(fase.id, t) : undefined}
                       style={{ width:LABEL_W, flexShrink:0, padding:"7px 12px 7px 28px", borderRight:`1px solid ${border}`, cursor: onEditarTarea?"pointer":"default" }}>
                       <p style={{ margin:0, color:textPri, fontSize:12, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.nombre}</p>
-                      <p style={{ margin:0, color:muted, fontSize:10 }}>{t.responsable||"Sin asignar"}</p>
+                      <p style={{ margin:0, color:muted, fontSize:10 }}>{t.responsable||"Sin asignar"}{!tieneFechas && " · sin fechas"}</p>
                     </div>
                     <div style={{ position:"relative", width:anchoTimeline, height:40, display:"flex", alignItems:"center" }}>
                       {marcas.map((m,i)=><div key={i} style={{ position:"absolute", left:m.left, top:0, bottom:0, borderLeft:`1px solid ${grid}` }} />)}
@@ -5771,11 +5849,11 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
                   </div>
                 );
               })}
-              {/* Añadir tarea a la fase */}
+
               {onEditarTarea && (
                 <div style={{ display:"flex", borderBottom:`1px solid ${grid}` }}>
                   <div style={{ width:LABEL_W, flexShrink:0, padding:"5px 12px 5px 28px", borderRight:`1px solid ${border}` }}>
-                    <button onClick={()=>onEditarTarea(fase.id, null)} style={{ background:"none", border:"none", color:muted, cursor:"pointer", fontSize:11, fontWeight:700, padding:0 }}>+ tarea</button>
+                    <button onClick={()=>onEditarTarea(fase.id, null)} style={{ background:"none", border:"none", color:empColor, cursor:"pointer", fontSize:11, fontWeight:700, padding:0 }}>+ tarea</button>
                   </div>
                   <div style={{ width:anchoTimeline, height:28 }} />
                 </div>
@@ -5790,9 +5868,10 @@ function GanttChart({ p, darkMode, empColor, onEditarTarea, onBorrarFase }) {
 
 // ─── Modal: editar / crear tarea ────────────────────────────
 function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea, fechaBaseProyecto, onGuardar, onBorrar, onClose }) {
+  const baseIni = tarea?.inicio || fechaBaseProyecto || hoyISO();
   const [nombre, setNombre] = useState(tarea?.nombre || "");
-  const [inicio, setInicio] = useState(tarea?.inicio || fechaBaseProyecto || new Date().toISOString().slice(0,10));
-  const [fin, setFin] = useState(tarea?.fin || addDias(tarea?.inicio || fechaBaseProyecto || new Date().toISOString().slice(0,10), 4));
+  const [inicio, setInicio] = useState(baseIni);
+  const [fin, setFin] = useState(tarea?.fin || addDias(baseIni, 4));
   const [responsable, setResponsable] = useState(tarea?.responsable || "");
   const [avance, setAvance] = useState(tarea?.avance ?? 0);
   const [err, setErr] = useState("");
@@ -5804,7 +5883,6 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea
   const inp = { fontFamily:"inherit", fontSize:13, background: darkMode?"#0D1424":"#FFFFFF", border:`1px solid ${border}`, borderRadius:8, padding:"9px 12px", color:textPri, outline:"none", width:"100%", boxSizing:"border-box" };
   const lbl = { display:"block", color:muted, fontSize:11, fontWeight:700, textTransform:"uppercase", marginBottom:6 };
 
-  // Sugerencias de responsables: usuarios de la empresa del proyecto
   const sugeridos = USUARIOS.filter(u => u.empresaId === empresaId).map(u => u.nombre);
 
   const guardar = () => {
@@ -5854,904 +5932,3 @@ function ModalEditarTarea({ darkMode, empColor, USUARIOS, empresaId, fase, tarea
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-//  MÓDULO SALAS — Reserva de salas de reunión y formación
-//  Horario: 08:00 – 15:00 · Cancelación: solo el creador
-// ═══════════════════════════════════════════════════════════════
-
-const SALAS = [
-  { id: "juntas",     nombre: "Sala de Juntas",        icon: "🪑", color: "#3182CE" },
-  { id: "formacion1", nombre: "Sala 1 de Formación",   icon: "📚", color: "#38A169" },
-  { id: "formacion2", nombre: "Sala 2 de Formación",   icon: "🎓", color: "#805AD5" },
-];
-
-// IDs de usuarios con acceso al módulo de salas
-const USUARIOS_SALAS_IDS = [7,1,0,2,3,35,17,18,19,43,42,44,45,46,11,12,13,14,15,16,8,9,10];
-
-function horaToMin(h) {
-  const [hh, mm] = h.split(":").map(Number);
-  return hh * 60 + mm;
-}
-function minToHora(m) {
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-}
-function solapan(r1, r2) {
-  const ini1 = horaToMin(r1.horaInicio), fin1 = horaToMin(r1.horaFin);
-  const ini2 = horaToMin(r2.horaInicio), fin2 = horaToMin(r2.horaFin);
-  return ini1 < fin2 && fin1 > ini2;
-}
-
-// ── Componente principal de Salas ──────────────────────────────
-function SeccionSalas({ db, darkMode, usuario, empColor }) {
-  const [reservas,     setReservas]     = useState([]);
-  const [fechaSel,     setFechaSel]     = useState(new Date().toISOString().split("T")[0]);
-  const [modalNueva,   setModalNueva]   = useState(null);  // { salaId } | null
-  const [verDetalle,   setVerDetalle]   = useState(null);  // reserva | null
-  const [loading,      setLoading]      = useState(true);
-
-  const dm      = darkMode;
-  const cardBg  = dm ? "#111827" : "#FFFFFF";
-  const border  = dm ? "#1E293B" : "#E2E8F0";
-  const textPri = dm ? "#E2E8F0" : "#0F172A";
-  const muted   = dm ? "#64748B" : "#94A3B8";
-  const bg2     = dm ? "#0D1424" : "#F8FAFC";
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "reservasSalas"), snap => {
-      setReservas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
-  }, [db]);
-
-  // Reservas del día seleccionado
-  const reservasHoy = reservas.filter(r => r.fecha === fechaSel);
-
-  const navFecha = (dir) => {
-    const d = new Date(fechaSel + "T12:00:00");
-    d.setDate(d.getDate() + dir);
-    setFechaSel(d.toISOString().split("T")[0]);
-  };
-
-  const fechaLabel = new Date(fechaSel + "T12:00:00").toLocaleDateString("es-ES", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric"
-  });
-  const esHoy = fechaSel === new Date().toISOString().split("T")[0];
-
-  const cancelarReserva = async (r) => {
-    if (!window.confirm(`¿Cancelar la reserva de "${SALAS.find(s => s.id === r.salaId)?.nombre}" el ${r.fecha} de ${r.horaInicio} a ${r.horaFin}?`)) return;
-    await deleteDoc(doc(db, "reservasSalas", r.id));
-    setVerDetalle(null);
-  };
-
-  // Franja horaria visual: 08:00 – 15:00
-  const HORA_INI  = 8 * 60;  // 480 min
-  const HORA_FIN  = 15 * 60; // 900 min
-  const TOTAL_MIN = HORA_FIN - HORA_INI; // 420 min
-
-  const pct = (h) => ((horaToMin(h) - HORA_INI) / TOTAL_MIN) * 100;
-
-  return (
-    <div style={{ maxWidth: 1100 }}>
-      {/* Cabecera */}
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🏛️ Reserva de Salas</h2>
-        <p style={{ margin: 0, color: muted, fontSize: 13 }}>Gestión de salas compartidas · Horario 08:00 – 15:00</p>
-      </div>
-
-      {/* Navegador de fecha */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
-        <button onClick={() => navFecha(-1)}
-          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>‹</button>
-        <input type="date" value={fechaSel} onChange={e => setFechaSel(e.target.value)}
-          style={{ fontFamily: "inherit", fontSize: 13, background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", color: textPri, outline: "none", colorScheme: dm ? "dark" : "light" }} />
-        <button onClick={() => navFecha(1)}
-          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>›</button>
-        <span style={{ color: textPri, fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>{fechaLabel}</span>
-        {esHoy && <span style={{ background: empColor + "22", color: empColor, border: `1px solid ${empColor}44`, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>Hoy</span>}
-        <button onClick={() => setFechaSel(new Date().toISOString().split("T")[0])}
-          style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${border}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", color: muted, fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
-          Ir a hoy
-        </button>
-      </div>
-
-      {/* Tarjetas de salas */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: muted }}>Cargando reservas...</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {SALAS.map(sala => {
-            const reservasSala = reservasHoy.filter(r => r.salaId === sala.id).sort((a, b) => horaToMin(a.horaInicio) - horaToMin(b.horaInicio));
-            return (
-              <div key={sala.id} style={{ background: cardBg, border: `1px solid ${sala.color}44`, borderRadius: 14, overflow: "hidden" }}>
-                {/* Header de sala */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${border}`, background: sala.color + "11" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>{sala.icon}</span>
-                    <div>
-                      <p style={{ margin: 0, color: sala.color, fontWeight: 800, fontSize: 15 }}>{sala.nombre}</p>
-                      <p style={{ margin: 0, color: muted, fontSize: 11 }}>
-                        {reservasSala.length === 0 ? "Libre todo el día" : `${reservasSala.length} reserva${reservasSala.length > 1 ? "s" : ""}`}
-                      </p>
-                    </div>
-                  </div>
-                  <button onClick={() => setModalNueva({ salaId: sala.id })}
-                    style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: sala.color, color: "#fff" }}>
-                    + Reservar
-                  </button>
-                </div>
-
-                {/* Timeline visual 08:00–15:00 */}
-                <div style={{ padding: "16px 20px" }}>
-                  {/* Horas */}
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    {[8, 9, 10, 11, 12, 13, 14, 15].map(h => (
-                      <span key={h} style={{ color: muted, fontSize: 10, fontWeight: 600 }}>{String(h).padStart(2,"0")}:00</span>
-                    ))}
-                  </div>
-
-                  {/* Barra de disponibilidad */}
-                  <div style={{ position: "relative", height: 36, background: dm ? "#1A2235" : "#F0F7FF", borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
-                    {/* Línea de hora actual */}
-                    {esHoy && (() => {
-                      const ahora = new Date();
-                      const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
-                      if (minAhora < HORA_INI || minAhora > HORA_FIN) return null;
-                      const left = pct(minToHora(minAhora));
-                      return <div style={{ position: "absolute", left: `${left}%`, top: 0, bottom: 0, width: 2, background: "#E53E3E", zIndex: 3 }} />;
-                    })()}
-                    {/* Bloques ocupados */}
-                    {reservasSala.map(r => {
-                      const left  = pct(r.horaInicio);
-                      const width = ((horaToMin(r.horaFin) - horaToMin(r.horaInicio)) / TOTAL_MIN) * 100;
-                      const esMia = r.usuarioId === usuario?.id;
-                      return (
-                        <div key={r.id} onClick={() => setVerDetalle(r)}
-                          title={`${r.usuarioNombre} · ${r.horaInicio}–${r.horaFin}${r.motivo ? ` · ${r.motivo}` : ""}`}
-                          style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 4, bottom: 4, borderRadius: 5, background: esMia ? sala.color : sala.color + "88", border: `1px solid ${sala.color}`, cursor: "pointer", display: "flex", alignItems: "center", paddingLeft: 6, overflow: "hidden", zIndex: 2 }}>
-                          <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
-                            {esMia ? "Yo" : r.usuarioNombre?.split(" ")[0]}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Lista de reservas del día */}
-                  {reservasSala.length === 0 ? (
-                    <p style={{ margin: 0, color: muted, fontSize: 12, fontStyle: "italic" }}>Sin reservas para este día. ¡Disponible todo el horario!</p>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {reservasSala.map(r => {
-                        const esMia    = r.usuarioId === usuario?.id;
-                        const userInfo = USUARIOS.find(u => u.id === r.usuarioId);
-                        const emp      = EMPRESAS.find(e => e.id === userInfo?.empresaId);
-                        return (
-                          <div key={r.id} onClick={() => setVerDetalle(r)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: esMia ? sala.color + "18" : (dm ? "#1A2235" : "#F8FAFC"), borderRadius: 8, border: `1px solid ${esMia ? sala.color + "44" : border}`, cursor: "pointer" }}>
-                            <span style={{ color: sala.color, fontSize: 13, fontWeight: 800, minWidth: 100 }}>{r.horaInicio} – {r.horaFin}</span>
-                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: (emp?.color || sala.color) + "33", border: `1.5px solid ${emp?.color || sala.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: emp?.color || sala.color, flexShrink: 0 }}>
-                              {r.usuarioNombre?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ margin: 0, color: textPri, fontSize: 12, fontWeight: esMia ? 700 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {r.usuarioNombre} {esMia && <span style={{ color: sala.color, fontSize: 10 }}>(tú)</span>}
-                              </p>
-                              {r.motivo && <p style={{ margin: 0, color: muted, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.motivo}</p>}
-                            </div>
-                            {esMia && (
-                              <span style={{ background: sala.color + "22", color: sala.color, border: `1px solid ${sala.color}44`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>Tu reserva</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal nueva reserva */}
-      {modalNueva && (
-        <ModalNuevaReserva
-          db={db}
-          darkMode={dm}
-          usuario={usuario}
-          empColor={empColor}
-          salaId={modalNueva.salaId}
-          fechaDefault={fechaSel}
-          reservasExistentes={reservas}
-          onClose={() => setModalNueva(null)}
-        />
-      )}
-
-      {/* Modal detalle */}
-      {verDetalle && (
-        <ModalDetalleReserva
-          db={db}
-          darkMode={dm}
-          reserva={verDetalle}
-          usuario={usuario}
-          empColor={empColor}
-          onClose={() => setVerDetalle(null)}
-          onCancelar={() => cancelarReserva(verDetalle)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Modal: nueva reserva ────────────────────────────────────────
-function ModalNuevaReserva({ db, darkMode, usuario, empColor, salaId, fechaDefault, reservasExistentes, onClose }) {
-  const sala = SALAS.find(s => s.id === salaId);
-  const dm   = darkMode;
-
-  const hoyStr = new Date().toISOString().split("T")[0];
-
-  const [fecha,      setFecha]      = useState(fechaDefault || hoyStr);
-  const [horaInicio, setHoraInicio] = useState("08:00");
-  const [horaFin,    setHoraFin]    = useState("09:00");
-  const [motivo,     setMotivo]     = useState("");
-  const [error,      setError]      = useState("");
-  const [guardando,  setGuardando]  = useState(false);
-
-  const card   = dm ? "#111827" : "#FFFFFF";
-  const border = dm ? "#2E3A55" : "#E2E8F0";
-  const text   = dm ? "#E2E8F0" : "#0F172A";
-  const muted  = dm ? "#64748B" : "#94A3B8";
-  const inp    = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
-  const lbl    = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
-
-
-  const validar = () => {
-    if (!fecha) return "Selecciona una fecha.";
-    if (fecha < hoyStr) return "No puedes reservar en el pasado.";
-    const ini = horaToMin(horaInicio);
-    const fin = horaToMin(horaFin);
-    if (fin <= ini) return "La hora de fin debe ser posterior a la hora de inicio.";
-    if (ini < 8 * 60 || fin > 15 * 60) return "El horario disponible es de 08:00 a 15:00.";
-    // Comprobar solapamiento
-    const reservasSala = reservasExistentes.filter(r => r.salaId === salaId && r.fecha === fecha);
-    const nueva = { horaInicio, horaFin };
-    const conflicto = reservasSala.find(r => solapan(nueva, r));
-    if (conflicto) return `Conflicto con reserva de ${conflicto.usuarioNombre} (${conflicto.horaInicio}–${conflicto.horaFin}).`;
-    return null;
-  };
-
-  const guardar = async () => {
-    const err = validar();
-    if (err) { setError(err); return; }
-    setGuardando(true);
-    try {
-      const id = "res_" + Date.now();
-      await setDoc(doc(db, "reservasSalas", id), {
-        id,
-        salaId,
-        fecha,
-        horaInicio,
-        horaFin,
-        motivo:       motivo.trim() || null,
-        usuarioId:    usuario.id,
-        usuarioNombre: usuario.nombre,
-        empresaId:    usuario.empresaId,
-        creadoEn:     new Date().toISOString(),
-      });
-      onClose();
-    } catch (e) {
-      setError("Error al guardar. Inténtalo de nuevo.");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
-      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 460, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <h3 style={{ margin: 0, color: sala.color, fontSize: 17, fontWeight: 800 }}>{sala.icon} {sala.nombre}</h3>
-            <p style={{ margin: "3px 0 0", color: muted, fontSize: 12 }}>Nueva reserva</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Fecha */}
-          <div>
-            <label style={lbl}>📅 Fecha</label>
-            <input type="date" style={inp} value={fecha} min={hoyStr} onChange={e => { setFecha(e.target.value); setError(""); }} />
-          </div>
-
-          {/* Horas */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={lbl}>⏰ Hora inicio</label>
-              <input type="time" style={inp} value={horaInicio} min="08:00" max="14:59"
-                onChange={e => { setHoraInicio(e.target.value); setError(""); }} />
-            </div>
-            <div>
-              <label style={lbl}>⏰ Hora fin</label>
-              <input type="time" style={inp} value={horaFin} min="08:01" max="15:00"
-                onChange={e => { setHoraFin(e.target.value); setError(""); }} />
-            </div>
-          </div>
-
-          {/* Motivo */}
-          <div>
-            <label style={lbl}>📝 Motivo (opcional)</label>
-            <input style={inp} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Reunión de equipo, Formación..." maxLength={100} />
-          </div>
-
-          {/* Info duración */}
-          {horaInicio && horaFin && horaToMin(horaFin) > horaToMin(horaInicio) && (
-            <div style={{ background: sala.color + "11", border: `1px solid ${sala.color}33`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>⏱️</span>
-              <span style={{ color: sala.color, fontSize: 13, fontWeight: 700 }}>
-                {horaInicio} – {horaFin} · {Math.round((horaToMin(horaFin) - horaToMin(horaInicio)) / 60 * 10) / 10}h
-              </span>
-            </div>
-          )}
-
-          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
-            <button onClick={guardar} disabled={guardando}
-              style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? sala.color + "88" : sala.color, color: "#fff" }}>
-              {guardando ? "Guardando..." : "✓ Confirmar reserva"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Modal: detalle de reserva ───────────────────────────────────
-function ModalDetalleReserva({ db, darkMode, reserva, usuario, empColor, onClose, onCancelar }) {
-  const dm     = darkMode;
-  const sala   = SALAS.find(s => s.id === reserva.salaId);
-  const card   = dm ? "#111827" : "#FFFFFF";
-  const border = dm ? "#2E3A55" : "#E2E8F0";
-  const text   = dm ? "#E2E8F0" : "#0F172A";
-  const muted  = dm ? "#64748B" : "#94A3B8";
-
-  const esMia  = reserva.usuarioId === usuario?.id;
-  const emp    = EMPRESAS.find(e => e.id === reserva.empresaId);
-  const durMin = horaToMin(reserva.horaFin) - horaToMin(reserva.horaInicio);
-  const durStr = durMin >= 60 ? `${Math.floor(durMin/60)}h${durMin%60>0?` ${durMin%60}min`:""}` : `${durMin}min`;
-
-  const fechaFmt = new Date(reserva.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
-      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 420, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: sala.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{sala.icon}</div>
-            <div>
-              <h3 style={{ margin: 0, color: sala.color, fontSize: 16, fontWeight: 800 }}>{sala.nombre}</h3>
-              <p style={{ margin: 0, color: muted, fontSize: 12 }}>Detalles de la reserva</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Fecha */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-            <span style={{ fontSize: 18 }}>📅</span>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Fecha</p>
-              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{fechaFmt}</p>
-            </div>
-          </div>
-
-          {/* Horario */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: sala.color + "11", borderRadius: 8, border: `1px solid ${sala.color}33` }}>
-            <span style={{ fontSize: 18 }}>⏰</span>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Horario</p>
-              <p style={{ margin: 0, color: sala.color, fontSize: 15, fontWeight: 800 }}>{reserva.horaInicio} – {reserva.horaFin} <span style={{ fontSize: 12, fontWeight: 600 }}>({durStr})</span></p>
-            </div>
-          </div>
-
-          {/* Reservado por */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: (emp?.color || empColor) + "33", border: `1.5px solid ${emp?.color || empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: emp?.color || empColor, flexShrink: 0 }}>
-              {reserva.usuarioNombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
-            </div>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Reservado por</p>
-              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700 }}>{reserva.usuarioNombre} {esMia && <span style={{ color: sala.color, fontSize: 11 }}>(tú)</span>}</p>
-              {emp && <p style={{ margin: 0, color: emp.color, fontSize: 11 }}>{emp.nombre}</p>}
-            </div>
-          </div>
-
-          {/* Motivo */}
-          {reserva.motivo && (
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-              <span style={{ fontSize: 18 }}>📝</span>
-              <div>
-                <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Motivo</p>
-                <p style={{ margin: 0, color: text, fontSize: 13 }}>{reserva.motivo}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Botones */}
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-          <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cerrar</button>
-          {esMia && (
-            <button onClick={onCancelar}
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
-              🗑️ Cancelar reserva
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  MÓDULO COCHES — Reserva de vehículos de empresa
-//  Horario: libre (24h) · Cancelación: creador + responsables del coche
-// ═══════════════════════════════════════════════════════════════
-
-const COCHES = [
-  { id: "auris",       nombre: "Toyota Auris",       icon: "🚗", color: "#2B6CB0", responsables: [11, 12]     },
-  { id: "bigster",     nombre: "Dacia Bigster",      icon: "🚙", color: "#C05621", responsables: [11, 12, 15] },
-  { id: "landcruiser", nombre: "Toyota LandCruiser", icon: "🛻", color: "#2F855A", responsables: [8]          },
-];
-
-// Mismos usuarios con acceso que el módulo de Salas
-const USUARIOS_COCHES_IDS = USUARIOS_SALAS_IDS;
-
-// ¿Puede el usuario cancelar esta reserva? (creador o responsable del coche)
-function puedeCancelarCoche(reserva, usuario) {
-  if (!usuario) return false;
-  if (reserva.usuarioId === usuario.id) return true;
-  const coche = COCHES.find(c => c.id === reserva.cocheId);
-  return !!coche && coche.responsables.includes(usuario.id);
-}
-
-// ── Componente principal de Coches ─────────────────────────────
-function SeccionCoches({ db, darkMode, usuario, empColor }) {
-  const [reservas,   setReservas]   = useState([]);
-  const [fechaSel,   setFechaSel]   = useState(new Date().toISOString().split("T")[0]);
-  const [modalNueva, setModalNueva] = useState(null);  // { cocheId } | null
-  const [verDetalle, setVerDetalle] = useState(null);  // reserva | null
-  const [loading,    setLoading]    = useState(true);
-
-  const dm      = darkMode;
-  const cardBg  = dm ? "#111827" : "#FFFFFF";
-  const border  = dm ? "#1E293B" : "#E2E8F0";
-  const textPri = dm ? "#E2E8F0" : "#0F172A";
-  const muted   = dm ? "#64748B" : "#94A3B8";
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "reservasCoches"), snap => {
-      setReservas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return unsub;
-  }, [db]);
-
-  const reservasHoy = reservas.filter(r => r.fecha === fechaSel);
-
-  const navFecha = (dir) => {
-    const d = new Date(fechaSel + "T12:00:00");
-    d.setDate(d.getDate() + dir);
-    setFechaSel(d.toISOString().split("T")[0]);
-  };
-
-  const fechaLabel = new Date(fechaSel + "T12:00:00").toLocaleDateString("es-ES", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric"
-  });
-  const esHoy = fechaSel === new Date().toISOString().split("T")[0];
-
-  const cancelarReserva = async (r) => {
-    if (!puedeCancelarCoche(r, usuario)) return;
-    if (!window.confirm(`¿Cancelar la reserva de "${COCHES.find(c => c.id === r.cocheId)?.nombre}" el ${r.fecha} de ${r.horaInicio} a ${r.horaFin}?`)) return;
-    await deleteDoc(doc(db, "reservasCoches", r.id));
-    setVerDetalle(null);
-  };
-
-  // Franja horaria visual: 00:00 – 24:00 (libre)
-  const HORA_INI  = 0;
-  const HORA_FIN  = 24 * 60;  // 1440 min
-  const TOTAL_MIN = HORA_FIN - HORA_INI;
-  const MARCAS    = [0, 3, 6, 9, 12, 15, 18, 21, 24];
-
-  const pct = (h) => ((horaToMin(h) - HORA_INI) / TOTAL_MIN) * 100;
-
-  return (
-    <div style={{ maxWidth: 1100 }}>
-      {/* Cabecera */}
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🚗 Reserva de Coches</h2>
-        <p style={{ margin: 0, color: muted, fontSize: 13 }}>Gestión de vehículos compartidos · Horario libre</p>
-      </div>
-
-      {/* Navegador de fecha */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
-        <button onClick={() => navFecha(-1)}
-          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>‹</button>
-        <input type="date" value={fechaSel} onChange={e => setFechaSel(e.target.value)}
-          style={{ fontFamily: "inherit", fontSize: 13, background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", color: textPri, outline: "none", colorScheme: dm ? "dark" : "light" }} />
-        <button onClick={() => navFecha(1)}
-          style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: textPri, fontSize: 15, fontFamily: "inherit" }}>›</button>
-        <span style={{ color: textPri, fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>{fechaLabel}</span>
-        {esHoy && <span style={{ background: empColor + "22", color: empColor, border: `1px solid ${empColor}44`, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>Hoy</span>}
-        <button onClick={() => setFechaSel(new Date().toISOString().split("T")[0])}
-          style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${border}`, borderRadius: 8, padding: "7px 14px", cursor: "pointer", color: muted, fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
-          Ir a hoy
-        </button>
-      </div>
-
-      {/* Tarjetas de coches */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: muted }}>Cargando reservas...</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {COCHES.map(coche => {
-            const reservasCoche = reservasHoy.filter(r => r.cocheId === coche.id).sort((a, b) => horaToMin(a.horaInicio) - horaToMin(b.horaInicio));
-            const nombresResp = coche.responsables.map(rid => USUARIOS.find(u => u.id === rid)?.nombre?.split(" ").slice(0, 2).join(" ")).filter(Boolean);
-            return (
-              <div key={coche.id} style={{ background: cardBg, border: `1px solid ${coche.color}44`, borderRadius: 14, overflow: "hidden" }}>
-                {/* Header de coche */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${border}`, background: coche.color + "11" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>{coche.icon}</span>
-                    <div>
-                      <p style={{ margin: 0, color: coche.color, fontWeight: 800, fontSize: 15 }}>{coche.nombre}</p>
-                      <p style={{ margin: 0, color: muted, fontSize: 11 }}>
-                        {reservasCoche.length === 0 ? "Libre todo el día" : `${reservasCoche.length} reserva${reservasCoche.length > 1 ? "s" : ""}`}
-                        {nombresResp.length > 0 && <span> · Resp.: {nombresResp.join(", ")}</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <button onClick={() => setModalNueva({ cocheId: coche.id })}
-                    style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: coche.color, color: "#fff" }}>
-                    + Reservar
-                  </button>
-                </div>
-
-                {/* Timeline visual 00:00–24:00 */}
-                <div style={{ padding: "16px 20px" }}>
-                  {/* Horas */}
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    {MARCAS.map(h => (
-                      <span key={h} style={{ color: muted, fontSize: 10, fontWeight: 600 }}>{String(h).padStart(2,"0")}:00</span>
-                    ))}
-                  </div>
-
-                  {/* Barra de disponibilidad */}
-                  <div style={{ position: "relative", height: 36, background: dm ? "#1A2235" : "#F0F7FF", borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
-                    {/* Línea de hora actual */}
-                    {esHoy && (() => {
-                      const ahora = new Date();
-                      const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
-                      const left = pct(minToHora(minAhora));
-                      return <div style={{ position: "absolute", left: `${left}%`, top: 0, bottom: 0, width: 2, background: "#E53E3E", zIndex: 3 }} />;
-                    })()}
-                    {/* Bloques ocupados */}
-                    {reservasCoche.map(r => {
-                      const left  = pct(r.horaInicio);
-                      const width = ((horaToMin(r.horaFin) - horaToMin(r.horaInicio)) / TOTAL_MIN) * 100;
-                      const esMia = r.usuarioId === usuario?.id;
-                      return (
-                        <div key={r.id} onClick={() => setVerDetalle(r)}
-                          title={`${r.usuarioNombre} · ${r.horaInicio}–${r.horaFin}${r.motivo ? ` · ${r.motivo}` : ""}`}
-                          style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 4, bottom: 4, borderRadius: 5, background: esMia ? coche.color : coche.color + "88", border: `1px solid ${coche.color}`, cursor: "pointer", display: "flex", alignItems: "center", paddingLeft: 6, overflow: "hidden", zIndex: 2 }}>
-                          <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
-                            {esMia ? "Yo" : r.usuarioNombre?.split(" ")[0]}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Lista de reservas del día */}
-                  {reservasCoche.length === 0 ? (
-                    <p style={{ margin: 0, color: muted, fontSize: 12, fontStyle: "italic" }}>Sin reservas para este día. ¡Disponible a cualquier hora!</p>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {reservasCoche.map(r => {
-                        const esMia    = r.usuarioId === usuario?.id;
-                        const userInfo = USUARIOS.find(u => u.id === r.usuarioId);
-                        const emp      = EMPRESAS.find(e => e.id === userInfo?.empresaId);
-                        return (
-                          <div key={r.id} onClick={() => setVerDetalle(r)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: esMia ? coche.color + "18" : (dm ? "#1A2235" : "#F8FAFC"), borderRadius: 8, border: `1px solid ${esMia ? coche.color + "44" : border}`, cursor: "pointer" }}>
-                            <span style={{ color: coche.color, fontSize: 13, fontWeight: 800, minWidth: 100 }}>{r.horaInicio} – {r.horaFin}</span>
-                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: (emp?.color || coche.color) + "33", border: `1.5px solid ${emp?.color || coche.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: emp?.color || coche.color, flexShrink: 0 }}>
-                              {r.usuarioNombre?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ margin: 0, color: textPri, fontSize: 12, fontWeight: esMia ? 700 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {r.usuarioNombre} {esMia && <span style={{ color: coche.color, fontSize: 10 }}>(tú)</span>}
-                              </p>
-                              {r.motivo && <p style={{ margin: 0, color: muted, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.motivo}</p>}
-                            </div>
-                            {esMia && (
-                              <span style={{ background: coche.color + "22", color: coche.color, border: `1px solid ${coche.color}44`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>Tu reserva</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal nueva reserva */}
-      {modalNueva && (
-        <ModalNuevaReservaCoche
-          db={db}
-          darkMode={dm}
-          usuario={usuario}
-          empColor={empColor}
-          cocheId={modalNueva.cocheId}
-          fechaDefault={fechaSel}
-          reservasExistentes={reservas}
-          onClose={() => setModalNueva(null)}
-        />
-      )}
-
-      {/* Modal detalle */}
-      {verDetalle && (
-        <ModalDetalleReservaCoche
-          db={db}
-          darkMode={dm}
-          reserva={verDetalle}
-          usuario={usuario}
-          empColor={empColor}
-          onClose={() => setVerDetalle(null)}
-          onCancelar={() => cancelarReserva(verDetalle)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Modal: nueva reserva de coche ───────────────────────────────
-function ModalNuevaReservaCoche({ db, darkMode, usuario, empColor, cocheId, fechaDefault, reservasExistentes, onClose }) {
-  const coche = COCHES.find(c => c.id === cocheId);
-  const dm    = darkMode;
-
-  const hoyStr = new Date().toISOString().split("T")[0];
-
-  const [fecha,      setFecha]      = useState(fechaDefault || hoyStr);
-  const [horaInicio, setHoraInicio] = useState("09:00");
-  const [horaFin,    setHoraFin]    = useState("10:00");
-  const [motivo,     setMotivo]     = useState("");
-  const [error,      setError]      = useState("");
-  const [guardando,  setGuardando]  = useState(false);
-
-  const card   = dm ? "#111827" : "#FFFFFF";
-  const border = dm ? "#2E3A55" : "#E2E8F0";
-  const text   = dm ? "#E2E8F0" : "#0F172A";
-  const muted  = dm ? "#64748B" : "#94A3B8";
-  const inp    = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
-  const lbl    = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
-
-  const validar = () => {
-    if (!fecha) return "Selecciona una fecha.";
-    if (fecha < hoyStr) return "No puedes reservar en el pasado.";
-    const ini = horaToMin(horaInicio);
-    const fin = horaToMin(horaFin);
-    if (fin <= ini) return "La hora de fin debe ser posterior a la hora de inicio.";
-    // Comprobar solapamiento (mismo coche, misma fecha)
-    const reservasCoche = reservasExistentes.filter(r => r.cocheId === cocheId && r.fecha === fecha);
-    const nueva = { horaInicio, horaFin };
-    const conflicto = reservasCoche.find(r => solapan(nueva, r));
-    if (conflicto) return `Conflicto con reserva de ${conflicto.usuarioNombre} (${conflicto.horaInicio}–${conflicto.horaFin}).`;
-    return null;
-  };
-
-  const guardar = async () => {
-    const err = validar();
-    if (err) { setError(err); return; }
-    setGuardando(true);
-    try {
-      const id = "resc_" + Date.now();
-      await setDoc(doc(db, "reservasCoches", id), {
-        id,
-        cocheId,
-        fecha,
-        horaInicio,
-        horaFin,
-        motivo:        motivo.trim() || null,
-        usuarioId:     usuario.id,
-        usuarioNombre: usuario.nombre,
-        empresaId:     usuario.empresaId,
-        creadoEn:      new Date().toISOString(),
-      });
-      onClose();
-    } catch (e) {
-      setError("Error al guardar. Inténtalo de nuevo.");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
-      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 460, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <h3 style={{ margin: 0, color: coche.color, fontSize: 17, fontWeight: 800 }}>{coche.icon} {coche.nombre}</h3>
-            <p style={{ margin: "3px 0 0", color: muted, fontSize: 12 }}>Nueva reserva</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Fecha */}
-          <div>
-            <label style={lbl}>📅 Fecha</label>
-            <input type="date" style={inp} value={fecha} min={hoyStr} onChange={e => { setFecha(e.target.value); setError(""); }} />
-          </div>
-
-          {/* Horas (libre) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={lbl}>⏰ Hora inicio</label>
-              <input type="time" style={inp} value={horaInicio}
-                onChange={e => { setHoraInicio(e.target.value); setError(""); }} />
-            </div>
-            <div>
-              <label style={lbl}>⏰ Hora fin</label>
-              <input type="time" style={inp} value={horaFin}
-                onChange={e => { setHoraFin(e.target.value); setError(""); }} />
-            </div>
-          </div>
-
-          {/* Motivo */}
-          <div>
-            <label style={lbl}>📝 Motivo (opcional)</label>
-            <input style={inp} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ej: Visita a obra, Desplazamiento cliente..." maxLength={100} />
-          </div>
-
-          {/* Info duración */}
-          {horaInicio && horaFin && horaToMin(horaFin) > horaToMin(horaInicio) && (
-            <div style={{ background: coche.color + "11", border: `1px solid ${coche.color}33`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>⏱️</span>
-              <span style={{ color: coche.color, fontSize: 13, fontWeight: 700 }}>
-                {horaInicio} – {horaFin} · {Math.round((horaToMin(horaFin) - horaToMin(horaInicio)) / 60 * 10) / 10}h
-              </span>
-            </div>
-          )}
-
-          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
-            <button onClick={guardar} disabled={guardando}
-              style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? coche.color + "88" : coche.color, color: "#fff" }}>
-              {guardando ? "Guardando..." : "✓ Confirmar reserva"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Modal: detalle de reserva de coche ──────────────────────────
-function ModalDetalleReservaCoche({ db, darkMode, reserva, usuario, empColor, onClose, onCancelar }) {
-  const dm     = darkMode;
-  const coche  = COCHES.find(c => c.id === reserva.cocheId);
-  const card   = dm ? "#111827" : "#FFFFFF";
-  const border = dm ? "#2E3A55" : "#E2E8F0";
-  const text   = dm ? "#E2E8F0" : "#0F172A";
-  const muted  = dm ? "#64748B" : "#94A3B8";
-
-  const esMia        = reserva.usuarioId === usuario?.id;
-  const puedeCancelar = puedeCancelarCoche(reserva, usuario);
-  const esResponsable = puedeCancelar && !esMia;
-  const emp    = EMPRESAS.find(e => e.id === reserva.empresaId);
-  const durMin = horaToMin(reserva.horaFin) - horaToMin(reserva.horaInicio);
-  const durStr = durMin >= 60 ? `${Math.floor(durMin/60)}h${durMin%60>0?` ${durMin%60}min`:""}` : `${durMin}min`;
-
-  const fechaFmt = new Date(reserva.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onMouseDown={onClose}>
-      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 420, padding: 28, boxShadow: "0 24px 80px #0009" }} onMouseDown={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: coche.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{coche.icon}</div>
-            <div>
-              <h3 style={{ margin: 0, color: coche.color, fontSize: 16, fontWeight: 800 }}>{coche.nombre}</h3>
-              <p style={{ margin: 0, color: muted, fontSize: 12 }}>Detalles de la reserva</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Fecha */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-            <span style={{ fontSize: 18 }}>📅</span>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Fecha</p>
-              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{fechaFmt}</p>
-            </div>
-          </div>
-
-          {/* Horario */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: coche.color + "11", borderRadius: 8, border: `1px solid ${coche.color}33` }}>
-            <span style={{ fontSize: 18 }}>⏰</span>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Horario</p>
-              <p style={{ margin: 0, color: coche.color, fontSize: 15, fontWeight: 800 }}>{reserva.horaInicio} – {reserva.horaFin} <span style={{ fontSize: 12, fontWeight: 600 }}>({durStr})</span></p>
-            </div>
-          </div>
-
-          {/* Reservado por */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: (emp?.color || empColor) + "33", border: `1.5px solid ${emp?.color || empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: emp?.color || empColor, flexShrink: 0 }}>
-              {reserva.usuarioNombre?.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()||"?"}
-            </div>
-            <div>
-              <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Reservado por</p>
-              <p style={{ margin: 0, color: text, fontSize: 13, fontWeight: 700 }}>{reserva.usuarioNombre} {esMia && <span style={{ color: coche.color, fontSize: 11 }}>(tú)</span>}</p>
-              {emp && <p style={{ margin: 0, color: emp.color, fontSize: 11 }}>{emp.nombre}</p>}
-            </div>
-          </div>
-
-          {/* Motivo */}
-          {reserva.motivo && (
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 14px", background: dm ? "#1A2235" : "#F8FAFC", borderRadius: 8, border: `1px solid ${border}` }}>
-              <span style={{ fontSize: 18 }}>📝</span>
-              <div>
-                <p style={{ margin: 0, color: muted, fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Motivo</p>
-                <p style={{ margin: 0, color: text, fontSize: 13 }}>{reserva.motivo}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Aviso de responsable */}
-          {esResponsable && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 12px", background: "#F6AD5518", borderRadius: 8, border: "1px solid #F6AD5544" }}>
-              <span style={{ fontSize: 14 }}>🔑</span>
-              <span style={{ color: "#DD8B1E", fontSize: 11, fontWeight: 600 }}>Eres responsable de este vehículo: puedes cancelar esta reserva.</span>
-            </div>
-          )}
-        </div>
-
-        {/* Botones */}
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-          <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cerrar</button>
-          {puedeCancelar && (
-            <button onClick={onCancelar}
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
-              🗑️ Cancelar reserva
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
