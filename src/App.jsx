@@ -4769,6 +4769,7 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   const [periodo,   setPeriodo]   = useState("dia");
   const [fechaRef,  setFechaRef]  = useState(new Date().toISOString().split("T")[0]);
   const [empActiva, setEmpActiva] = useState("todas");
+  const [detalle,   setDetalle]   = useState(null);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
@@ -4941,60 +4942,39 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
                 <span style={{ color:muted, fontSize:11 }}>· {datos.filter(d=>d.misF.length>0).length}/{datos.length} han fichado</span>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14 }}>
-                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} />)}
+                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
               </div>
             </div>
           ];
         })
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14, marginBottom:26 }}>
-          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} />)}
+          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
         </div>
       )}
 
-      {/* Detalle por empleado */}
-      <h3 style={{ margin:"0 0 12px", color:textPri, fontWeight:800, fontSize:15 }}>Detalle por empleado</h3>
+      {/* Estado vacío */}
+      {datosEmpleado.length === 0 && (
+        <div style={{ textAlign:"center", padding:"60px 20px" }}>
+          <p style={{ fontSize:40 }}>📭</p>
+          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin empleados para este filtro</p>
+        </div>
+      )}
 
-      {/* Tabla de empleados */}
-      <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:14, overflow:"hidden" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-          <thead>
-            <tr style={{ background:dm?"#0D1424":"#F8FAFC" }}>
-              {["Empleado","Empresa","Estado","Entrada","Salida","Horas totales"].map(h=>(
-                <th key={h} style={{ padding:"11px 16px", textAlign:"left", color:muted, fontWeight:700, fontSize:11, textTransform:"uppercase", letterSpacing:".4px", borderBottom:`1px solid ${border}` }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Agrupar por empresa si es "todas" */}
-            {empActiva === "todas"
-              ? empresasConEmpleados.flatMap(emp => {
-                  const empData = datosEmpleado.filter(d => d.emp?.id === emp.id);
-                  if (!empData.length) return [];
-                  return [
-                    <tr key={"hdr_"+emp.id}>
-                      <td colSpan={6} style={{ padding:"8px 16px", background:emp.color+"11", borderBottom:`1px solid ${emp.color}33` }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                          <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color, display:"inline-block" }} />
-                          <span style={{ color:emp.color, fontWeight:800, fontSize:12, textTransform:"uppercase", letterSpacing:".5px" }}>{emp.nombre}</span>
-                          <span style={{ color:muted, fontSize:11 }}>· {empData.filter(d=>d.activoAhora).length} activos · {empData.filter(d=>d.misF.length>0).length} han fichado · {empData.filter(d=>d.misF.length===0).length} sin fichar</span>
-                        </div>
-                      </td>
-                    </tr>,
-                    ...empData.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)
-                  ];
-                })
-              : datosEmpleado.map(d => <FilaEmpleado key={d.u.id} d={d} dm={dm} border={border} textPri={textPri} muted={muted} fmtTime={fmtTime} fmtHoras={fmtHoras} periodo={periodo} />)
-            }
-          </tbody>
-        </table>
-        {datosEmpleado.length === 0 && (
-          <div style={{ textAlign:"center", padding:"60px 20px" }}>
-            <p style={{ fontSize:40 }}>📭</p>
-            <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin empleados para este filtro</p>
-          </div>
-        )}
-      </div>
+      {/* Modal detalle de una persona */}
+      {detalle && (
+        <ModalDetalleFichaje
+          u={detalle.u}
+          emp={detalle.emp}
+          misF={detalle.misF}
+          periodo={periodo}
+          rango={rango}
+          fechaRef={fechaRef}
+          rangoLabel={rangoLabel()}
+          dm={dm}
+          onClose={() => setDetalle(null)}
+        />
+      )}
     </div>
   );
 }
@@ -5061,10 +5041,148 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
 }
 
 
+// ── Divide el periodo en unidades (semana=5 · mes=días · año=12 meses) ──
+function unidadesFichaje(misF, periodo, rango) {
+  const hoyStr = new Date().toISOString().split("T")[0];
+  const fechaDe = f => f.fecha || (f.entrada || "").split("T")[0];
+  const isoDe = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const fichajesDe = fstr => misF.filter(f => fechaDe(f) === fstr);
+  const minsDia = (arr, fstr) => arr.reduce((a, f) => {
+    if (f.salida) return a + Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000));
+    if (fstr === hoyStr) return a + Math.max(0, Math.round((Date.now() - new Date(f.entrada)) / 60000));
+    return a;
+  }, 0);
+  const es = arr => {
+    if (!arr.length) return { entrada: null, salida: null };
+    const ent = [...arr].sort((a, b) => new Date(a.entrada) - new Date(b.entrada))[0].entrada;
+    const done = arr.filter(f => f.salida);
+    return { entrada: ent, salida: done.length ? [...done].sort((a, b) => new Date(b.salida) - new Date(a.salida))[0].salida : "curso" };
+  };
+  const MES_L = ["E","F","M","A","M","J","J","A","S","O","N","D"];
+  const MES_N = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const DIA_N = ["dom","lun","mar","mié","jue","vie","sáb"];
+  const units = []; let totalMins = 0;
+
+  if (periodo === "semana") {
+    const lun = new Date(rango.desde + "T12:00:00");
+    const dn = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
+    for (let i = 0; i < 5; i++) {
+      const dd = new Date(lun); dd.setDate(lun.getDate() + i); const fstr = isoDe(dd);
+      const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDia(arr, fstr), future = fstr > hoyStr, e = es(arr);
+      totalMins += mins;
+      units.push({ fecha: fstr, label: ["L","M","X","J","V"][i], full: `${dn[i]} ${dd.getDate()}`, worked, future, laborable: true, mins, entrada: e.entrada, salida: e.salida });
+    }
+  } else if (periodo === "mes") {
+    const ref = new Date(rango.desde + "T12:00:00"), y = ref.getFullYear(), m = ref.getMonth(), dim = new Date(y, m + 1, 0).getDate();
+    for (let day = 1; day <= dim; day++) {
+      const dd = new Date(y, m, day, 12); const fstr = isoDe(dd); const dow = dd.getDay(); const laborable = dow >= 1 && dow <= 5;
+      const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDia(arr, fstr), future = fstr > hoyStr, e = es(arr);
+      totalMins += mins;
+      units.push({ fecha: fstr, label: (day === 1 || day % 5 === 0) ? String(day) : "", full: `${day} ${MES_N[m]} · ${DIA_N[dow]}`, worked, future, laborable, mins, entrada: e.entrada, salida: e.salida });
+    }
+  } else {
+    const y = new Date(rango.desde + "T12:00:00").getFullYear(), now = new Date();
+    for (let mo = 0; mo < 12; mo++) {
+      const arr = misF.filter(f => { const fe = fechaDe(f); return fe && Number(fe.slice(0, 4)) === y && Number(fe.slice(5, 7)) === mo + 1; });
+      const worked = arr.length > 0;
+      const future = y > now.getFullYear() || (y === now.getFullYear() && mo > now.getMonth());
+      const dias = new Set(arr.map(fechaDe)); let mins = 0; dias.forEach(fs => { mins += minsDia(fichajesDe(fs), fs); });
+      totalMins += mins;
+      units.push({ label: MES_L[mo], full: MES_N[mo], worked, future, laborable: true, mins, diasFichados: dias.size });
+    }
+  }
+  return { units, totalMins };
+}
+
+// ── Modal: detalle de fichajes de una persona (cuándo sí, cuándo no) ──
+function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabel, dm, onClose }) {
+  const card = dm ? "#111827" : "#FFFFFF", border = dm ? "#2E3A55" : "#E2E8F0", text = dm ? "#E2E8F0" : "#0F172A", muted = dm ? "#64748B" : "#94A3B8", bg2 = dm ? "#0D1424" : "#F8FAFC";
+  const VERDE = "#38A169", ROJO = "#E53E3E", GRIS = dm ? "#334155" : "#CBD5E1";
+  const fmtT = iso => iso && iso !== "curso" ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : iso === "curso" ? "en curso" : "—";
+  const fmtH = m => { const h = Math.floor(m / 60), mm = m % 60; return h > 0 ? `${h}h${mm > 0 ? ` ${mm}m` : ""}` : `${mm}m`; };
+  const esDia = periodo === "dia";
+  const { units, totalMins } = esDia ? { units: [], totalMins: 0 } : unidadesFichaje(misF, periodo, rango);
+
+  let diaPairs = [], diaMins = 0;
+  if (esDia) {
+    const fechaDe = f => f.fecha || (f.entrada || "").split("T")[0];
+    const hoyStr = new Date().toISOString().split("T")[0];
+    diaPairs = misF.filter(f => fechaDe(f) === fechaRef).sort((a, b) => new Date(a.entrada) - new Date(b.entrada));
+    diaMins = diaPairs.reduce((a, f) => a + (f.salida ? Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000)) : (fechaRef === hoyStr ? Math.max(0, Math.round((Date.now() - new Date(f.entrada)) / 60000)) : 0)), 0);
+  }
+
+  const totMin = esDia ? diaMins : totalMins;
+  const diasFichados = esDia ? (diaPairs.length ? 1 : 0) : units.filter(x => x.worked).length;
+  const diasSinFichar = esDia ? 0 : units.filter(x => x.laborable && !x.future && !x.worked).length;
+
+  const colorUnit = un => un.future ? GRIS : un.worked ? VERDE : un.laborable ? ROJO : GRIS;
+  const estadoUnit = un => un.future ? "—" : un.worked ? (un.diasFichados != null ? `${un.diasFichados} días · ${fmtH(un.mins)}` : `${fmtT(un.entrada)} – ${fmtT(un.salida)} · ${fmtH(un.mins)}`) : un.laborable ? "Sin fichar" : "No laborable";
+  const inicial = u.nombre.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
+  return (
+    <div onMouseDown={onClose} style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onMouseDown={e => e.stopPropagation()} style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 520, maxHeight: "88vh", overflow: "auto", padding: 24, boxShadow: "0 24px 80px #0009" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: (emp?.color || "#888") + "22", border: `2px solid ${emp?.color || "#888"}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: emp?.color || "#888", fontSize: 15, flexShrink: 0 }}>{inicial}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ margin: 0, color: text, fontSize: 16, fontWeight: 800 }}>{u.nombre}</h3>
+            <p style={{ margin: 0, color: muted, fontSize: 12 }}>{u.rol}{emp ? ` · ${emp.nombre}` : ""}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 24, cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+          <RoscoFichaje u={u} emp={emp} misF={misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={260} />
+        </div>
+        <p style={{ textAlign: "center", color: muted, fontSize: 12, margin: "0 0 16px", textTransform: "capitalize" }}>{rangoLabel}</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
+          {[["Horas", fmtH(totMin), VERDE], ["Días fichados", String(diasFichados), VERDE], ["Sin fichar", String(diasSinFichar), ROJO]].map(([l, v, c]) => (
+            <div key={l} style={{ background: bg2, borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: c }}>{v}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginTop: 2 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+
+        <h4 style={{ margin: "0 0 8px", color: text, fontSize: 13, fontWeight: 800 }}>Desglose</h4>
+        {esDia ? (
+          diaPairs.length === 0 ? (
+            <div style={{ padding: "18px", textAlign: "center", color: muted, fontSize: 13, background: bg2, borderRadius: 10 }}>Sin fichajes este día</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {diaPairs.map((f, i) => {
+                const mins = f.salida ? Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000)) : 0;
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: bg2, borderRadius: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: VERDE, flexShrink: 0 }} />
+                    <span style={{ color: text, fontSize: 13, fontWeight: 700 }}>{fmtT(f.entrada)} → {f.salida ? fmtT(f.salida) : <span style={{ color: VERDE }}>en curso</span>}</span>
+                    <span style={{ marginLeft: "auto", color: muted, fontSize: 12, fontWeight: 700 }}>{f.salida ? fmtH(mins) : ""}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflow: "auto" }}>
+            {units.map((un, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", background: bg2, borderRadius: 8 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: colorUnit(un), flexShrink: 0 }} />
+                <span style={{ color: text, fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>{un.full}</span>
+                <span style={{ marginLeft: "auto", color: un.worked ? text : muted, fontSize: 12, fontWeight: un.worked ? 700 : 400 }}>{estadoUnit(un)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Rosco de fichajes por persona: el anillo es la línea de tiempo ──
 // Horario laboral: L–V, 8:00–15:00. Verde = fichó · Rojo = no fichó (día laborable)
 // Gris = no laborable (findes) · Gris claro = aún no ha llegado.
-function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190 }) {
+function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, onClick }) {
   const cx = size / 2, cy = size / 2, ro = size / 2 - 13, ri = size / 2 - 35;
   const TAU = Math.PI * 2, TOP = -Math.PI / 2;
   const textPri = dm ? "#E2E8F0" : "#0F172A";
@@ -5085,7 +5203,12 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190 }
   const fmtH   = m => { const h = Math.floor(m / 60), mm = m % 60; return h > 0 ? `${h}h${mm > 0 ? ` ${mm}m` : ""}` : `${mm}m`; };
   const fechaDe = f => f.fecha || (f.entrada || "").split("T")[0];
   const fichajesDe = fstr => misF.filter(f => fechaDe(f) === fstr);
-  const minsDe = arr => arr.reduce((a, f) => a + (f.salida ? Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000)) : 0), 0);
+  const minsDe = arr => arr.reduce((a, f) => {
+    if (f.salida) return a + Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000));
+    const fday = f.fecha || (f.entrada || "").split("T")[0];
+    if (fday === hoyStr) return a + Math.max(0, Math.round((Date.now() - new Date(f.entrada)) / 60000));
+    return a;
+  }, 0);
   const isoDe = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const MES_L = ["E","F","M","A","M","J","J","A","S","O","N","D"];
   const MES_N = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
@@ -5174,7 +5297,10 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190 }
   }
 
   return (
-    <div style={{ background: cardBg, border: `1px solid ${(emp?.color || "#888")}33`, borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div onClick={onClick}
+      onMouseEnter={e => { if (onClick) { e.currentTarget.style.borderColor = (emp?.color || "#888"); e.currentTarget.style.transform = "translateY(-2px)"; } }}
+      onMouseLeave={e => { if (onClick) { e.currentTarget.style.borderColor = (emp?.color || "#888") + "33"; e.currentTarget.style.transform = "none"; } }}
+      style={{ background: cardBg, border: `1px solid ${(emp?.color || "#888")}33`, borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", alignItems: "center", cursor: onClick ? "pointer" : "default", transition: "transform .12s, border-color .12s" }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {sectors.map((s, i) => <path key={"s" + i} d={s.d} fill={s.fill}>{s.tip ? <title>{s.tip}</title> : null}</path>)}
         {ticks.map((t, i) => <line key={"t" + i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={t.stroke} strokeWidth={t.w} />)}
