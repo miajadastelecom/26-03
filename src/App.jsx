@@ -2771,13 +2771,13 @@ export default function App() {
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
 
   // ── Firebase: nóminas en tiempo real ──
-  // La sección "Nóminas" es solo de visualización: cada usuario ve únicamente
-  // las suyas. La subida/gestión de todas vive en RRHH → Gestión de Nóminas.
   useEffect(() => {
     if (!usuarioId) return;
+    const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
     const unsub = onSnapshot(collection(db, "nominas"), snap => {
       const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setNominas(todas.filter(n => n.usuarioId === usuarioId));
+      // Admin/director ven todas; el resto solo las suyas
+      setNominas(esAdminDir ? todas : todas.filter(n => n.usuarioId === usuarioId));
     });
     return () => unsub();
   }, [usuarioId, usuario?.rol]);
@@ -3296,7 +3296,7 @@ export default function App() {
               { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
-              ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"nominas", icon:"💰", label:"Nóminas" }] : []),
+              { id:"nominas",      icon:"💰", label:"Nóminas" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
               ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
@@ -3673,7 +3673,8 @@ export default function App() {
         {seccion === "fichaje" && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
         {/* ── NÓMINAS ── */}
-        {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
+        {seccion === "nominas" && (() => {
+          const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
           const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
           return (
             <div style={{ maxWidth:800 }}>
@@ -3681,9 +3682,15 @@ export default function App() {
                 <div>
                   <h2 style={{ margin:"0 0 4px", color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:18 }}>💰 Nóminas</h2>
                   <p style={{ margin:0, color: darkMode?"#475569":"#64748B", fontSize:13 }}>
-                    Tus nóminas disponibles para descargar
+                    {esAdminDir ? "Gestiona las nóminas de todos los empleados" : "Tus nóminas disponibles para descargar"}
                   </p>
                 </div>
+                {esAdminDir && (
+                  <button onClick={() => setModalNomina(true)}
+                    style={{ background: empColor, border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    + Subir nómina
+                  </button>
+                )}
               </div>
               {nominas.length === 0 ? (
                 <div style={{ textAlign:"center", padding:"70px 20px" }}>
@@ -3692,33 +3699,26 @@ export default function App() {
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {[...nominas].sort((a,b)=>String(b.mes||b.fecha||"").localeCompare(String(a.mes||a.fecha||""))).map(n => {
-                    // Periodo: "YYYY-MM" → "Junio 2026" (admite también el formato antiguo mes numérico + anio)
-                    let periodo = "";
-                    if (typeof n.mes === "string" && n.mes.includes("-")) {
-                      const [aa, mm] = n.mes.split("-");
-                      periodo = meses[Number(mm)-1] ? `${meses[Number(mm)-1]} ${aa}` : n.mes;
-                    } else if (n.mes) {
-                      periodo = `${meses[n.mes-1] || ""} ${n.anio || ""}`.trim();
-                    }
-                    const fileUrl = n.url || n.dataUrl;
+                  {nominas.sort((a,b)=>b.anio-a.anio||(b.mes-a.mes)).map(n => {
+                    const usr = USUARIOS.find(u=>u.id===n.usuarioId);
                     return (
                       <div key={n.id} style={{ background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14 }}>
                         <div style={{ width:42, height:42, borderRadius:8, background:"#F6AD5522", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>💰</div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <p style={{ margin:"0 0 3px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:14, fontWeight:700 }}>
-                            {periodo || n.nombre}
+                            {meses[n.mes-1]} {n.anio}
                           </p>
+                          {esAdminDir && <p style={{ margin:0, color: darkMode?"#64748B":"#94A3B8", fontSize:12 }}>{usr?.nombre || "Usuario desconocido"} · {EMPRESAS.find(e=>e.id===usr?.empresaId)?.nombre}</p>}
                           <p style={{ margin:0, color: darkMode?"#334155":"#94A3B8", fontSize:11 }}>{n.nombre}</p>
                         </div>
                         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                          {fileUrl ? (
-                            <a href={fileUrl} download={n.nombre || "nomina.pdf"} target="_blank" rel="noreferrer"
-                              style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
-                              ⬇️ Descargar
-                            </a>
-                          ) : (
-                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:11, fontStyle:"italic" }}>Archivo no disponible</span>
+                          <a href={n.dataUrl} download={n.nombre}
+                            style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                            ⬇️ Descargar
+                          </a>
+                          {esAdminDir && (
+                            <button onClick={() => eliminarNomina(n.id)}
+                              style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:16, padding:"4px" }}>🗑️</button>
                           )}
                         </div>
                       </div>
@@ -3726,6 +3726,8 @@ export default function App() {
                   })}
                 </div>
               )}
+              {/* Modal subir nómina */}
+              {modalNomina && esAdminDir && <ModalSubirNomina darkMode={darkMode} onClose={() => setModalNomina(false)} onSubir={subirNomina} empColor={empColor} />}
             </div>
           );
         })()}
@@ -4916,6 +4918,43 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
         ))}
       </div>
 
+      {/* Leyenda */}
+      <div style={{ display:"flex", gap:18, justifyContent:"center", marginBottom:18, flexWrap:"wrap" }}>
+        {[["#38A169","Fichado"],["#E53E3E","Sin fichar"],[dm?"#1E293B":"#E5E9F0","No laborable"],[dm?"#152036":"#EEF2F6","Aún no"]].map(([c,l])=>(
+          <div key={l} style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ width:12, height:12, borderRadius:3, background:c, border:`1px solid ${c}`, flexShrink:0 }} />
+            <span style={{ color:muted, fontSize:12, fontWeight:600 }}>{l}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Roscos por persona (el anillo = línea de tiempo del periodo) */}
+      {datosEmpleado.length === 0 ? null : empActiva === "todas" ? (
+        empresasConEmpleados.flatMap(emp => {
+          const datos = datosEmpleado.filter(d => d.emp?.id === emp.id);
+          if (!datos.length) return [];
+          return [
+            <div key={"grp_"+emp.id} style={{ marginBottom:22 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+                <span style={{ width:10, height:10, borderRadius:"50%", background:emp.color }} />
+                <span style={{ color:emp.color, fontWeight:800, fontSize:12, textTransform:"uppercase", letterSpacing:".5px" }}>{emp.nombre}</span>
+                <span style={{ color:muted, fontSize:11 }}>· {datos.filter(d=>d.misF.length>0).length}/{datos.length} han fichado</span>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14 }}>
+                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} />)}
+              </div>
+            </div>
+          ];
+        })
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14, marginBottom:26 }}>
+          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} />)}
+        </div>
+      )}
+
+      {/* Detalle por empleado */}
+      <h3 style={{ margin:"0 0 12px", color:textPri, fontWeight:800, fontSize:15 }}>Detalle por empleado</h3>
+
       {/* Tabla de empleados */}
       <div style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:14, overflow:"hidden" }}>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
@@ -5021,6 +5060,132 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
   );
 }
 
+
+// ── Rosco de fichajes por persona: el anillo es la línea de tiempo ──
+// Horario laboral: L–V, 8:00–15:00. Verde = fichó · Rojo = no fichó (día laborable)
+// Gris = no laborable (findes) · Gris claro = aún no ha llegado.
+function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190 }) {
+  const cx = size / 2, cy = size / 2, ro = size / 2 - 13, ri = size / 2 - 35;
+  const TAU = Math.PI * 2, TOP = -Math.PI / 2;
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const VERDE = "#38A169", ROJO = "#E53E3E";
+  const TRACK = dm ? "#1E293B" : "#E5E9F0";   // no laborable / vacío
+  const FUT   = dm ? "#152036" : "#EEF2F6";   // futuro
+  const hoyStr = new Date().toISOString().split("T")[0];
+
+  const arcSeg = (r0i, r0o, a0, a1) => {
+    const p = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    const o0 = p(r0o, a0), o1 = p(r0o, a1), i1 = p(r0i, a1), i0 = p(r0i, a0);
+    return `M${o0[0]} ${o0[1]} A${r0o} ${r0o} 0 ${large} 1 ${o1[0]} ${o1[1]} L${i1[0]} ${i1[1]} A${r0i} ${r0i} 0 ${large} 0 ${i0[0]} ${i0[1]} Z`;
+  };
+  const fmtT   = iso => iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const fmtH   = m => { const h = Math.floor(m / 60), mm = m % 60; return h > 0 ? `${h}h${mm > 0 ? ` ${mm}m` : ""}` : `${mm}m`; };
+  const fechaDe = f => f.fecha || (f.entrada || "").split("T")[0];
+  const fichajesDe = fstr => misF.filter(f => fechaDe(f) === fstr);
+  const minsDe = arr => arr.reduce((a, f) => a + (f.salida ? Math.max(0, Math.round((new Date(f.salida) - new Date(f.entrada)) / 60000)) : 0), 0);
+  const isoDe = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const MES_L = ["E","F","M","A","M","J","J","A","S","O","N","D"];
+  const MES_N = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+  const sectors = [];   // { d, fill, tip }
+  const ticks   = [];   // { x1,y1,x2,y2,stroke,w }
+  const labels  = [];   // { x,y,t,size,fill,w,anchor }
+  let totalMins = 0;
+  const primer = u.nombre.split(" ")[0];
+
+  if (periodo === "dia") {
+    const fstr = fechaRef;
+    const d = new Date(fstr + "T12:00:00");
+    const dow = d.getDay(), laborable = dow >= 1 && dow <= 5;
+    const arr = fichajesDe(fstr);
+    totalMins = minsDe(arr);
+    const ang = m => TOP + (m / 1440) * TAU;
+    // Track completo
+    sectors.push({ d: arcSeg(ri, ro, TOP + 0.001, TOP + TAU - 0.001), fill: TRACK, tip: "" });
+    // Franja horario previsto 8:00–15:00
+    const bandCol = !laborable ? TRACK : arr.length ? VERDE + "33" : (fstr > hoyStr ? FUT : ROJO + "2E");
+    sectors.push({ d: arcSeg(ri, ro, ang(8 * 60), ang(15 * 60)), fill: bandCol, tip: laborable ? "Horario previsto 8:00–15:00" : "No laborable" });
+    // Arcos de presencia real
+    arr.forEach(f => {
+      const iniM = new Date(f.entrada).getHours() * 60 + new Date(f.entrada).getMinutes();
+      const finM = f.salida ? new Date(f.salida).getHours() * 60 + new Date(f.salida).getMinutes() : (new Date().getHours() * 60 + new Date().getMinutes());
+      sectors.push({ d: arcSeg(ri, ro, ang(iniM), ang(Math.max(finM, iniM + 4))), fill: VERDE, tip: `Entrada ${fmtT(f.entrada)} · Salida ${f.salida ? fmtT(f.salida) : "en curso"}` });
+      const ex = cx + (ri - 9) * Math.cos(ang(iniM)), ey = cy + (ri - 9) * Math.sin(ang(iniM)) + 3;
+      labels.push({ x: ex, y: ey, t: fmtT(f.entrada), size: 8, fill: VERDE, w: 800 });
+      if (f.salida) { const sx = cx + (ri - 9) * Math.cos(ang(finM)), sy = cy + (ri - 9) * Math.sin(ang(finM)) + 3;
+        labels.push({ x: sx, y: sy, t: fmtT(f.salida), size: 8, fill: ROJO, w: 800 }); }
+    });
+    // Ticks de horas
+    for (let h = 0; h < 24; h++) { const a = ang(h * 60), mayor = h % 6 === 0;
+      ticks.push({ x1: cx + ro * Math.cos(a), y1: cy + ro * Math.sin(a), x2: cx + (ro + (mayor ? 6 : 3)) * Math.cos(a), y2: cy + (ro + (mayor ? 6 : 3)) * Math.sin(a), stroke: mayor ? muted : (dm ? "#334155" : "#CBD5E1"), w: mayor ? 1.4 : 0.7 });
+      if (mayor) labels.push({ x: cx + (ro + 13) * Math.cos(a), y: cy + (ro + 13) * Math.sin(a) + 3, t: h + "h", size: 7.5, fill: muted, w: 700 });
+    }
+  } else {
+    // semana / mes / anio → divisiones discretas
+    const units = [];
+    if (periodo === "semana") {
+      const lun = new Date(rango.desde + "T12:00:00");
+      const dn = ["Lunes","Martes","Miércoles","Jueves","Viernes"];
+      for (let i = 0; i < 5; i++) {
+        const dd = new Date(lun); dd.setDate(lun.getDate() + i); const fstr = isoDe(dd);
+        const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDe(arr), future = fstr > hoyStr;
+        totalMins += mins;
+        const ent = worked ? fmtT([...arr].sort((a, b) => new Date(a.entrada) - new Date(b.entrada))[0].entrada) : null;
+        const done = arr.filter(f => f.salida);
+        const sal = worked ? (done.length ? fmtT([...done].sort((a, b) => new Date(b.salida) - new Date(a.salida))[0].salida) : "en curso") : null;
+        units.push({ label: ["L","M","X","J","V"][i], worked, future, laborable: true, mins,
+          tip: `${dn[i]} · ${worked ? `${ent}–${sal} · ${fmtH(mins)}` : future ? "—" : "Sin fichar"}` });
+      }
+    } else if (periodo === "mes") {
+      const ref = new Date(rango.desde + "T12:00:00"), y = ref.getFullYear(), m = ref.getMonth();
+      const dim = new Date(y, m + 1, 0).getDate();
+      for (let day = 1; day <= dim; day++) {
+        const dd = new Date(y, m, day, 12); const fstr = isoDe(dd); const dow = dd.getDay();
+        const laborable = dow >= 1 && dow <= 5;
+        const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDe(arr), future = fstr > hoyStr;
+        totalMins += mins;
+        units.push({ label: (day === 1 || day % 5 === 0) ? String(day) : "", worked, future, laborable, mins,
+          tip: `${day} ${MES_N[m]} · ${!laborable ? "No laborable" : worked ? `${fmtH(mins)}` : future ? "—" : "Sin fichar"}` });
+      }
+    } else { // anio
+      const y = new Date(rango.desde + "T12:00:00").getFullYear(), now = new Date();
+      for (let mo = 0; mo < 12; mo++) {
+        const arr = misF.filter(f => { const fe = fechaDe(f); return fe && Number(fe.slice(0, 4)) === y && Number(fe.slice(5, 7)) === mo + 1; });
+        const worked = arr.length > 0, mins = minsDe(arr);
+        const future = y > now.getFullYear() || (y === now.getFullYear() && mo > now.getMonth());
+        const dias = new Set(arr.map(fechaDe)).size;
+        totalMins += mins;
+        units.push({ label: MES_L[mo], worked, future, laborable: true, mins,
+          tip: `${MES_N[mo]} · ${future ? "—" : worked ? `${dias} días · ${fmtH(mins)}` : "Sin fichar"}` });
+      }
+    }
+    const n = units.length, gap = n > 15 ? 0.012 : 0.03;
+    const rMid = (ro + ri) / 2;
+    units.forEach((un, i) => {
+      const a0 = TOP + (i / n) * TAU + gap / 2, a1 = TOP + ((i + 1) / n) * TAU - gap / 2, am = (a0 + a1) / 2;
+      const fill = un.future ? FUT : un.worked ? VERDE : un.laborable ? ROJO : TRACK;
+      sectors.push({ d: arcSeg(ri, ro, a0, a1), fill, tip: un.tip });
+      if (un.label) labels.push({ x: cx + (ro + 8) * Math.cos(am), y: cy + (ro + 8) * Math.sin(am) + 3, t: un.label, size: 8.5, fill: muted, w: 700 });
+      if (periodo === "semana" && un.worked) labels.push({ x: cx + rMid * Math.cos(am), y: cy + rMid * Math.sin(am) + 3, t: fmtH(un.mins), size: 8, fill: "#fff", w: 800 });
+    });
+  }
+
+  return (
+    <div style={{ background: cardBg, border: `1px solid ${(emp?.color || "#888")}33`, borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {sectors.map((s, i) => <path key={"s" + i} d={s.d} fill={s.fill}>{s.tip ? <title>{s.tip}</title> : null}</path>)}
+        {ticks.map((t, i) => <line key={"t" + i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={t.stroke} strokeWidth={t.w} />)}
+        {labels.map((l, i) => <text key={"l" + i} x={l.x} y={l.y} textAnchor={l.anchor || "middle"} fontSize={l.size} fontWeight={l.w} fill={l.fill}>{l.t}</text>)}
+        <text x={cx} y={cy - 1} textAnchor="middle" fontSize={size * 0.135} fontWeight="800" fill={textPri}>{primer}</text>
+        <text x={cx} y={cy + size * 0.095} textAnchor="middle" fontSize={size * 0.058} fontWeight="700" fill={muted}>{fmtH(totalMins)}</text>
+      </svg>
+      <p style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 700, color: textPri, textAlign: "center", maxWidth: size, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>{u.nombre}</p>
+    </div>
+  );
+}
 
 // ===== MÓDULO PROYECTOS: plantillas + helpers (integrado) =====
 // =============================================================
