@@ -3692,21 +3692,34 @@ export default function App() {
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {nominas.sort((a,b)=>b.anio-a.anio||(b.mes-a.mes)).map(n => {
+                  {[...nominas].sort((a,b)=>String(b.mes||b.fecha||"").localeCompare(String(a.mes||a.fecha||""))).map(n => {
+                    // Periodo: "YYYY-MM" → "Junio 2026" (admite también el formato antiguo mes numérico + anio)
+                    let periodo = "";
+                    if (typeof n.mes === "string" && n.mes.includes("-")) {
+                      const [aa, mm] = n.mes.split("-");
+                      periodo = meses[Number(mm)-1] ? `${meses[Number(mm)-1]} ${aa}` : n.mes;
+                    } else if (n.mes) {
+                      periodo = `${meses[n.mes-1] || ""} ${n.anio || ""}`.trim();
+                    }
+                    const fileUrl = n.url || n.dataUrl;
                     return (
                       <div key={n.id} style={{ background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14 }}>
                         <div style={{ width:42, height:42, borderRadius:8, background:"#F6AD5522", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>💰</div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <p style={{ margin:"0 0 3px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:14, fontWeight:700 }}>
-                            {meses[n.mes-1]} {n.anio}
+                            {periodo || n.nombre}
                           </p>
                           <p style={{ margin:0, color: darkMode?"#334155":"#94A3B8", fontSize:11 }}>{n.nombre}</p>
                         </div>
                         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                          <a href={n.dataUrl} download={n.nombre}
-                            style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
-                            ⬇️ Descargar
-                          </a>
+                          {fileUrl ? (
+                            <a href={fileUrl} download={n.nombre || "nomina.pdf"} target="_blank" rel="noreferrer"
+                              style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                              ⬇️ Descargar
+                            </a>
+                          ) : (
+                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:11, fontStyle:"italic" }}>Archivo no disponible</span>
+                          )}
                         </div>
                       </div>
                     );
