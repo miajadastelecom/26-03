@@ -3675,8 +3675,6 @@ export default function App() {
 
         {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
-        {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
-
         {/* ── NÓMINAS ── */}
         {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
           const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
