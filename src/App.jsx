@@ -282,7 +282,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
   };
 
   return (
-    <div className="modal-overlay" className="modal-overlay" style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
+    <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, padding: 20, overflowY: "auto" }}>
       <div className="modal-box" style={{ background: darkMode ? "#111827" : "#FFFFFF", border: `1px solid ${darkMode ? "#2E3A55" : "#CBD5E1"}`, borderRadius: 14, width: "100%", maxWidth: 560, padding: 28, boxShadow: "0 24px 80px #0008", margin: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: darkMode ? "#E2E8F0" : "#0F172A" }}>✉️ Nuevo Ticket</h2>
@@ -4883,9 +4883,8 @@ function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobado
 // ── Gestión de Vacaciones ───────────────────────────────────────────
 function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
   const [solicitudes, setSolicitudes] = useState([]);
-  const [filtroEmp,   setFiltroEmp]   = useState("todas");
-  const [filtroEst,   setFiltroEst]   = useState("todos");
-  const [detalle,     setDetalle]     = useState(null);
+  const [empActiva,   setEmpActiva]   = useState("todas");
+  const [detalle,     setDetalle]     = useState(null); // usuario (objeto u) seleccionado
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "solicitudesRRHH"), snap => {
@@ -4895,125 +4894,159 @@ function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empC
   }, [db]);
 
   const dm = darkMode;
-  const cardBg = dm ? "#111827" : "#FFFFFF";
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
   const border  = dm ? "#1E293B" : "#E2E8F0";
   const textPri = dm ? "#E2E8F0" : "#0F172A";
   const muted   = dm ? "#64748B" : "#94A3B8";
+  const bg2     = dm ? "#0D1424" : "#F8FAFC";
+  const VERDE = "#38A169", ROJO = "#E53E3E", AMBAR = "#D4A017";
+  const anio = new Date().getFullYear();
 
-  const TIPOS = { vacaciones:"🏖️ Vacaciones", ausencia:"🤒 Ausencia", horasExtras:"⏱️ Horas extras" };
-  const ESTADO_COL = { pendiente:"#D4A017", aprobada:"#38A169", rechazada:"#E53E3E" };
-
-  const filtradas = solicitudes
-    .filter(s => filtroEmp === "todas" || String(USUARIOS.find(u => u.id === s.usuarioId)?.empresaId) === filtroEmp)
-    .filter(s => filtroEst === "todos" || s.estado === filtroEst)
-    .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
-
-  const aprobar = async s => {
-    await updateDoc(doc(db, "solicitudesRRHH", s.id), { estado:"aprobada", encargadoId: usuario.id, fechaGestion: new Date().toISOString() });
-    setDetalle(null);
+  // Saldo de vacaciones de un usuario (año en curso)
+  const datosUsuario = u => {
+    const mis = solicitudes.filter(s => s.usuarioId === u.id && s.tipo === "vacaciones");
+    const misAnio = mis.filter(s => (s.fechaInicio || "").slice(0, 4) === String(anio));
+    const gastados    = misAnio.filter(s => s.estado === "aprobada").reduce((a, s) => a + (s.diasSolicitados || 0), 0);
+    const pendientes  = misAnio.filter(s => s.estado === "pendiente").reduce((a, s) => a + (s.diasSolicitados || 0), 0);
+    const restantes   = Math.max(0, DIAS_VACACIONES_ANUALES - gastados);
+    return { mis, misAnio, gastados, pendientes, restantes };
   };
-  const rechazar = async s => {
-    await updateDoc(doc(db, "solicitudesRRHH", s.id), { estado:"rechazada", encargadoId: usuario.id, fechaGestion: new Date().toISOString() });
-    setDetalle(null);
+
+  const empresasConEmpleados = EMPRESAS.filter(e => USUARIOS.some(u => u.empresaId === e.id));
+
+  const fmtFecha = f => f ? new Date(f + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const ESTADO = { pendiente: { c: AMBAR, t: "⏳ Pendiente" }, aprobada: { c: VERDE, t: "✅ Aprobada" }, rechazada: { c: ROJO, t: "❌ Rechazada" } };
+
+  const tabBtn = (id, label, activo) => (
+    <button key={id} onClick={() => setEmpActiva(id)}
+      style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${activo ? empColor : border}`, background: activo ? empColor + "18" : "transparent", color: activo ? empColor : muted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+      {label}
+    </button>
+  );
+
+  const PersonaCard = u => {
+    const emp = EMPRESAS.find(e => e.id === u.empresaId);
+    const { gastados, pendientes, restantes } = datosUsuario(u);
+    const pct = Math.round(gastados / DIAS_VACACIONES_ANUALES * 100);
+    const ini = u.nombre.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    return (
+      <div key={u.id} onClick={() => setDetalle(u)}
+        style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 12, padding: 16, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: "50%", background: (emp?.color || "#888") + "22", border: `1.5px solid ${emp?.color || "#888"}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: emp?.color || "#888", fontSize: 12, flexShrink: 0 }}>{ini}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, color: textPri, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.nombre}</p>
+            <p style={{ margin: 0, color: muted, fontSize: 11 }}>{u.rol}</p>
+          </div>
+        </div>
+        <div style={{ height: 8, borderRadius: 5, background: bg2, overflow: "hidden", display: "flex" }}>
+          <div style={{ width: `${Math.min(100, pct)}%`, background: VERDE }} />
+          <div style={{ width: `${Math.min(100 - pct, Math.round(pendientes / DIAS_VACACIONES_ANUALES * 100))}%`, background: AMBAR }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", textAlign: "center" }}>
+          <div><div style={{ fontSize: 16, fontWeight: 900, color: restantes <= 3 ? ROJO : VERDE }}>{restantes}</div><div style={{ fontSize: 10, color: muted, fontWeight: 700 }}>Restantes</div></div>
+          <div><div style={{ fontSize: 16, fontWeight: 900, color: textPri }}>{gastados}</div><div style={{ fontSize: 10, color: muted, fontWeight: 700 }}>Gastados</div></div>
+          <div><div style={{ fontSize: 16, fontWeight: 900, color: pendientes ? AMBAR : muted }}>{pendientes}</div><div style={{ fontSize: 10, color: muted, fontWeight: 700 }}>Pendientes</div></div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <div style={{ marginBottom:22 }}>
-        <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🏖️ Gestión de Vacaciones</h2>
-        <p style={{ margin:0, color:muted, fontSize:13 }}>Solicitudes de vacaciones, ausencias y horas extras</p>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🏖️ Gestión de Vacaciones</h2>
+        <p style={{ margin: 0, color: muted, fontSize: 13 }}>Control de vacaciones por empresa · {DIAS_VACACIONES_ANUALES} días/año · {anio}</p>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:22 }}>
-        {[
-          ["⏳ Pendientes", solicitudes.filter(s=>s.estado==="pendiente").length, "#D4A017"],
-          ["✅ Aprobadas",  solicitudes.filter(s=>s.estado==="aprobada").length,  "#38A169"],
-          ["❌ Rechazadas", solicitudes.filter(s=>s.estado==="rechazada").length, "#E53E3E"],
-        ].map(([l,v,c]) => (
-          <div key={l} style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:12, padding:"16px 20px" }}>
-            <div style={{ fontSize:26, fontWeight:900, color:c, lineHeight:1 }}>{v}</div>
-            <div style={{ color:muted, fontSize:12, fontWeight:700, marginTop:4 }}>{l}</div>
-          </div>
-        ))}
+      {/* Tabs por empresa */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
+        {tabBtn("todas", "Todas", empActiva === "todas")}
+        {empresasConEmpleados.map(e => tabBtn(String(e.id), e.nombre, empActiva === String(e.id)))}
       </div>
 
-      {/* Filtros */}
-      <div style={{ display:"flex", gap:10, marginBottom:18, flexWrap:"wrap" }}>
-        <select value={filtroEmp} onChange={e => setFiltroEmp(e.target.value)}
-          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
-          <option value="todas">Todas las empresas</option>
-          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </select>
-        <select value={filtroEst} onChange={e => setFiltroEst(e.target.value)}
-          style={{ height:34, padding:"0 10px", background:dm?"#1E293B":"#F8FAFC", border:`1px solid ${border}`, borderRadius:8, color:textPri, fontSize:12, fontFamily:"inherit", outline:"none" }}>
-          <option value="todos">Todos los estados</option>
-          <option value="pendiente">Pendientes</option>
-          <option value="aprobada">Aprobadas</option>
-          <option value="rechazada">Rechazadas</option>
-        </select>
-      </div>
-
-      {/* Lista */}
-      {filtradas.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"70px 20px" }}>
-          <p style={{ fontSize:48 }}>📋</p>
-          <p style={{ color:muted, fontSize:14, fontWeight:700 }}>Sin solicitudes para este filtro</p>
-        </div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {filtradas.map(s => {
-            const usr = USUARIOS.find(u => u.id === s.usuarioId);
-            const emp = EMPRESAS.find(e => e.id === usr?.empresaId);
-            const col = ESTADO_COL[s.estado] || "#94A3B8";
+      {/* Vista por empresa */}
+      {empActiva === "todas"
+        ? empresasConEmpleados.flatMap(emp => {
+            const us = USUARIOS.filter(u => u.empresaId === emp.id);
+            if (!us.length) return [];
+            return [
+              <div key={"grp_" + emp.id} style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: emp.color }} />
+                  <span style={{ color: emp.color, fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: ".5px" }}>{emp.nombre}</span>
+                  <span style={{ color: muted, fontSize: 11 }}>· {us.length} personas</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+                  {us.map(PersonaCard)}
+                </div>
+              </div>
+            ];
+          })
+        : (() => {
+            const emp = EMPRESAS.find(e => String(e.id) === empActiva);
+            const us = USUARIOS.filter(u => String(u.empresaId) === empActiva);
             return (
-              <div key={s.id} onClick={() => setDetalle(s)}
-                style={{ background:cardBg, border:`1px solid ${border}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14, cursor:"pointer" }}>
-                <div style={{ width:40, height:40, borderRadius:10, background:col+"22", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
-                  {s.tipo === "vacaciones" ? "🏖️" : s.tipo === "ausencia" ? "🤒" : "⏱️"}
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                    <span style={{ fontWeight:700, fontSize:14, color:textPri }}>{usr?.nombre}</span>
-                    {emp && <span style={{ background:emp.color+"18", color:emp.color, borderRadius:4, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{emp.nombre}</span>}
-                    <span style={{ color:muted, fontSize:12 }}>{TIPOS[s.tipo]}</span>
-                  </div>
-                  <span style={{ color:muted, fontSize:12 }}>
-                    {s.tipo === "vacaciones" ? `📅 ${s.fechaInicio} → ${s.fechaFin} · ${s.diasSolicitados} días` :
-                     s.tipo === "ausencia"    ? `📅 ${s.fecha} · ${s.motivo}` :
-                     `📅 ${s.fecha} · ${s.horasExtra}h extra`}
-                  </span>
-                </div>
-                <span style={{ background:col+"22", color:col, border:`1px solid ${col}55`, borderRadius:6, padding:"4px 10px", fontSize:11, fontWeight:700, flexShrink:0 }}>
-                  {s.estado === "pendiente" ? "⏳ " : s.estado === "aprobada" ? "✅ " : "❌ "}{s.estado}
-                </span>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+                {us.map(PersonaCard)}
               </div>
             );
-          })}
-        </div>
-      )}
+          })()
+      }
 
-      {/* Modal detalle */}
-      {detalle && (
-        <div style={{ position:"fixed", inset:0, background:"#00000099", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20 }} onMouseDown={() => setDetalle(null)}>
-          <div style={{ background:dm?"#111827":"#FFFFFF", border:`1px solid ${dm?"#2E3A55":"#CBD5E1"}`, borderRadius:14, width:"100%", maxWidth:480, padding:28, boxShadow:"0 24px 80px #0008" }} onMouseDown={e => e.stopPropagation()}>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16 }}>
-              <h3 style={{ margin:0, color:textPri, fontWeight:800 }}>{TIPOS[detalle.tipo]}</h3>
-              <button onClick={() => setDetalle(null)} style={{ background:"none", border:"none", color:"#64748B", fontSize:22, cursor:"pointer" }}>×</button>
-            </div>
-            <p style={{ color:muted, fontSize:13, margin:"0 0 16px" }}>
-              {USUARIOS.find(u => u.id === detalle.usuarioId)?.nombre} · {detalle.tipo === "vacaciones" ? `${detalle.fechaInicio} → ${detalle.fechaFin} (${detalle.diasSolicitados} días)` : detalle.tipo === "ausencia" ? `${detalle.fecha} · ${detalle.motivo}` : `${detalle.fecha} · ${detalle.horasExtra}h extra`}
-            </p>
-            {detalle.descripcion && <p style={{ color:muted, fontSize:13, margin:"0 0 16px" }}>📝 {detalle.descripcion}</p>}
-            {detalle.estado === "pendiente" && (
-              <div style={{ display:"flex", gap:10 }}>
-                <button onClick={() => aprobar(detalle)} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#38A169", color:"#fff" }}>✅ Aprobar</button>
-                <button onClick={() => rechazar(detalle)} style={{ flex:1, fontFamily:"inherit", fontSize:13, fontWeight:700, padding:11, borderRadius:8, border:"none", cursor:"pointer", background:"#E53E3E", color:"#fff" }}>❌ Rechazar</button>
+      {/* Modal detalle persona */}
+      {detalle && (() => {
+        const u = detalle;
+        const emp = EMPRESAS.find(e => e.id === u.empresaId);
+        const { mis, gastados, pendientes, restantes } = datosUsuario(u);
+        const periodos = [...mis].sort((a, b) => String(b.fechaInicio).localeCompare(String(a.fechaInicio)));
+        const ini = u.nombre.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        return (
+          <div onMouseDown={() => setDetalle(null)} style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+            <div onMouseDown={e => e.stopPropagation()} style={{ background: cardBg, border: `1px solid ${dm ? "#2E3A55" : "#E2E8F0"}`, borderRadius: 16, width: "100%", maxWidth: 520, maxHeight: "88vh", overflow: "auto", padding: 24, boxShadow: "0 24px 80px #0009" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+                <div style={{ width: 46, height: 46, borderRadius: "50%", background: (emp?.color || "#888") + "22", border: `2px solid ${emp?.color || "#888"}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: emp?.color || "#888", fontSize: 15, flexShrink: 0 }}>{ini}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, color: textPri, fontSize: 16, fontWeight: 800 }}>{u.nombre}</h3>
+                  <p style={{ margin: 0, color: muted, fontSize: 12 }}>{u.rol}{emp ? ` · ${emp.nombre}` : ""}</p>
+                </div>
+                <button onClick={() => setDetalle(null)} style={{ background: "none", border: "none", color: muted, fontSize: 24, cursor: "pointer" }}>×</button>
               </div>
-            )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
+                {[["Restantes", restantes, restantes <= 3 ? ROJO : VERDE], ["Gastados", gastados, textPri], ["Pendientes", pendientes, pendientes ? AMBAR : muted]].map(([l, v, c]) => (
+                  <div key={l} style={{ background: bg2, borderRadius: 10, padding: "12px 8px", textAlign: "center" }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: c }}>{v}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginTop: 2 }}>{l} <span style={{ opacity: .7 }}>/ {DIAS_VACACIONES_ANUALES}</span></div>
+                  </div>
+                ))}
+              </div>
+
+              <h4 style={{ margin: "0 0 8px", color: textPri, fontSize: 13, fontWeight: 800 }}>Días de vacaciones</h4>
+              {periodos.length === 0 ? (
+                <div style={{ padding: 18, textAlign: "center", color: muted, fontSize: 13, background: bg2, borderRadius: 10 }}>Sin vacaciones registradas</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {periodos.map(s => {
+                    const est = ESTADO[s.estado] || ESTADO.pendiente;
+                    return (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: bg2, borderRadius: 8, flexWrap: "wrap" }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", background: est.c, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <span style={{ color: textPri, fontSize: 13, fontWeight: 700 }}>{fmtFecha(s.fechaInicio)} → {fmtFecha(s.fechaFin)}</span>
+                          <span style={{ color: muted, fontSize: 12 }}> · {s.diasSolicitados} días</span>
+                          {s.descripcion && <p style={{ margin: "2px 0 0", color: muted, fontSize: 11 }}>📝 {s.descripcion}</p>}
+                        </div>
+                        <span style={{ background: est.c + "22", color: est.c, border: `1px solid ${est.c}55`, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{est.t}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -6858,7 +6891,7 @@ function ModalDetalleReserva({ db, darkMode, reserva, usuario, empColor, onClose
           <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px", borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cerrar</button>
           {esMia && (
             <button onClick={onCancelar}
-              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
+              style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: "10px", borderRadius: 8, cursor: "pointer", background: "#E53E3E22", color: "#E53E3E", border: "1px solid #E53E3E44" }}>
               🗑️ Cancelar reserva
             </button>
           )}
