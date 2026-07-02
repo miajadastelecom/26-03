@@ -3295,6 +3295,7 @@ export default function App() {
             {[
               { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
+              { id:"vacaciones",   icon:"🏖️", label:"Vacaciones" },
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"nominas", icon:"💰", label:"Nóminas" }] : []),
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
@@ -3375,7 +3376,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches","vacaciones":"🏖️ Vacaciones"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3671,6 +3672,10 @@ export default function App() {
 
         {/* ── FICHAJE ── */}
         {seccion === "fichaje" && !["director","ceo"].includes(usuario?.rol) && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
+
+        {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
+
+        {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
         {/* ── NÓMINAS ── */}
         {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
@@ -4615,6 +4620,260 @@ function ModalSubirNominaRRHH({ darkMode, db, USUARIOS, EMPRESAS, empColor, onCl
             <button onClick={subir} disabled={!canSubmit || loading}
               style={{ fontFamily:"inherit", fontSize:13, fontWeight:700, padding:"9px 20px", borderRadius:7, border:"none", cursor:canSubmit?"pointer":"not-allowed", background:empColor, color:"#fff", opacity:canSubmit?1:0.5 }}>
               {loading ? "Subiendo..." : "💰 Subir Nómina"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Vacaciones (usuario): solicitar + control individual + aprobación encargado ──
+const DIAS_VACACIONES_ANUALES = 22;
+
+function contarLaborables(ini, fin) {
+  const d0 = new Date(ini + "T12:00:00"), d1 = new Date(fin + "T12:00:00");
+  if (isNaN(d0) || isNaN(d1) || d1 < d0) return 0;
+  let count = 0; const d = new Date(d0);
+  while (d <= d1) { const dow = d.getDay(); if (dow >= 1 && dow <= 5) count++; d.setDate(d.getDate() + 1); }
+  return count;
+}
+
+function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor }) {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [modalNueva,  setModalNueva]  = useState(false);
+  const [loading,     setLoading]     = useState(true);
+
+  const dm = darkMode;
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+  const bg2     = dm ? "#0D1424" : "#F8FAFC";
+  const VERDE = "#38A169", ROJO = "#E53E3E", AMBAR = "#D4A017";
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "solicitudesRRHH"), snap => {
+      setSolicitudes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [db]);
+
+  const anio = new Date().getFullYear();
+  const empresaTieneEncargado = empId => USUARIOS.some(u => u.rol === "encargado" && u.empresaId === empId);
+
+  // ¿Quién aprueba las vacaciones de un solicitante?
+  const aprobadoresDe = solicitanteId => {
+    const s = USUARIOS.find(u => u.id === solicitanteId);
+    if (!s) return [];
+    const encs = USUARIOS.filter(u => u.rol === "encargado" && u.empresaId === s.empresaId && u.id !== solicitanteId);
+    if (encs.length) return encs.map(u => u.id);
+    return USUARIOS.filter(u => ["director","ceo"].includes(u.rol) && u.id !== solicitanteId).map(u => u.id);
+  };
+
+  // ¿Puede el usuario actual aprobar esta solicitud?
+  const puedoAprobar = s => {
+    if (s.usuarioId === usuario.id) return false;
+    const sol = USUARIOS.find(u => u.id === s.usuarioId);
+    if (!sol) return false;
+    if (usuario.rol === "encargado") return sol.empresaId === usuario.empresaId;
+    if (["director","ceo"].includes(usuario.rol)) return !empresaTieneEncargado(sol.empresaId);
+    return false;
+  };
+
+  // Mis vacaciones
+  const mias = solicitudes.filter(s => s.usuarioId === usuario.id && s.tipo === "vacaciones");
+  const miasAnio = mias.filter(s => (s.fechaInicio || "").slice(0, 4) === String(anio));
+  const diasUsados     = miasAnio.filter(s => s.estado === "aprobada").reduce((a, s) => a + (s.diasSolicitados || 0), 0);
+  const diasPendientes = miasAnio.filter(s => s.estado === "pendiente").reduce((a, s) => a + (s.diasSolicitados || 0), 0);
+  const diasRestantes  = Math.max(0, DIAS_VACACIONES_ANUALES - diasUsados);
+  const pctUsado = Math.round(diasUsados / DIAS_VACACIONES_ANUALES * 100);
+
+  // Solicitudes que debo aprobar
+  const porAprobar = solicitudes.filter(s => s.tipo === "vacaciones" && s.estado === "pendiente" && puedoAprobar(s))
+    .sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
+
+  const notif = (destinoId, texto, tipo) => {
+    const id = "ntf_" + Date.now() + "_" + Math.floor(Math.random() * 99999);
+    setDoc(doc(db, "notificaciones", id), { id, fecha: new Date().toISOString(), leida: false, usuarioDestinoId: destinoId, tipo, texto }).catch(() => {});
+  };
+
+  const resolver = async (s, estado) => {
+    await updateDoc(doc(db, "solicitudesRRHH", s.id), { estado, encargadoId: usuario.id, fechaGestion: new Date().toISOString() });
+    notif(s.usuarioId, `Tu solicitud de vacaciones (${s.fechaInicio} → ${s.fechaFin}) ha sido ${estado}.`, "vacaciones");
+  };
+
+  const ESTADO = { pendiente: { c: AMBAR, t: "⏳ Pendiente" }, aprobada: { c: VERDE, t: "✅ Aprobada" }, rechazada: { c: ROJO, t: "❌ Rechazada" } };
+  const fmtFecha = f => f ? new Date(f + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🏖️ Vacaciones</h2>
+          <p style={{ margin: 0, color: muted, fontSize: 13 }}>Solicita tus vacaciones y controla los días que te quedan</p>
+        </div>
+        <button onClick={() => setModalNueva(true)}
+          style={{ background: empColor, border: "none", borderRadius: 8, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          + Solicitar vacaciones
+        </button>
+      </div>
+
+      {/* Resumen de días */}
+      <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 34, fontWeight: 900, color: empColor, lineHeight: 1 }}>{diasRestantes}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: textPri }}>de {DIAS_VACACIONES_ANUALES} días disponibles</span>
+          <span style={{ marginLeft: "auto", color: muted, fontSize: 12 }}>Año {anio} · días laborables</span>
+        </div>
+        <div style={{ height: 12, borderRadius: 6, background: bg2, overflow: "hidden", display: "flex" }}>
+          <div style={{ width: `${Math.min(100, pctUsado)}%`, background: VERDE }} title={`${diasUsados} usados`} />
+          <div style={{ width: `${Math.min(100 - pctUsado, Math.round(diasPendientes / DIAS_VACACIONES_ANUALES * 100))}%`, background: AMBAR }} title={`${diasPendientes} pendientes`} />
+        </div>
+        <div style={{ display: "flex", gap: 18, marginTop: 12, flexWrap: "wrap" }}>
+          {[["Disponibles", diasRestantes, empColor], ["Usados", diasUsados, VERDE], ["Pendientes", diasPendientes, AMBAR]].map(([l, v, c]) => (
+            <div key={l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
+              <span style={{ color: muted, fontSize: 12, fontWeight: 600 }}>{l}: <b style={{ color: textPri }}>{v}</b></span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Solicitudes por aprobar (encargado / dir-ceo) */}
+      {porAprobar.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 12px", color: textPri, fontWeight: 800, fontSize: 15 }}>
+            📥 Solicitudes por aprobar <span style={{ color: AMBAR }}>({porAprobar.length})</span>
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {porAprobar.map(s => {
+              const sol = USUARIOS.find(u => u.id === s.usuarioId);
+              const emp = EMPRESAS.find(e => e.id === sol?.empresaId);
+              return (
+                <div key={s.id} style={{ background: cardBg, border: `1px solid ${AMBAR}55`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: textPri }}>{sol?.nombre}</span>
+                      {emp && <span style={{ background: emp.color + "18", color: emp.color, borderRadius: 4, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{emp.nombre}</span>}
+                    </div>
+                    <span style={{ color: muted, fontSize: 12 }}>📅 {fmtFecha(s.fechaInicio)} → {fmtFecha(s.fechaFin)} · <b style={{ color: textPri }}>{s.diasSolicitados} días</b></span>
+                    {s.descripcion && <p style={{ margin: "4px 0 0", color: muted, fontSize: 12 }}>📝 {s.descripcion}</p>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => resolver(s, "aprobada")} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", background: VERDE, color: "#fff" }}>✅ Aprobar</button>
+                    <button onClick={() => resolver(s, "rechazada")} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", background: ROJO, color: "#fff" }}>❌ Rechazar</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mis solicitudes */}
+      <h3 style={{ margin: "0 0 12px", color: textPri, fontWeight: 800, fontSize: 15 }}>Mis solicitudes</h3>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: muted }}>Cargando...</div>
+      ) : mias.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "50px 20px", background: cardBg, border: `1px solid ${border}`, borderRadius: 12 }}>
+          <p style={{ fontSize: 44, margin: "0 0 8px" }}>🏝️</p>
+          <p style={{ color: muted, fontSize: 14, fontWeight: 700, margin: 0 }}>Aún no has solicitado vacaciones</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[...mias].sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).map(s => {
+            const est = ESTADO[s.estado] || ESTADO.pendiente;
+            return (
+              <div key={s.id} style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: est.c + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🏖️</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: "0 0 2px", color: textPri, fontSize: 14, fontWeight: 700 }}>{fmtFecha(s.fechaInicio)} → {fmtFecha(s.fechaFin)}</p>
+                  <span style={{ color: muted, fontSize: 12 }}>{s.diasSolicitados} días laborables{s.descripcion ? ` · ${s.descripcion}` : ""}</span>
+                </div>
+                <span style={{ background: est.c + "22", color: est.c, border: `1px solid ${est.c}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{est.t}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modalNueva && (
+        <ModalNuevaVacacion
+          db={db} dm={dm} usuario={usuario} empColor={empColor}
+          diasRestantes={diasRestantes}
+          aprobadoresDe={aprobadoresDe}
+          onNotif={notif}
+          onClose={() => setModalNueva(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobadoresDe, onNotif, onClose }) {
+  const hoyStr = new Date().toISOString().split("T")[0];
+  const [ini, setIni] = useState(hoyStr);
+  const [fin, setFin] = useState(hoyStr);
+  const [desc, setDesc] = useState("");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const card = dm ? "#111827" : "#FFFFFF", border = dm ? "#2E3A55" : "#E2E8F0", text = dm ? "#E2E8F0" : "#0F172A", muted = dm ? "#64748B" : "#94A3B8";
+  const inp = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
+  const lbl = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
+
+  const dias = contarLaborables(ini, fin);
+
+  const guardar = async () => {
+    if (!ini || !fin) { setError("Selecciona las fechas."); return; }
+    if (fin < ini) { setError("La fecha de fin debe ser posterior al inicio."); return; }
+    if (ini < hoyStr) { setError("No puedes solicitar días en el pasado."); return; }
+    if (dias === 0) { setError("El rango seleccionado no tiene días laborables."); return; }
+    if (dias > diasRestantes) { setError(`Solo te quedan ${diasRestantes} días disponibles y estás pidiendo ${dias}.`); return; }
+    setGuardando(true);
+    try {
+      const id = "sol_" + Date.now();
+      await setDoc(doc(db, "solicitudesRRHH", id), {
+        id, usuarioId: usuario.id, tipo: "vacaciones",
+        fechaInicio: ini, fechaFin: fin, diasSolicitados: dias,
+        descripcion: desc.trim() || null, estado: "pendiente",
+        fechaCreacion: new Date().toISOString(),
+      });
+      aprobadoresDe(usuario.id).forEach(aid => onNotif(aid, `${usuario.nombre} ha solicitado vacaciones (${ini} → ${fin}, ${dias} días).`, "vacaciones"));
+      onClose();
+    } catch (e) {
+      setError("Error al enviar la solicitud. Inténtalo de nuevo.");
+    } finally { setGuardando(false); }
+  };
+
+  return (
+    <div onMouseDown={onClose} style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onMouseDown={e => e.stopPropagation()} style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 440, padding: 26, boxShadow: "0 24px 80px #0009" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h3 style={{ margin: 0, color: text, fontSize: 17, fontWeight: 800 }}>🏖️ Solicitar vacaciones</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>📅 Desde</label><input type="date" style={inp} value={ini} min={hoyStr} onChange={e => { setIni(e.target.value); if (fin < e.target.value) setFin(e.target.value); setError(""); }} /></div>
+            <div><label style={lbl}>📅 Hasta</label><input type="date" style={inp} value={fin} min={ini} onChange={e => { setFin(e.target.value); setError(""); }} /></div>
+          </div>
+          <div><label style={lbl}>📝 Motivo (opcional)</label><input style={inp} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej: viaje familiar" maxLength={120} /></div>
+
+          <div style={{ background: empColor + "11", border: `1px solid ${empColor}33`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: muted, fontSize: 12, fontWeight: 600 }}>Días laborables solicitados</span>
+            <span style={{ color: empColor, fontSize: 15, fontWeight: 800 }}>{dias}</span>
+          </div>
+          <p style={{ margin: 0, color: muted, fontSize: 11 }}>Te quedan <b style={{ color: text }}>{diasRestantes}</b> días disponibles este año.</p>
+
+          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: 10, borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: 10, borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? empColor + "88" : empColor, color: "#fff" }}>
+              {guardando ? "Enviando..." : "✓ Enviar solicitud"}
             </button>
           </div>
         </div>
