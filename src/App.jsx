@@ -2771,13 +2771,13 @@ export default function App() {
   const inpF     = { fontFamily: "inherit", fontSize: 12, background: darkMode ? "#0D1424" : "#FFFFFF", border: `1px solid ${darkMode ? "#1E293B" : "#E2E8F0"}`, borderRadius: 6, padding: "7px 11px", color: darkMode ? "#E2E8F0" : "#0F172A", outline: "none", width: "100%", boxSizing: "border-box" };
 
   // ── Firebase: nóminas en tiempo real ──
+  // Sección "Nóminas" = solo visualización: cada usuario ve ÚNICAMENTE las suyas
+  // (protección de datos). La gestión de todas vive en RRHH → Gestión de Nóminas.
   useEffect(() => {
     if (!usuarioId) return;
-    const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
     const unsub = onSnapshot(collection(db, "nominas"), snap => {
       const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Admin/director ven todas; el resto solo las suyas
-      setNominas(esAdminDir ? todas : todas.filter(n => n.usuarioId === usuarioId));
+      setNominas(todas.filter(n => n.usuarioId === usuarioId));
     });
     return () => unsub();
   }, [usuarioId, usuario?.rol]);
@@ -3296,7 +3296,7 @@ export default function App() {
               { id:"calendario",   icon:"📅", label:"Calendario" },
               { id:"comunicacion", icon:"📣", label:"Comunicación" },
               { id:"proyectos",    icon:"📊", label:"Proyectos" },
-              { id:"nominas",      icon:"💰", label:"Nóminas" },
+              ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"nominas", icon:"💰", label:"Nóminas" }] : []),
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
               ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
@@ -3670,11 +3670,10 @@ export default function App() {
         )}
 
         {/* ── FICHAJE ── */}
-        {seccion === "fichaje" && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
+        {seccion === "fichaje" && !["director","ceo"].includes(usuario?.rol) && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
         {/* ── NÓMINAS ── */}
-        {seccion === "nominas" && (() => {
-          const esAdminDir = ["director","ceo","administrador","rrhh"].includes(usuario?.rol);
+        {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
           const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
           return (
             <div style={{ maxWidth:800 }}>
@@ -3682,15 +3681,9 @@ export default function App() {
                 <div>
                   <h2 style={{ margin:"0 0 4px", color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:18 }}>💰 Nóminas</h2>
                   <p style={{ margin:0, color: darkMode?"#475569":"#64748B", fontSize:13 }}>
-                    {esAdminDir ? "Gestiona las nóminas de todos los empleados" : "Tus nóminas disponibles para descargar"}
+                    Tus nóminas disponibles para descargar
                   </p>
                 </div>
-                {esAdminDir && (
-                  <button onClick={() => setModalNomina(true)}
-                    style={{ background: empColor, border:"none", borderRadius:8, padding:"10px 20px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                    + Subir nómina
-                  </button>
-                )}
               </div>
               {nominas.length === 0 ? (
                 <div style={{ textAlign:"center", padding:"70px 20px" }}>
@@ -3699,26 +3692,33 @@ export default function App() {
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {nominas.sort((a,b)=>b.anio-a.anio||(b.mes-a.mes)).map(n => {
-                    const usr = USUARIOS.find(u=>u.id===n.usuarioId);
+                  {[...nominas].sort((a,b)=>String(b.mes||b.fecha||"").localeCompare(String(a.mes||a.fecha||""))).map(n => {
+                    // Periodo: "YYYY-MM" → "Junio 2026" (admite formato antiguo mes numérico + anio)
+                    let periodo = "";
+                    if (typeof n.mes === "string" && n.mes.includes("-")) {
+                      const [aa, mm] = n.mes.split("-");
+                      periodo = meses[Number(mm)-1] ? `${meses[Number(mm)-1]} ${aa}` : n.mes;
+                    } else if (n.mes) {
+                      periodo = `${meses[n.mes-1] || ""} ${n.anio || ""}`.trim();
+                    }
+                    const fileUrl = n.url || n.dataUrl;
                     return (
                       <div key={n.id} style={{ background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:10, padding:"14px 18px", display:"flex", alignItems:"center", gap:14 }}>
                         <div style={{ width:42, height:42, borderRadius:8, background:"#F6AD5522", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>💰</div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <p style={{ margin:"0 0 3px", color: darkMode?"#E2E8F0":"#0F172A", fontSize:14, fontWeight:700 }}>
-                            {meses[n.mes-1]} {n.anio}
+                            {periodo || n.nombre}
                           </p>
-                          {esAdminDir && <p style={{ margin:0, color: darkMode?"#64748B":"#94A3B8", fontSize:12 }}>{usr?.nombre || "Usuario desconocido"} · {EMPRESAS.find(e=>e.id===usr?.empresaId)?.nombre}</p>}
                           <p style={{ margin:0, color: darkMode?"#334155":"#94A3B8", fontSize:11 }}>{n.nombre}</p>
                         </div>
                         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                          <a href={n.dataUrl} download={n.nombre}
-                            style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
-                            ⬇️ Descargar
-                          </a>
-                          {esAdminDir && (
-                            <button onClick={() => eliminarNomina(n.id)}
-                              style={{ background:"none", border:"none", color: darkMode?"#475569":"#94A3B8", cursor:"pointer", fontSize:16, padding:"4px" }}>🗑️</button>
+                          {fileUrl ? (
+                            <a href={fileUrl} download={n.nombre || "nomina.pdf"} target="_blank" rel="noreferrer"
+                              style={{ background:"#3182CE22", border:"1px solid #3182CE44", borderRadius:7, padding:"7px 14px", color:"#3182CE", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+                              ⬇️ Descargar
+                            </a>
+                          ) : (
+                            <span style={{ color: darkMode?"#475569":"#94A3B8", fontSize:11, fontStyle:"italic" }}>Archivo no disponible</span>
                           )}
                         </div>
                       </div>
@@ -3726,8 +3726,6 @@ export default function App() {
                   })}
                 </div>
               )}
-              {/* Modal subir nómina */}
-              {modalNomina && esAdminDir && <ModalSubirNomina darkMode={darkMode} onClose={() => setModalNomina(false)} onSubir={subirNomina} empColor={empColor} />}
             </div>
           );
         })()}
