@@ -4241,6 +4241,7 @@ function DetalleComunicado({ darkMode, c, USUARIOS, EMPRESAS, empColor, onClose 
 function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS, EMPRESAS, onVerTicket, onActualizar }) {
   const [subVista, setSubVista] = useState("sinAsignar");
   const [buscar, setBuscar]     = useState("");
+  const [trabajadorSel, setTrabajadorSel] = useState(null);
 
   const dm       = darkMode;
   const miEmpId  = usuario?.empresaId;
@@ -4283,6 +4284,13 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
                     : subVista === "enCurso"    ? enCurso
                     : completados;
 
+  // Si hay un trabajador seleccionado, mostramos TODOS sus tickets (de mi empresa)
+  const trabSelObj = trabajadorSel != null ? USUARIOS.find(u => u.id === trabajadorSel) : null;
+  const ticketsDeTrab = trabajadorSel != null
+    ? ticketsEmpresa.filter(t => (t.asignacionesPorEmpresa?.[miEmpId] || []).includes(trabajadorSel))
+    : [];
+  const listaMostrada = trabajadorSel != null ? ticketsDeTrab : listaActual;
+
   const cardBg  = dm ? "#111827" : "#FFFFFF";
   const border  = dm ? "#1E293B" : "#E2E8F0";
   const textPri = dm ? "#E2E8F0" : "#0F172A";
@@ -4303,10 +4311,10 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
       {/* KPIs resumen */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 22 }}>
         {vistas.map(v => (
-          <div key={v.id} onClick={() => setSubVista(v.id)}
-            style={{ background: subVista === v.id ? v.color + "18" : cardBg, border: `1px solid ${subVista === v.id ? v.color : border}`, borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all .15s" }}>
-            <div style={{ fontSize: 28, fontWeight: 900, color: subVista === v.id ? v.color : textPri, lineHeight: 1 }}>{v.count}</div>
-            <div style={{ color: subVista === v.id ? v.color : muted, fontSize: 12, fontWeight: 700, marginTop: 4 }}>{v.label}</div>
+          <div key={v.id} onClick={() => { setSubVista(v.id); setTrabajadorSel(null); }}
+            style={{ background: (subVista === v.id && !trabajadorSel) ? v.color + "18" : cardBg, border: `1px solid ${(subVista === v.id && !trabajadorSel) ? v.color : border}`, borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all .15s" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: (subVista === v.id && !trabajadorSel) ? v.color : textPri, lineHeight: 1 }}>{v.count}</div>
+            <div style={{ color: (subVista === v.id && !trabajadorSel) ? v.color : muted, fontSize: 12, fontWeight: 700, marginTop: 4 }}>{v.label}</div>
           </div>
         ))}
       </div>
@@ -4321,15 +4329,21 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
             const asignados = enCurso.filter(t =>
               (t.asignacionesPorEmpresa?.[miEmpId] || []).includes(u.id)
             ).length;
+            const totalTk = ticketsEmpresa.filter(t => (t.asignacionesPorEmpresa?.[miEmpId] || []).includes(u.id)).length;
+            const sel = trabajadorSel === u.id;
             return (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 7, background: dm ? "#0D1424" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "6px 12px" }}>
+              <div key={u.id} onClick={() => setTrabajadorSel(prev => prev === u.id ? null : u.id)}
+                title={`Ver tickets de ${u.nombre.split(" ")[0]}`}
+                style={{ display: "flex", alignItems: "center", gap: 7, background: sel ? empColor + "22" : (dm ? "#0D1424" : "#F8FAFC"), border: `1px solid ${sel ? empColor : border}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", transition: "all .12s" }}
+                onMouseEnter={e => { if (!sel) e.currentTarget.style.borderColor = empColor + "88"; }}
+                onMouseLeave={e => { if (!sel) e.currentTarget.style.borderColor = border; }}>
                 <div style={{ width: 28, height: 28, borderRadius: "50%", background: empColor + "33", border: `2px solid ${empColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: empColor, fontSize: 10, flexShrink: 0 }}>
                   {u.nombre.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: textPri }}>{u.nombre.split(" ")[0]}</p>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: sel ? empColor : textPri }}>{u.nombre.split(" ")[0]}</p>
                   <p style={{ margin: 0, fontSize: 10, color: asignados > 0 ? empColor : muted }}>
-                    {asignados} ticket{asignados !== 1 ? "s" : ""} activo{asignados !== 1 ? "s" : ""}
+                    {asignados} activo{asignados !== 1 ? "s" : ""}{totalTk > asignados ? ` · ${totalTk} total` : ""}
                   </p>
                 </div>
               </div>
@@ -4348,17 +4362,28 @@ function PanelEquipo({ darkMode, usuario, usuarioId, tickets, empColor, USUARIOS
           style={{ width: "100%", height: 34, paddingLeft: 30, paddingRight: 10, background: dm ? "#1E293B" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, color: textPri, fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
       </div>
 
+      {/* Chip de filtro por trabajador */}
+      {trabSelObj && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+          <span style={{ background: empColor + "18", color: empColor, border: `1px solid ${empColor}55`, borderRadius: 99, padding: "5px 12px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+            👤 Tickets de {trabSelObj.nombre}
+            <span onClick={() => setTrabajadorSel(null)} style={{ cursor: "pointer", fontWeight: 900, fontSize: 13 }}>✕</span>
+          </span>
+          <span style={{ color: muted, fontSize: 12 }}>{ticketsDeTrab.length} ticket{ticketsDeTrab.length !== 1 ? "s" : ""} en total</span>
+        </div>
+      )}
+
       {/* Lista de tickets */}
-      {filtrar(listaActual).length === 0 ? (
+      {filtrar(listaMostrada).length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px" }}>
-          <p style={{ fontSize: 40 }}>{subVista === "sinAsignar" ? "✅" : subVista === "enCurso" ? "⚙️" : "📋"}</p>
+          <p style={{ fontSize: 40 }}>{trabajadorSel ? "🗒️" : subVista === "sinAsignar" ? "✅" : subVista === "enCurso" ? "⚙️" : "📋"}</p>
           <p style={{ color: muted, fontSize: 14, fontWeight: 700 }}>
-            {subVista === "sinAsignar" ? "¡Todo asignado!" : subVista === "enCurso" ? "Sin tickets en curso" : "Sin completados"}
+            {trabajadorSel ? `${trabSelObj?.nombre?.split(" ")[0]} no tiene tickets asignados` : subVista === "sinAsignar" ? "¡Todo asignado!" : subVista === "enCurso" ? "Sin tickets en curso" : "Sin completados"}
           </p>
         </div>
       ) : (
         <div className="tickets-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
-          {filtrar(listaActual).map(t => {
+          {filtrar(listaMostrada).map(t => {
             const asignadosEmp = (t.asignacionesPorEmpresa?.[miEmpId] || [])
               .map(id => USUARIOS.find(u => u.id === id))
               .filter(Boolean);
