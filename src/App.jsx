@@ -89,6 +89,33 @@ let PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Ur
 const CATEGORIAS = ["Electricidad", "Fontanería", "Telecomunicaciones", "Contabilidad", "Legal", "Mantenimiento", "Instalaciones", "Administración", "Otro"];
 const ESTADOS = ["Pendiente", "Asignado", "En progreso", "Completado", "Cancelado"];
 
+// ── Sistema de permisos por módulo y nivel (Visualización < Creación < Administración) ──
+const NIVELES_PERM = { visualizacion: "Visualización", creacion: "Creación", administracion: "Administración" };
+const MODULOS_PERMISOS = [
+  { id: "tickets",      label: "Tickets",      grupo: "Operativa", niveles: ["visualizacion","creacion","administracion"], desc: { visualizacion: "Ver e historial", creacion: "Crear tickets", administracion: "Panel de equipo + reportes" } },
+  { id: "comunicacion", label: "Comunicación", grupo: "Operativa", niveles: ["visualizacion","creacion"], desc: { visualizacion: "Ver comunicados", creacion: "Crear comunicados" } },
+  { id: "proyectos",    label: "Proyectos",    grupo: "Operativa", niveles: ["visualizacion","creacion"], desc: { visualizacion: "Ver proyectos", creacion: "Crear / editar" } },
+  { id: "calendario",   label: "Calendario",   grupo: "Operativa", niveles: ["visualizacion"], desc: { visualizacion: "Ver calendario" } },
+  { id: "nominas",      label: "Nóminas",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Ver la suya", administracion: "Gestionar todas (RRHH)" } },
+  { id: "fichaje",      label: "Fichaje",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Fichar", administracion: "Ver fichajes de todos (RRHH)" } },
+  { id: "vacaciones",   label: "Vacaciones",   grupo: "Personal",  niveles: ["visualizacion","creacion","administracion"], desc: { visualizacion: "Solicitar las suyas", creacion: "Aprobar (encargado)", administracion: "Gestionar todas (RRHH)" } },
+  { id: "salas",        label: "Salas",        grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar", administracion: "Cancelar cualquier reserva" } },
+  { id: "coches",       label: "Coches",       grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar", administracion: "Cancelar cualquier reserva" } },
+  { id: "perfil",       label: "Perfil",       grupo: "Personal",  niveles: ["visualizacion"], desc: { visualizacion: "Ver / editar su perfil" } },
+];
+const PERMISOS_DEFAULT = {
+  tickets: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], administracion:[0,1,8,11,12,17,35,42] },
+  comunicacion: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
+  proyectos: { visualizacion:[8,9,10], creacion:[35] },
+  calendario: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
+  nominas: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], administracion:[46] },
+  fichaje: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], administracion:[46] },
+  vacaciones: { visualizacion:[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,8,11,12,17,35,42], administracion:[46] },
+  salas: { visualizacion:[0,1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,35,42,43,44,45,46], administracion:[] },
+  coches: { visualizacion:[0,1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,35,42,43,44,45,46], administracion:[8,11,12,15] },
+  perfil: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
+};
+
 // ── Carga config desde Firestore al iniciar ──
 const loadConfig = async () => {
   try {
@@ -3301,6 +3328,7 @@ export default function App() {
               ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
               ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
               ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
+              ...(usuario?.rol === "administrador" ? [{ id:"permisos", icon:"🔐", label:"Permisos" }] : []),
               { id:"perfil",       icon:"👤", label:"Perfil" },
             ].map(item => {
               const activo = seccion === item.id;
@@ -3376,7 +3404,7 @@ export default function App() {
 
             {/* Título sección */}
             <span style={{ fontWeight:700, fontSize:14, color:darkMode?"#E2E8F0":"#1B2559", whiteSpace:"nowrap" }}>
-              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches","vacaciones":"🏖️ Vacaciones"}[seccion] || ""}
+              {{"tickets":"🎫 Tickets","historial":"🗂️ Historial","calendario":"📅 Calendario","reportes":"📄 Reportes","fichaje":"🕐 Fichaje","nominas":"💰 Nóminas","perfil":"👤 Perfil","comunicacion":"📣 Comunicación","rrhh":"👔 RRHH","proyectos":"📊 Proyectos","salas":"🏛️ Salas","coches":"🚗 Coches","vacaciones":"🏖️ Vacaciones","permisos":"🔐 Permisos"}[seccion] || ""}
             </span>
 
             {/* Selector empresa */}
@@ -3674,6 +3702,8 @@ export default function App() {
         {seccion === "fichaje" && !["director","ceo"].includes(usuario?.rol) && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
         {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
+
+        {seccion === "permisos" && usuario?.rol === "administrador" && <SeccionPermisos db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
         {/* ── NÓMINAS ── */}
         {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
@@ -4647,6 +4677,166 @@ function ModalSubirNominaRRHH({ darkMode, db, USUARIOS, EMPRESAS, empColor, onCl
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── CRUD de Permisos (solo Administrador · Sara) ───────────────────
+function SeccionPermisos({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor }) {
+  const [permisos, setPermisos] = useState(null);
+  const [modSel,   setModSel]   = useState(MODULOS_PERMISOS[0].id);
+  const [empFiltro, setEmpFiltro] = useState("todas");
+  const [buscar,   setBuscar]   = useState("");
+  const [aviso,    setAviso]    = useState("");
+
+  const dm = darkMode;
+  const cardBg  = dm ? "#111827" : "#FFFFFF";
+  const border  = dm ? "#1E293B" : "#E2E8F0";
+  const textPri = dm ? "#E2E8F0" : "#0F172A";
+  const muted   = dm ? "#64748B" : "#94A3B8";
+  const bg2     = dm ? "#0D1424" : "#F8FAFC";
+  const NIVEL_COL = { visualizacion: "#3182CE", creacion: "#D4A017", administracion: "#E53E3E" };
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "permisos"), snap => {
+      const fromDb = {};
+      snap.docs.forEach(d => { fromDb[d.id] = d.data(); });
+      const merged = {};
+      MODULOS_PERMISOS.forEach(m => {
+        merged[m.id] = {};
+        m.niveles.forEach(nv => {
+          merged[m.id][nv] = Array.isArray(fromDb[m.id]?.[nv]) ? fromDb[m.id][nv] : (PERMISOS_DEFAULT[m.id]?.[nv] || []);
+        });
+      });
+      setPermisos(merged);
+    });
+    return unsub;
+  }, [db]);
+
+  if (!permisos) return <div style={{ padding: 40, color: muted }}>Cargando permisos...</div>;
+
+  const modulo = MODULOS_PERMISOS.find(m => m.id === modSel);
+  const perMod = permisos[modSel] || {};
+
+  const toggle = async (nivel, uid) => {
+    const set = new Set(perMod[nivel] || []);
+    if (set.has(uid)) set.delete(uid); else set.add(uid);
+    const nuevoMod = { ...perMod, [nivel]: [...set].sort((a, b) => a - b) };
+    setPermisos(p => ({ ...p, [modSel]: nuevoMod }));
+    try {
+      await setDoc(doc(db, "permisos", modSel), nuevoMod);
+      setAviso("Guardado ✓"); setTimeout(() => setAviso(""), 1200);
+    } catch { setAviso("⚠️ Error al guardar"); }
+  };
+
+  const setTodos = async (nivel, activar) => {
+    const ids = activar ? usuariosVisibles.map(u => u.id) : [];
+    // combinar con los que no están visibles (para no borrar fuera del filtro)
+    const fuera = (perMod[nivel] || []).filter(id => !usuariosVisibles.some(u => u.id === id));
+    const nuevoMod = { ...perMod, [nivel]: [...new Set([...fuera, ...ids])].sort((a, b) => a - b) };
+    setPermisos(p => ({ ...p, [modSel]: nuevoMod }));
+    try { await setDoc(doc(db, "permisos", modSel), nuevoMod); setAviso("Guardado ✓"); setTimeout(() => setAviso(""), 1200); } catch {}
+  };
+
+  const usuariosVisibles = USUARIOS.filter(u =>
+    (empFiltro === "todas" || String(u.empresaId) === empFiltro) &&
+    (!buscar || u.nombre.toLowerCase().includes(buscar.toLowerCase()))
+  );
+  const empresasVis = EMPRESAS.filter(e => usuariosVisibles.some(u => u.empresaId === e.id));
+
+  const tiene = (nivel, uid) => (perMod[nivel] || []).includes(uid);
+
+  const modsPorGrupo = {};
+  MODULOS_PERMISOS.forEach(m => { (modsPorGrupo[m.grupo] = modsPorGrupo[m.grupo] || []).push(m); });
+
+  return (
+    <div style={{ maxWidth: 1100 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", color: textPri, fontWeight: 800, fontSize: 20 }}>🔐 Permisos y accesos</h2>
+          <p style={{ margin: 0, color: muted, fontSize: 13 }}>Elige un módulo, un nivel y marca a quién se lo concedes</p>
+        </div>
+        {aviso && <span style={{ color: aviso.includes("⚠") ? "#E53E3E" : "#38A169", fontSize: 13, fontWeight: 700 }}>{aviso}</span>}
+      </div>
+
+      {/* Selector de módulo */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {MODULOS_PERMISOS.map(m => (
+          <button key={m.id} onClick={() => setModSel(m.id)}
+            style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${modSel === m.id ? empColor : border}`, background: modSel === m.id ? empColor + "18" : "transparent", color: modSel === m.id ? empColor : muted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Descripción de niveles del módulo */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        {modulo.niveles.map(nv => (
+          <div key={nv} style={{ background: NIVEL_COL[nv] + "12", border: `1px solid ${NIVEL_COL[nv]}44`, borderRadius: 8, padding: "8px 12px" }}>
+            <span style={{ color: NIVEL_COL[nv], fontWeight: 800, fontSize: 12 }}>{NIVELES_PERM[nv]}</span>
+            <span style={{ color: muted, fontSize: 11 }}> — {modulo.desc[nv]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={empFiltro} onChange={e => setEmpFiltro(e.target.value)}
+          style={{ height: 34, padding: "0 10px", background: bg2, border: `1px solid ${border}`, borderRadius: 8, color: textPri, fontSize: 12, fontFamily: "inherit", outline: "none" }}>
+          <option value="todas">Todas las empresas</option>
+          {EMPRESAS.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+        <div style={{ position: "relative", flex: 1, minWidth: 180, maxWidth: 260 }}>
+          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: muted, fontSize: 13 }}>🔍</span>
+          <input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar persona..."
+            style={{ width: "100%", height: 34, paddingLeft: 30, paddingRight: 10, background: bg2, border: `1px solid ${border}`, borderRadius: 8, color: textPri, fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+        </div>
+      </div>
+
+      {/* Cabecera de columnas + marcar todos */}
+      <div style={{ display: "flex", alignItems: "center", padding: "8px 14px", background: bg2, borderRadius: "10px 10px 0 0", border: `1px solid ${border}`, borderBottom: "none", gap: 10 }}>
+        <span style={{ flex: 1, color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Persona ({usuariosVisibles.length})</span>
+        {modulo.niveles.map(nv => (
+          <div key={nv} style={{ width: 92, textAlign: "center" }}>
+            <div style={{ color: NIVEL_COL[nv], fontSize: 11, fontWeight: 800 }}>{NIVELES_PERM[nv]}</div>
+            <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 2 }}>
+              <span onClick={() => setTodos(nv, true)} style={{ cursor: "pointer", color: muted, fontSize: 9, textDecoration: "underline" }}>todos</span>
+              <span onClick={() => setTodos(nv, false)} style={{ cursor: "pointer", color: muted, fontSize: 9, textDecoration: "underline" }}>ninguno</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista de usuarios agrupada por empresa */}
+      <div style={{ border: `1px solid ${border}`, borderRadius: "0 0 10px 10px", overflow: "hidden" }}>
+        {empresasVis.length === 0 ? (
+          <div style={{ padding: 30, textAlign: "center", color: muted, fontSize: 13 }}>Sin resultados</div>
+        ) : empresasVis.flatMap(emp => {
+          const us = usuariosVisibles.filter(u => u.empresaId === emp.id);
+          return [
+            <div key={"h" + emp.id} style={{ padding: "6px 14px", background: emp.color + "12", borderTop: `1px solid ${border}` }}>
+              <span style={{ color: emp.color, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".4px" }}>{emp.nombre}</span>
+            </div>,
+            ...us.map(u => (
+              <div key={u.id} style={{ display: "flex", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${border}`, gap: 10, background: cardBg }}>
+                <span style={{ flex: 1, color: textPri, fontSize: 13 }}>
+                  {u.nombre} <span style={{ color: muted, fontSize: 11 }}>· {u.rol}</span>
+                </span>
+                {modulo.niveles.map(nv => (
+                  <div key={nv} style={{ width: 92, display: "flex", justifyContent: "center" }}>
+                    <input type="checkbox" checked={tiene(nv, u.id)} onChange={() => toggle(nv, u.id)}
+                      style={{ width: 18, height: 18, cursor: "pointer", accentColor: NIVEL_COL[nv] }} />
+                  </div>
+                ))}
+              </div>
+            ))
+          ];
+        })}
+      </div>
+
+      <p style={{ margin: "12px 0 0", color: muted, fontSize: 11 }}>
+        ℹ️ Los niveles son acumulativos: <b>Administración</b> incluye Creación y Visualización. Los cambios se guardan al instante.
+      </p>
     </div>
   );
 }
