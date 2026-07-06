@@ -99,13 +99,13 @@ const MODULOS_PERMISOS = [
   { id: "nominas",      label: "Nóminas",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Ver la suya", administracion: "Gestionar todas (RRHH)" } },
   { id: "fichaje",      label: "Fichaje",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Fichar", administracion: "Ver fichajes de todos (RRHH)" } },
   { id: "vacaciones",   label: "Vacaciones",   grupo: "Personal",  niveles: ["visualizacion","creacion","administracion"], desc: { visualizacion: "Solicitar las suyas", creacion: "Aprobar (encargado)", administracion: "Gestionar todas (RRHH)" } },
-  { id: "salas",        label: "Salas",        grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar", administracion: "Cancelar cualquier reserva" } },
-  { id: "coches",       label: "Coches",       grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar", administracion: "Cancelar cualquier reserva" } },
+  { id: "salas",        label: "Salas",        grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar y cancelar las suyas", administracion: "Cancelar reservas de otros" } },
+  { id: "coches",       label: "Coches",       grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar y cancelar las suyas", administracion: "Cancelar reservas de otros (responsables)" } },
   { id: "perfil",       label: "Perfil",       grupo: "Personal",  niveles: ["visualizacion"], desc: { visualizacion: "Ver / editar su perfil" } },
 ];
 const PERMISOS_DEFAULT = {
   tickets: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], administracion:[0,1,8,11,12,17,35,42] },
-  comunicacion: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
+  comunicacion: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], creacion:[0,1,8,11,12,16,17,35,42,46] },
   proyectos: { visualizacion:[8,9,10], creacion:[35] },
   calendario: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
   nominas: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46], administracion:[46] },
@@ -115,6 +115,25 @@ const PERMISOS_DEFAULT = {
   coches: { visualizacion:[0,1,2,3,7,8,9,10,11,12,13,14,15,16,17,18,19,35,42,43,44,45,46], administracion:[8,11,12,15] },
   perfil: { visualizacion:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46] },
 };
+const RANK_NIVEL = { visualizacion: 1, creacion: 2, administracion: 3 };
+// Construye el objeto de permisos por defecto (a partir del Excel)
+function buildPermisosDefault() {
+  const merged = {};
+  MODULOS_PERMISOS.forEach(m => { merged[m.id] = {}; m.niveles.forEach(nv => { merged[m.id][nv] = PERMISOS_DEFAULT[m.id]?.[nv] || []; }); });
+  return merged;
+}
+// Nivel efectivo (0=ninguno, 1=vis, 2=creación, 3=admin). Los niveles son acumulativos.
+function nivelPermiso(permisos, userId, moduloId) {
+  const m = permisos?.[moduloId];
+  if (!m) return 0;
+  if ((m.administracion || []).includes(userId)) return 3;
+  if ((m.creacion || []).includes(userId)) return 2;
+  if ((m.visualizacion || []).includes(userId)) return 1;
+  return 0;
+}
+function tienePermiso(permisos, userId, moduloId, nivel = "visualizacion") {
+  return nivelPermiso(permisos, userId, moduloId) >= (RANK_NIVEL[nivel] || 1);
+}
 
 // ── Carga config desde Firestore al iniciar ──
 const loadConfig = async () => {
@@ -2734,6 +2753,24 @@ export default function App() {
   const [ticketsExpanded, setTicketsExpanded] = useState(true);
   const [rrhhExpanded,    setRrhhExpanded]    = useState(true);
 
+  // ── Permisos por módulo/nivel (Fase 2: el menú y las secciones leen de aquí) ──
+  const [permisos, setPermisos] = useState(buildPermisosDefault);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "permisos"), snap => {
+      const fromDb = {};
+      snap.docs.forEach(d => { fromDb[d.id] = d.data(); });
+      const merged = {};
+      MODULOS_PERMISOS.forEach(m => {
+        merged[m.id] = {};
+        m.niveles.forEach(nv => { merged[m.id][nv] = Array.isArray(fromDb[m.id]?.[nv]) ? fromDb[m.id][nv] : (PERMISOS_DEFAULT[m.id]?.[nv] || []); });
+      });
+      setPermisos(merged);
+    }, () => {});
+    return () => unsub();
+  }, []);
+  // Helper: ¿el usuario actual tiene al menos 'nivel' en 'modulo'?
+  const can = (modulo, nivel = "visualizacion") => tienePermiso(permisos, usuarioId, modulo, nivel);
+
 
   // ── Firebase: tickets en tiempo real ──
   useEffect(() => {
@@ -3265,9 +3302,9 @@ export default function App() {
             {ticketsExpanded && sidebarOpen && (
               <div style={{ marginLeft:12, borderLeft:`2px solid ${darkMode?"#1E293B":"#E2E8F0"}`, paddingLeft:8, display:"flex", flexDirection:"column", gap:1 }}>
                 {[
-                  { id:"historial", icon:"🗂️",  label:"Historial",      show: true },
-                  { id:"reportes",  icon:"📄", label:"Reportes",        show: ["director","ceo","encargado","administrador"].includes(usuario?.rol) },
-                  { id:"equipo",    icon:"👥", label:"Panel de equipo", show: esEncargado },
+                  { id:"historial", icon:"🗂️",  label:"Historial",      show: can("tickets") },
+                  { id:"reportes",  icon:"📄", label:"Reportes",        show: can("tickets","administracion") },
+                  { id:"equipo",    icon:"👥", label:"Panel de equipo", show: can("tickets","administracion") },
                 ].filter(i => i.show).map(item => {
                   const activo = seccion === item.id;
                   return (
@@ -3283,8 +3320,8 @@ export default function App() {
               </div>
             )}
 
-            {/* ── RRHH con submenú (solo rol rrhh) ── */}
-            {usuario?.rol === "rrhh" && (
+            {/* ── RRHH con submenú (nivel Administración de nóminas/vacaciones/fichaje) ── */}
+            {(can("nominas","administracion") || can("vacaciones","administracion") || can("fichaje","administracion")) && (
               <>
                 <button onClick={() => { setRrhhExpanded(v => !v); setSeccion("gestion_nominas"); }}
                   title={!sidebarOpen ? "RRHH" : ""}
@@ -3298,10 +3335,10 @@ export default function App() {
                 {rrhhExpanded && sidebarOpen && (
                   <div style={{ marginLeft:12, borderLeft:`2px solid ${darkMode?"#1E293B":"#E2E8F0"}`, paddingLeft:8, display:"flex", flexDirection:"column", gap:1 }}>
                     {[
-                      { id:"gestion_nominas",    icon:"📋", label:"Gestión de Nóminas" },
-                      { id:"gestion_vacaciones", icon:"🏖️",  label:"Gestión de Vacaciones" },
-                      { id:"gestion_fichajes",   icon:"🕐", label:"Gestión de Fichajes" },
-                    ].map(item => {
+                      { id:"gestion_nominas",    icon:"📋", label:"Gestión de Nóminas",    show: can("nominas","administracion") },
+                      { id:"gestion_vacaciones", icon:"🏖️",  label:"Gestión de Vacaciones", show: can("vacaciones","administracion") },
+                      { id:"gestion_fichajes",   icon:"🕐", label:"Gestión de Fichajes",   show: can("fichaje","administracion") },
+                    ].filter(i => i.show).map(item => {
                       const activo = seccion === item.id;
                       return (
                         <button key={item.id} onClick={e => { e.stopPropagation(); setSeccion(item.id); }}
@@ -3320,16 +3357,16 @@ export default function App() {
 
             {/* ── RESTO ── */}
             {[
-              { id:"calendario",   icon:"📅", label:"Calendario" },
-              { id:"comunicacion", icon:"📣", label:"Comunicación" },
-              { id:"vacaciones",   icon:"🏖️", label:"Vacaciones" },
-              { id:"proyectos",    icon:"📊", label:"Proyectos" },
-              ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"nominas", icon:"💰", label:"Nóminas" }] : []),
-              ...(!["director","ceo"].includes(usuario?.rol) ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
-              ...(USUARIOS_SALAS_IDS.includes(usuario?.id) ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
-              ...(USUARIOS_COCHES_IDS.includes(usuario?.id) ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
+              ...(can("calendario")   ? [{ id:"calendario",   icon:"📅", label:"Calendario" }] : []),
+              ...(can("comunicacion") ? [{ id:"comunicacion", icon:"📣", label:"Comunicación" }] : []),
+              ...(can("vacaciones")   ? [{ id:"vacaciones",   icon:"🏖️", label:"Vacaciones" }] : []),
+              ...(can("proyectos")    ? [{ id:"proyectos",    icon:"📊", label:"Proyectos" }] : []),
+              ...(can("nominas")      ? [{ id:"nominas", icon:"💰", label:"Nóminas" }] : []),
+              ...(can("fichaje")      ? [{ id:"fichaje", icon:"🕐", label:"Fichaje", extra:fichajeActivo }] : []),
+              ...(can("salas")        ? [{ id:"salas", icon:"🏛️", label:"Salas" }] : []),
+              ...(can("coches")       ? [{ id:"coches", icon:"🚗", label:"Coches" }] : []),
               ...(usuario?.rol === "administrador" ? [{ id:"permisos", icon:"🔐", label:"Permisos" }] : []),
-              { id:"perfil",       icon:"👤", label:"Perfil" },
+              ...(can("perfil")       ? [{ id:"perfil", icon:"👤", label:"Perfil" }] : []),
             ].map(item => {
               const activo = seccion === item.id;
               return (
@@ -3482,11 +3519,11 @@ export default function App() {
           </div>
         )}
 
-        {seccion === "reportes" && ["director","ceo","encargado","administrador"].includes(usuario?.rol) && (
+        {seccion === "reportes" && can("tickets","administracion") && (
           <Reportes tickets={tickets} usuarioActual={usuario} darkMode={darkMode} EMPRESAS={EMPRESAS} USUARIOS={USUARIOS} />
         )}
 
-        {seccion === "historial" && (
+        {seccion === "historial" && can("tickets") && (
           <>
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ margin: "0 0 4px", color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 18 }}>🗂️ Historial</h2>
@@ -3527,7 +3564,7 @@ export default function App() {
           </>
         )}
 
-        {seccion === "calendario" && (
+        {seccion === "calendario" && can("calendario") && (
           <div>
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ margin: "0 0 4px", color: darkMode ? "#E2E8F0" : "#0F172A", fontWeight: 800, fontSize: 18 }}>📅 Mi Calendario</h2>
@@ -3537,7 +3574,7 @@ export default function App() {
           </div>
         )}
 
-        {seccion === "tickets" && (
+        {seccion === "tickets" && can("tickets") && (
           <>
             {/* ESTADÍSTICAS — clicables */}
             <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(4,1fr)`, gap: 12, marginBottom: 24 }}>
@@ -3630,7 +3667,7 @@ export default function App() {
         )}
 
         {/* ── PANEL DE EQUIPO (solo encargados) ── */}
-        {seccion === "equipo" && esEncargado && (
+        {seccion === "equipo" && can("tickets","administracion") && (
           <PanelEquipo
             darkMode={darkMode}
             usuario={usuario}
@@ -3645,7 +3682,7 @@ export default function App() {
         )}
 
         {/* ── GESTIÓN RRHH ── */}
-        {seccion === "gestion_nominas" && usuario?.rol === "rrhh" && (
+        {seccion === "gestion_nominas" && can("nominas","administracion") && (
           <GestionNominasRRHH
             darkMode={darkMode}
             usuario={usuario}
@@ -3655,7 +3692,7 @@ export default function App() {
             empColor={empColor}
           />
         )}
-        {seccion === "gestion_vacaciones" && usuario?.rol === "rrhh" && (
+        {seccion === "gestion_vacaciones" && can("vacaciones","administracion") && (
           <GestionVacacionesRRHH
             darkMode={darkMode}
             usuario={usuario}
@@ -3665,7 +3702,7 @@ export default function App() {
             empColor={empColor}
           />
         )}
-        {seccion === "gestion_fichajes" && usuario?.rol === "rrhh" && (
+        {seccion === "gestion_fichajes" && can("fichaje","administracion") && (
           <GestionFichajesRRHH
             darkMode={darkMode}
             usuario={usuario}
@@ -3677,10 +3714,11 @@ export default function App() {
         )}
 
         {/* ── COMUNICACIÓN ── */}
-        {seccion === "comunicacion" && (
+        {seccion === "comunicacion" && can("comunicacion") && (
           <SeccionComunicacion
             darkMode={darkMode}
             usuario={usuario}
+            permisoCrear={can("comunicacion","creacion")}
             usuarioId={usuarioId}
             comunicados={comunicados}
             db={db}
@@ -3691,22 +3729,22 @@ export default function App() {
         )}
 
         {/* ── PROYECTOS ── */}
-        {seccion === "proyectos" && (
+        {seccion === "proyectos" && can("proyectos") && (
           <SeccionProyectos
             db={db} darkMode={darkMode} usuario={usuario} usuarioId={usuarioId}
-            empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS}
+            empColor={empColor} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} permisoCrear={can("proyectos","creacion")}
           />
         )}
 
         {/* ── FICHAJE ── */}
-        {seccion === "fichaje" && !["director","ceo"].includes(usuario?.rol) && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
+        {seccion === "fichaje" && can("fichaje") && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
-        {seccion === "vacaciones" && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
+        {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
         {seccion === "permisos" && usuario?.rol === "administrador" && <SeccionPermisos db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
         {/* ── NÓMINAS ── */}
-        {seccion === "nominas" && !["director","ceo"].includes(usuario?.rol) && (() => {
+        {seccion === "nominas" && can("nominas") && (() => {
           const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
           return (
             <div style={{ maxWidth:800 }}>
@@ -3764,17 +3802,17 @@ export default function App() {
         })()}
 
         {/* ── SALAS ── */}
-        {seccion === "salas" && USUARIOS_SALAS_IDS.includes(usuario?.id) && (
+        {seccion === "salas" && can("salas") && (
           <SeccionSalas db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
         )}
 
         {/* ── COCHES ── */}
-        {seccion === "coches" && USUARIOS_COCHES_IDS.includes(usuario?.id) && (
+        {seccion === "coches" && can("coches") && (
           <SeccionCoches db={db} darkMode={darkMode} usuario={usuario} empColor={empColor} />
         )}
 
         {/* ── PERFIL ── */}
-        {seccion === "perfil" && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
+        {seccion === "perfil" && can("perfil") && <SeccionPerfil darkMode={darkMode} usuarioId={usuarioId} usuario={usuario} pins={pins} setPins={setPins} empColor={empColor} EMPRESAS={EMPRESAS} />}
 
       </div>{/* /contenido secciones */}
       </div>{/* /contenido principal */}
@@ -3820,14 +3858,14 @@ const TIPOS_COMUNICADO = [
   { id: "evento",      label: "Evento",       icon: "🎉", color: "#805AD5", bg: "#805AD515" },
 ];
 
-function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, empColor, USUARIOS, EMPRESAS }) {
+function SeccionComunicacion({ darkMode, usuario, usuarioId, comunicados, db, empColor, USUARIOS, EMPRESAS, permisoCrear }) {
   const [filtroTipo, setFiltroTipo]   = useState("todos");
   const [buscar, setBuscar]           = useState("");
   const [modalNuevo, setModalNuevo]   = useState(false);
   const [detalle, setDetalle]         = useState(null);
   const [editando, setEditando]       = useState(null);
 
-  const puedeCrear = ["director","ceo","administrador","encargado","rrhh"].includes(usuario?.rol);
+  const puedeCrear = !!permisoCrear;
 
   const comunicadosFiltrados = (comunicados || [])
     .filter(c => c && c.titulo) // solo comunicados válidos
@@ -6121,7 +6159,7 @@ const MESES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","
 const fmtES = (iso) => { if (!iso) return "—"; const [a,m,d]=iso.split("-"); return `${d}/${m}/${a}`; };
 
 // ─── Componente principal ───────────────────────────────────
-function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS, EMPRESAS }) {
+function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS, EMPRESAS, permisoCrear }) {
   const [proyectos, setProyectos] = useState([]);
   const [abierto, setAbierto] = useState(null);     // id del proyecto en detalle
   const [modalNuevo, setModalNuevo] = useState(false);
@@ -6130,7 +6168,7 @@ function SeccionProyectos({ db, darkMode, usuario, usuarioId, empColor, USUARIOS
 
   const rol = usuario?.rol;
   const esDirCeo = ["director","ceo"].includes(rol);
-  const puedeEditar = ["director","ceo","encargado","administrador"].includes(rol);
+  const puedeEditar = !!permisoCrear;
 
   // ── Firestore: proyectos en tiempo real ──
   useEffect(() => {
