@@ -98,7 +98,7 @@ const MODULOS_PERMISOS = [
   { id: "calendario",   label: "Calendario",   grupo: "Operativa", niveles: ["visualizacion"], desc: { visualizacion: "Ver calendario" } },
   { id: "nominas",      label: "Nóminas",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Ver la suya", administracion: "Gestionar todas (RRHH)" } },
   { id: "fichaje",      label: "Fichaje",      grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Fichar", administracion: "Ver fichajes de todos (RRHH)" } },
-  { id: "vacaciones",   label: "Vacaciones",   grupo: "Personal",  niveles: ["visualizacion","creacion","administracion"], desc: { visualizacion: "Solicitar las suyas", creacion: "Aprobar (encargado)", administracion: "Gestionar todas (RRHH)" } },
+  { id: "vacaciones",   label: "Vacaciones",   grupo: "Personal",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Solicitar las suyas", administracion: "Gestionar todas (RRHH)" } },
   { id: "salas",        label: "Salas",        grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar y cancelar las suyas", administracion: "Cancelar reservas de otros" } },
   { id: "coches",       label: "Coches",       grupo: "Recursos",  niveles: ["visualizacion","administracion"], desc: { visualizacion: "Reservar y cancelar las suyas", administracion: "Cancelar reservas de otros (responsables)" } },
   { id: "perfil",       label: "Perfil",       grupo: "Personal",  niveles: ["visualizacion"], desc: { visualizacion: "Ver / editar su perfil" } },
@@ -3739,7 +3739,7 @@ export default function App() {
         {/* ── FICHAJE ── */}
         {seccion === "fichaje" && can("fichaje") && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
-        {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} esAprobador={can("vacaciones","creacion")} />}
+        {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} esAprobador={["encargado","director","ceo"].includes(usuario?.rol)} />}
 
         {seccion === "permisos" && usuario?.rol === "administrador" && <SeccionPermisos db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
