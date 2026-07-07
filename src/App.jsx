@@ -2477,6 +2477,17 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose, comunicadoIn
   );
 }
 
+// Cierre automático de jornada: si un fichaje sigue abierto y ya pasaron las 15:00
+// de ese día, devuelve la hora de salida (15:00) para cerrarlo. Si no, null.
+function salidaAutomatica(f) {
+  if (!f || f.salida) return null;
+  const e = new Date(f.entrada);
+  if (isNaN(e)) return null;
+  const cierre = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 15, 0, 0);
+  if (Date.now() <= cierre.getTime()) return null; // aún no han dado las 15:00 de ese día
+  return (cierre.getTime() > e.getTime() ? cierre : e).toISOString();
+}
+
 function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, ficharSalida, vacaciones = [] }) {
   const [, forceRender] = useState(0);
   // Re-render every minute to update elapsed time
@@ -2839,9 +2850,16 @@ export default function App() {
     if (!usuarioId) return;
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
       const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Auto-desfichaje a las 15:00 (los míos que sigan abiertos)
+      todos.forEach(f => {
+        if (f.usuarioId === usuarioId && !f.salida) {
+          const sal = salidaAutomatica(f);
+          if (sal) updateDoc(doc(db, "fichajes", f.id), { salida: sal }).catch(() => {});
+        }
+      });
       setFichajes(todos.filter(f => f.usuarioId === usuarioId));
-      // detectar si hay un fichaje abierto (sin salida)
-      const abierto = todos.find(f => f.usuarioId === usuarioId && !f.salida);
+      // Solo sigue "activo" un fichaje abierto que aún no ha llegado a su cierre (15:00)
+      const abierto = todos.find(f => f.usuarioId === usuarioId && !f.salida && salidaAutomatica(f) === null);
       setFichajeActivo(abierto || null);
     });
     return () => unsub();
@@ -3054,7 +3072,7 @@ export default function App() {
 
   // ── Fichaje ──
   const ficharEntrada = async () => {
-    const id  = String(Date.now());
+    const id  = `fic_${usuarioId}_${Date.now()}`;
     const now = new Date().toISOString();
     await setDoc(doc(db, "fichajes", id), { id, usuarioId, entrada: now, salida: null, fecha: now.split("T")[0] });
   };
@@ -5343,6 +5361,91 @@ function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empC
   );
 }
 
+// ── Modal: registrar/editar un fichaje manualmente (RRHH) ──────────
+function ModalFichajeManual({ db, dm, USUARIOS, EMPRESAS, empColor, fichaje, empleadoFijo, onClose }) {
+  const esEdicion = !!fichaje;
+  const card = dm ? "#111827" : "#FFFFFF", border = dm ? "#2E3A55" : "#E2E8F0", text = dm ? "#E2E8F0" : "#0F172A", muted = dm ? "#64748B" : "#94A3B8";
+  const inp = { fontFamily: "inherit", fontSize: 13, background: dm ? "#1A2235" : "#F8FAFC", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", color: text, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: dm ? "dark" : "light" };
+  const lbl = { display: "block", color: muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 5 };
+
+  const iniFecha = fichaje ? (fichaje.fecha || (fichaje.entrada || "").split("T")[0]) : new Date().toISOString().split("T")[0];
+  const hhmm = iso => { if (!iso) return ""; const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+  const [empId, setEmpId]   = useState(fichaje ? fichaje.usuarioId : (empleadoFijo != null ? empleadoFijo : ""));
+  const [fecha, setFecha]   = useState(iniFecha);
+  const [hEnt, setHEnt]     = useState(fichaje ? hhmm(fichaje.entrada) : "08:00");
+  const [hSal, setHSal]     = useState(fichaje && fichaje.salida ? hhmm(fichaje.salida) : "15:00");
+  const [error, setError]   = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const guardar = async () => {
+    if (empId === "" || empId == null) { setError("Selecciona un empleado."); return; }
+    if (!fecha || !hEnt) { setError("Indica fecha y hora de entrada."); return; }
+    const [Y, M, D] = fecha.split("-").map(Number);
+    const [eh, em] = hEnt.split(":").map(Number);
+    const entradaISO = new Date(Y, M - 1, D, eh, em).toISOString();
+    let salidaISO = null;
+    if (hSal) {
+      const [sh, sm] = hSal.split(":").map(Number);
+      salidaISO = new Date(Y, M - 1, D, sh, sm).toISOString();
+      if (new Date(salidaISO) <= new Date(entradaISO)) { setError("La salida debe ser posterior a la entrada."); return; }
+    }
+    setGuardando(true);
+    try {
+      const uid = Number(empId);
+      const id = esEdicion ? fichaje.id : `fic_${uid}_${Date.now()}`;
+      await setDoc(doc(db, "fichajes", id), { id, usuarioId: uid, entrada: entradaISO, salida: salidaISO, fecha });
+      onClose();
+    } catch (e) { setError("Error al guardar."); } finally { setGuardando(false); }
+  };
+
+  const eliminar = async () => {
+    if (!esEdicion) return;
+    if (!window.confirm("¿Eliminar este fichaje?")) return;
+    try { await deleteDoc(doc(db, "fichajes", fichaje.id)); onClose(); } catch {}
+  };
+
+  return (
+    <div onMouseDown={onClose} style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+      <div onMouseDown={e => e.stopPropagation()} style={{ background: card, border: `1px solid ${border}`, borderRadius: 16, width: "100%", maxWidth: 440, padding: 26, boxShadow: "0 24px 80px #0009" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h3 style={{ margin: 0, color: text, fontSize: 17, fontWeight: 800 }}>🕐 {esEdicion ? "Editar fichaje" : "Registrar fichaje"}</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: muted, fontSize: 22, cursor: "pointer" }}>×</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={lbl}>👤 Empleado</label>
+            <select style={inp} value={empId} onChange={e => setEmpId(e.target.value)} disabled={esEdicion || empleadoFijo != null}>
+              <option value="">Selecciona…</option>
+              {EMPRESAS.map(emp => (
+                <optgroup key={emp.id} label={emp.nombre}>
+                  {USUARIOS.filter(u => u.empresaId === emp.id && !["director","ceo"].includes(u.rol)).map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>📅 Fecha</label>
+            <input type="date" style={inp} value={fecha} onChange={e => { setFecha(e.target.value); setError(""); }} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>⏰ Entrada</label><input type="time" style={inp} value={hEnt} onChange={e => { setHEnt(e.target.value); setError(""); }} /></div>
+            <div><label style={lbl}>⏰ Salida <span style={{ textTransform: "none", fontWeight: 400 }}>(opcional)</span></label><input type="time" style={inp} value={hSal} onChange={e => { setHSal(e.target.value); setError(""); }} /></div>
+          </div>
+          {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            {esEdicion && <button onClick={eliminar} style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "10px 14px", borderRadius: 8, border: "1px solid #E53E3E44", cursor: "pointer", background: "#E53E3E18", color: "#E53E3E" }}>🗑️</button>}
+            <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: 10, borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: guardando ? empColor + "88" : empColor, color: "#fff" }}>{guardando ? "Guardando…" : "✓ Guardar"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Gestión de Fichajes ─────────────────────────────────────────────
 function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
   const [fichajes,  setFichajes]  = useState([]);
@@ -5351,10 +5454,19 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   const [fechaRef,  setFechaRef]  = useState(new Date().toISOString().split("T")[0]);
   const [empActiva, setEmpActiva] = useState("todas");
   const [detalle,   setDetalle]   = useState(null);
+  const [modalManual, setModalManual] = useState(null); // {} = nuevo · {fichaje} = editar
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
-      setFichajes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Auto-desfichaje a las 15:00 de todos los que sigan abiertos
+      todos.forEach(f => {
+        if (!f.salida) {
+          const sal = salidaAutomatica(f);
+          if (sal) updateDoc(doc(db, "fichajes", f.id), { salida: sal }).catch(() => {});
+        }
+      });
+      setFichajes(todos);
     });
     return unsub;
   }, [db]);
@@ -5450,9 +5562,15 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   return (
     <div style={{ maxWidth:1200 }}>
       {/* Cabecera */}
-      <div style={{ marginBottom:20 }}>
-        <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🕐 Gestión de Fichajes</h2>
-        <p style={{ margin:0, color:muted, fontSize:13 }}>Control de presencia por empresa y periodo</p>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:12 }}>
+        <div>
+          <h2 style={{ margin:"0 0 4px", color:textPri, fontWeight:800, fontSize:20 }}>🕐 Gestión de Fichajes</h2>
+          <p style={{ margin:0, color:muted, fontSize:13 }}>Control de presencia por empresa y periodo</p>
+        </div>
+        <button onClick={() => setModalManual({})}
+          style={{ background: empColor, border:"none", borderRadius:8, padding:"10px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+          + Registrar fichaje
+        </button>
       </div>
 
       {/* KPIs */}
@@ -5561,7 +5679,18 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
           fechaRef={fechaRef}
           rangoLabel={rangoLabel()}
           dm={dm}
+          db={db}
+          onEditar={f => { setDetalle(null); setModalManual({ fichaje: f }); }}
           onClose={() => setDetalle(null)}
+        />
+      )}
+
+      {/* Modal registrar/editar fichaje manual */}
+      {modalManual && (
+        <ModalFichajeManual
+          db={db} dm={dm} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor}
+          fichaje={modalManual.fichaje || null}
+          onClose={() => setModalManual(null)}
         />
       )}
     </div>
@@ -5685,7 +5814,7 @@ function unidadesFichaje(misF, periodo, rango, vacaciones = []) {
 }
 
 // ── Modal: detalle de fichajes de una persona (cuándo sí, cuándo no) ──
-function ModalDetalleFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef, rangoLabel, dm, onClose }) {
+function ModalDetalleFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef, rangoLabel, dm, db, onEditar, onClose }) {
   const card = dm ? "#111827" : "#FFFFFF", border = dm ? "#2E3A55" : "#E2E8F0", text = dm ? "#E2E8F0" : "#0F172A", muted = dm ? "#64748B" : "#94A3B8", bg2 = dm ? "#0D1424" : "#F8FAFC";
   const VERDE = "#38A169", ROJO = "#E53E3E", VACAC = "#805AD5", GRIS = dm ? "#334155" : "#CBD5E1";
   const esVacDia = fstr => (vacaciones || []).some(v => fstr >= v.fechaInicio && fstr <= v.fechaFin);
@@ -5750,6 +5879,7 @@ function ModalDetalleFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fe
                     <span style={{ width: 10, height: 10, borderRadius: "50%", background: VERDE, flexShrink: 0 }} />
                     <span style={{ color: text, fontSize: 13, fontWeight: 700 }}>{fmtT(f.entrada)} → {f.salida ? fmtT(f.salida) : <span style={{ color: VERDE }}>en curso</span>}</span>
                     <span style={{ marginLeft: "auto", color: muted, fontSize: 12, fontWeight: 700 }}>{f.salida ? fmtH(mins) : ""}</span>
+                    {onEditar && <button onClick={() => onEditar(f)} title="Editar" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: muted, padding: "2px 4px" }}>✏️</button>}
                   </div>
                 );
               })}
