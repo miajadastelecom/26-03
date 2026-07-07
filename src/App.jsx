@@ -4920,7 +4920,8 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
     if (!s) return [];
     const encs = USUARIOS.filter(u => u.rol === "encargado" && u.empresaId === s.empresaId && u.id !== solicitanteId);
     if (encs.length) return encs.map(u => u.id);
-    return USUARIOS.filter(u => ["director","ceo"].includes(u.rol) && u.id !== solicitanteId).map(u => u.id);
+    // Empresa sin encargado (Independiente) → lo aprueba RRHH (Dani)
+    return USUARIOS.filter(u => u.rol === "rrhh" && u.id !== solicitanteId).map(u => u.id);
   };
 
   // ¿Puede el usuario actual aprobar esta solicitud?
@@ -4929,7 +4930,8 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
     const sol = USUARIOS.find(u => u.id === s.usuarioId);
     if (!sol) return false;
     if (usuario.rol === "encargado") return sol.empresaId === usuario.empresaId;
-    if (["director","ceo"].includes(usuario.rol)) return !empresaTieneEncargado(sol.empresaId);
+    // RRHH (Dani) aprueba las de empresas sin encargado (Independiente)
+    if (usuario.rol === "rrhh") return !empresaTieneEncargado(sol.empresaId);
     return false;
   };
 
