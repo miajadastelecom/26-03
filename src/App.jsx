@@ -2477,7 +2477,7 @@ function ModalComunicado({ darkMode, usuarioId, empresaId, onClose, comunicadoIn
   );
 }
 
-function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, ficharSalida }) {
+function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, ficharSalida, vacaciones = [] }) {
   const [, forceRender] = useState(0);
   // Re-render every minute to update elapsed time
   useEffect(() => {
@@ -2487,6 +2487,7 @@ function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, fich
   }, [fichajeActivo]);
 
   const hoy = new Date().toISOString().split("T")[0];
+  const enVacacionesHoy = (vacaciones || []).some(v => hoy >= v.fechaInicio && hoy <= v.fechaFin);
   const fichajesHoy = fichajes.filter(f => f.fecha === hoy).sort((a,b) => new Date(b.entrada)-new Date(a.entrada));
   const durStr = (ms) => { const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return h>0?`${h}h ${m}min`:`${m}min`; };
   const duracionMs = fichajeActivo ? Date.now() - new Date(fichajeActivo.entrada).getTime() : 0;
@@ -2495,6 +2496,15 @@ function SeccionFichaje({ darkMode, fichajes, fichajeActivo, ficharEntrada, fich
     <div style={{ maxWidth:640 }}>
       <h2 style={{ margin:"0 0 4px", color: darkMode?"#E2E8F0":"#0F172A", fontWeight:800, fontSize:18 }}>🕐 Fichaje</h2>
       <p style={{ margin:"0 0 24px", color: darkMode?"#475569":"#64748B", fontSize:13 }}>Registra tu entrada y salida del trabajo</p>
+      {enVacacionesHoy && (
+        <div style={{ background:"#805AD518", border:"1px solid #805AD555", borderRadius:12, padding:"14px 18px", marginBottom:20, display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:26 }}>🏖️</span>
+          <div>
+            <p style={{ margin:0, color:"#805AD5", fontWeight:800, fontSize:14 }}>Hoy estás de vacaciones</p>
+            <p style={{ margin:0, color: darkMode?"#64748B":"#94A3B8", fontSize:12 }}>No es necesario que fiches.</p>
+          </div>
+        </div>
+      )}
       <div style={{ background: darkMode?"#111827":"#FFFFFF", border:`1px solid ${fichajeActivo?"#38A16944":darkMode?"#1E293B":"#E2E8F0"}`, borderRadius:14, padding:24, marginBottom:20, textAlign:"center" }}>
         <div style={{ fontSize:48, marginBottom:12 }}>{fichajeActivo?"🟢":"🔴"}</div>
         <p style={{ margin:"0 0 6px", color: fichajeActivo?"#38A169":"#E53E3E", fontSize:20, fontWeight:900 }}>
@@ -2770,6 +2780,18 @@ export default function App() {
   }, []);
   // Helper: ¿el usuario actual tiene al menos 'nivel' en 'modulo'?
   const can = (modulo, nivel = "visualizacion") => tienePermiso(permisos, usuarioId, modulo, nivel);
+
+  // ── Mis vacaciones aprobadas (para reflejarlas en el fichaje) ──
+  const [misVacaciones, setMisVacaciones] = useState([]);
+  useEffect(() => {
+    if (usuarioId == null) return;
+    const unsub = onSnapshot(collection(db, "solicitudesRRHH"), snap => {
+      setMisVacaciones(snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => s.tipo === "vacaciones" && s.estado === "aprobada" && s.usuarioId === usuarioId)
+        .map(s => ({ fechaInicio: s.fechaInicio, fechaFin: s.fechaFin })));
+    }, () => {});
+    return () => unsub();
+  }, [usuarioId]);
 
 
   // ── Firebase: tickets en tiempo real ──
@@ -3737,7 +3759,7 @@ export default function App() {
         )}
 
         {/* ── FICHAJE ── */}
-        {seccion === "fichaje" && can("fichaje") && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
+        {seccion === "fichaje" && can("fichaje") && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} vacaciones={misVacaciones} />}
 
         {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} esAprobador={["encargado","director","ceo"].includes(usuario?.rol)} />}
 
@@ -5058,6 +5080,7 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
           diasRestantes={diasRestantes}
           aprobadoresDe={aprobadoresDe}
           esAprobador={esAprobador}
+          misSolicitudes={mias.filter(s => s.estado !== "rechazada")}
           onNotif={notif}
           onClose={() => setModalNueva(false)}
         />
@@ -5066,7 +5089,7 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
   );
 }
 
-function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobadoresDe, esAprobador, onNotif, onClose }) {
+function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobadoresDe, esAprobador, misSolicitudes, onNotif, onClose }) {
   const hoyStr = new Date().toISOString().split("T")[0];
   const [ini, setIni] = useState(hoyStr);
   const [fin, setFin] = useState(hoyStr);
@@ -5086,6 +5109,8 @@ function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobado
     if (ini < hoyStr) { setError("No puedes solicitar días en el pasado."); return; }
     if (dias === 0) { setError("El rango seleccionado no tiene días laborables."); return; }
     if (dias > diasRestantes) { setError(`Solo te quedan ${diasRestantes} días disponibles y estás pidiendo ${dias}.`); return; }
+    const solapa = (misSolicitudes || []).find(s => ini <= s.fechaFin && fin >= s.fechaInicio);
+    if (solapa) { setError(`Ya tienes vacaciones ${solapa.estado === "aprobada" ? "aprobadas" : "solicitadas"} del ${solapa.fechaInicio} al ${solapa.fechaFin}. Esas fechas se solapan.`); return; }
     setGuardando(true);
     try {
       const id = "sol_" + Date.now();
@@ -5321,6 +5346,7 @@ function GestionVacacionesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empC
 // ── Gestión de Fichajes ─────────────────────────────────────────────
 function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empColor }) {
   const [fichajes,  setFichajes]  = useState([]);
+  const [vacaciones, setVacaciones] = useState([]); // aprobadas
   const [periodo,   setPeriodo]   = useState("dia");
   const [fechaRef,  setFechaRef]  = useState(new Date().toISOString().split("T")[0]);
   const [empActiva, setEmpActiva] = useState("todas");
@@ -5329,6 +5355,12 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "fichajes"), snap => {
       setFichajes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [db]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "solicitudesRRHH"), snap => {
+      setVacaciones(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.tipo === "vacaciones" && s.estado === "aprobada"));
     });
     return unsub;
   }, [db]);
@@ -5396,11 +5428,12 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
   const datosEmpleado = empleados.map(u => {
     const emp = EMPRESAS.find(e => e.id === u.empresaId);
     const misF = fichajesPeriodo.filter(f => f.usuarioId === u.id);
+    const misVac = vacaciones.filter(v => v.usuarioId === u.id).map(v => ({ fechaInicio: v.fechaInicio, fechaFin: v.fechaFin }));
     const activoAhora = fichajes.some(f => f.usuarioId === u.id && !f.salida);
     const totalMins = misF.reduce((acc,f) => acc + (calcMins(f)||0), 0);
     // Para vista día: último fichaje
     const ultimoFichaje = misF.sort((a,b)=>new Date(b.entrada)-new Date(a.entrada))[0];
-    return { u, emp, misF, activoAhora, totalMins, ultimoFichaje };
+    return { u, emp, misF, misVac, activoAhora, totalMins, ultimoFichaje };
   });
 
   // KPIs
@@ -5476,7 +5509,7 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
 
       {/* Leyenda */}
       <div style={{ display:"flex", gap:18, justifyContent:"center", marginBottom:18, flexWrap:"wrap" }}>
-        {[["#38A169","Fichado"],["#E53E3E","Sin fichar"],[dm?"#1E293B":"#E5E9F0","No laborable"],[dm?"#152036":"#EEF2F6","Aún no"]].map(([c,l])=>(
+        {[["#38A169","Fichado"],["#E53E3E","Sin fichar"],["#805AD5","Vacaciones"],[dm?"#1E293B":"#E5E9F0","No laborable"],[dm?"#152036":"#EEF2F6","Aún no"]].map(([c,l])=>(
           <div key={l} style={{ display:"flex", alignItems:"center", gap:6 }}>
             <span style={{ width:12, height:12, borderRadius:3, background:c, border:`1px solid ${c}`, flexShrink:0 }} />
             <span style={{ color:muted, fontSize:12, fontWeight:600 }}>{l}</span>
@@ -5497,14 +5530,14 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
                 <span style={{ color:muted, fontSize:11 }}>· {datos.filter(d=>d.misF.length>0).length}/{datos.length} han fichado</span>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14 }}>
-                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
+                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} vacaciones={d.misVac} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
               </div>
             </div>
           ];
         })
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14, marginBottom:26 }}>
-          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
+          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} vacaciones={d.misVac} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
         </div>
       )}
 
@@ -5522,6 +5555,7 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
           u={detalle.u}
           emp={detalle.emp}
           misF={detalle.misF}
+          vacaciones={detalle.misVac}
           periodo={periodo}
           rango={rango}
           fechaRef={fechaRef}
@@ -5597,9 +5631,10 @@ function FilaEmpleado({ d, dm, border, textPri, muted, fmtTime, fmtHoras, period
 
 
 // ── Divide el periodo en unidades (semana=5 · mes=días · año=12 meses) ──
-function unidadesFichaje(misF, periodo, rango) {
+function unidadesFichaje(misF, periodo, rango, vacaciones = []) {
   const hoyStr = new Date().toISOString().split("T")[0];
   const fechaDe = f => f.fecha || (f.entrada || "").split("T")[0];
+  const esVac = fstr => (vacaciones || []).some(v => fstr >= v.fechaInicio && fstr <= v.fechaFin);
   const isoDe = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const fichajesDe = fstr => misF.filter(f => fechaDe(f) === fstr);
   const minsDia = (arr, fstr) => arr.reduce((a, f) => {
@@ -5625,7 +5660,7 @@ function unidadesFichaje(misF, periodo, rango) {
       const dd = new Date(lun); dd.setDate(lun.getDate() + i); const fstr = isoDe(dd);
       const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDia(arr, fstr), future = fstr > hoyStr, e = es(arr);
       totalMins += mins;
-      units.push({ fecha: fstr, label: ["L","M","X","J","V"][i], full: `${dn[i]} ${dd.getDate()}`, worked, future, laborable: true, mins, entrada: e.entrada, salida: e.salida });
+      units.push({ fecha: fstr, label: ["L","M","X","J","V"][i], full: `${dn[i]} ${dd.getDate()}`, worked, future, laborable: true, vacacion: esVac(fstr), mins, entrada: e.entrada, salida: e.salida });
     }
   } else if (periodo === "mes") {
     const ref = new Date(rango.desde + "T12:00:00"), y = ref.getFullYear(), m = ref.getMonth(), dim = new Date(y, m + 1, 0).getDate();
@@ -5633,7 +5668,7 @@ function unidadesFichaje(misF, periodo, rango) {
       const dd = new Date(y, m, day, 12); const fstr = isoDe(dd); const dow = dd.getDay(); const laborable = dow >= 1 && dow <= 5;
       const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDia(arr, fstr), future = fstr > hoyStr, e = es(arr);
       totalMins += mins;
-      units.push({ fecha: fstr, label: (day === 1 || day % 5 === 0) ? String(day) : "", full: `${day} ${MES_N[m]} · ${DIA_N[dow]}`, worked, future, laborable, mins, entrada: e.entrada, salida: e.salida });
+      units.push({ fecha: fstr, label: (day === 1 || day % 5 === 0) ? String(day) : "", full: `${day} ${MES_N[m]} · ${DIA_N[dow]}`, worked, future, laborable, vacacion: esVac(fstr), mins, entrada: e.entrada, salida: e.salida });
     }
   } else {
     const y = new Date(rango.desde + "T12:00:00").getFullYear(), now = new Date();
@@ -5650,13 +5685,14 @@ function unidadesFichaje(misF, periodo, rango) {
 }
 
 // ── Modal: detalle de fichajes de una persona (cuándo sí, cuándo no) ──
-function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabel, dm, onClose }) {
+function ModalDetalleFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef, rangoLabel, dm, onClose }) {
   const card = dm ? "#111827" : "#FFFFFF", border = dm ? "#2E3A55" : "#E2E8F0", text = dm ? "#E2E8F0" : "#0F172A", muted = dm ? "#64748B" : "#94A3B8", bg2 = dm ? "#0D1424" : "#F8FAFC";
-  const VERDE = "#38A169", ROJO = "#E53E3E", GRIS = dm ? "#334155" : "#CBD5E1";
+  const VERDE = "#38A169", ROJO = "#E53E3E", VACAC = "#805AD5", GRIS = dm ? "#334155" : "#CBD5E1";
+  const esVacDia = fstr => (vacaciones || []).some(v => fstr >= v.fechaInicio && fstr <= v.fechaFin);
   const fmtT = iso => iso && iso !== "curso" ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : iso === "curso" ? "en curso" : "—";
   const fmtH = m => { const h = Math.floor(m / 60), mm = m % 60; return h > 0 ? `${h}h${mm > 0 ? ` ${mm}m` : ""}` : `${mm}m`; };
   const esDia = periodo === "dia";
-  const { units, totalMins } = esDia ? { units: [], totalMins: 0 } : unidadesFichaje(misF, periodo, rango);
+  const { units, totalMins } = esDia ? { units: [], totalMins: 0 } : unidadesFichaje(misF, periodo, rango, vacaciones);
 
   let diaPairs = [], diaMins = 0;
   if (esDia) {
@@ -5668,10 +5704,11 @@ function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabe
 
   const totMin = esDia ? diaMins : totalMins;
   const diasFichados = esDia ? (diaPairs.length ? 1 : 0) : units.filter(x => x.worked).length;
-  const diasSinFichar = esDia ? 0 : units.filter(x => x.laborable && !x.future && !x.worked).length;
+  const diasSinFichar = esDia ? 0 : units.filter(x => x.laborable && !x.future && !x.worked && !x.vacacion).length;
+  const diasVacaciones = esDia ? 0 : units.filter(x => x.vacacion && !x.worked).length;
 
-  const colorUnit = un => un.future ? GRIS : un.worked ? VERDE : un.laborable ? ROJO : GRIS;
-  const estadoUnit = un => un.future ? "—" : un.worked ? (un.diasFichados != null ? `${un.diasFichados} días · ${fmtH(un.mins)}` : `${fmtT(un.entrada)} – ${fmtT(un.salida)} · ${fmtH(un.mins)}`) : un.laborable ? "Sin fichar" : "No laborable";
+  const colorUnit = un => un.future ? GRIS : un.worked ? VERDE : un.vacacion ? VACAC : un.laborable ? ROJO : GRIS;
+  const estadoUnit = un => un.future ? "—" : un.worked ? (un.diasFichados != null ? `${un.diasFichados} días · ${fmtH(un.mins)}` : `${fmtT(un.entrada)} – ${fmtT(un.salida)} · ${fmtH(un.mins)}`) : un.vacacion ? "🏖️ Vacaciones" : un.laborable ? "Sin fichar" : "No laborable";
   const inicial = u.nombre.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -5692,7 +5729,7 @@ function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabe
         <p style={{ textAlign: "center", color: muted, fontSize: 12, margin: "0 0 16px", textTransform: "capitalize" }}>{rangoLabel}</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
-          {[["Horas", fmtH(totMin), VERDE], ["Días fichados", String(diasFichados), VERDE], ["Sin fichar", String(diasSinFichar), ROJO]].map(([l, v, c]) => (
+          {[["Horas", fmtH(totMin), VERDE], ["Días fichados", String(diasFichados), VERDE], [diasVacaciones > 0 ? "Vacaciones" : "Sin fichar", String(diasVacaciones > 0 ? diasVacaciones : diasSinFichar), diasVacaciones > 0 ? VACAC : ROJO]].map(([l, v, c]) => (
             <div key={l} style={{ background: bg2, borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
               <div style={{ fontSize: 18, fontWeight: 900, color: c }}>{v}</div>
               <div style={{ fontSize: 10, fontWeight: 700, color: muted, marginTop: 2 }}>{l}</div>
@@ -5703,7 +5740,7 @@ function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabe
         <h4 style={{ margin: "0 0 8px", color: text, fontSize: 13, fontWeight: 800 }}>Desglose</h4>
         {esDia ? (
           diaPairs.length === 0 ? (
-            <div style={{ padding: "18px", textAlign: "center", color: muted, fontSize: 13, background: bg2, borderRadius: 10 }}>Sin fichajes este día</div>
+            <div style={{ padding: "18px", textAlign: "center", color: esVacDia(fechaRef) ? VACAC : muted, fontSize: 13, fontWeight: esVacDia(fechaRef) ? 700 : 400, background: bg2, borderRadius: 10 }}>{esVacDia(fechaRef) ? "🏖️ Día de vacaciones" : "Sin fichajes este día"}</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {diaPairs.map((f, i) => {
@@ -5737,16 +5774,17 @@ function ModalDetalleFichaje({ u, emp, misF, periodo, rango, fechaRef, rangoLabe
 // ── Rosco de fichajes por persona: el anillo es la línea de tiempo ──
 // Horario laboral: L–V, 8:00–15:00. Verde = fichó · Rojo = no fichó (día laborable)
 // Gris = no laborable (findes) · Gris claro = aún no ha llegado.
-function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, onClick }) {
+function RoscoFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef, dm, size = 190, onClick }) {
   const cx = size / 2, cy = size / 2, ro = size / 2 - 13, ri = size / 2 - 35;
   const TAU = Math.PI * 2, TOP = -Math.PI / 2;
   const textPri = dm ? "#E2E8F0" : "#0F172A";
   const muted   = dm ? "#64748B" : "#94A3B8";
   const cardBg  = dm ? "#111827" : "#FFFFFF";
-  const VERDE = "#38A169", ROJO = "#E53E3E";
+  const VERDE = "#38A169", ROJO = "#E53E3E", VACAC = "#805AD5";
   const TRACK = dm ? "#1E293B" : "#E5E9F0";   // no laborable / vacío
   const FUT   = dm ? "#152036" : "#EEF2F6";   // futuro
   const hoyStr = new Date().toISOString().split("T")[0];
+  const esVac = fstr => (vacaciones || []).some(v => fstr >= v.fechaInicio && fstr <= v.fechaFin);
 
   const arcSeg = (r0i, r0o, a0, a1) => {
     const p = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -5783,9 +5821,10 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, 
     const ang = m => TOP + (m / 1440) * TAU;
     // Track completo
     sectors.push({ d: arcSeg(ri, ro, TOP + 0.001, TOP + TAU - 0.001), fill: TRACK, tip: "" });
-    // Franja horario previsto 8:00–15:00
-    const bandCol = !laborable ? TRACK : arr.length ? VERDE + "33" : (fstr > hoyStr ? FUT : ROJO + "2E");
-    sectors.push({ d: arcSeg(ri, ro, ang(8 * 60), ang(15 * 60)), fill: bandCol, tip: laborable ? "Horario previsto 8:00–15:00" : "No laborable" });
+    // Franja horario previsto 8:00–15:00 (o vacaciones)
+    const enVac = esVac(fstr);
+    const bandCol = !laborable ? TRACK : arr.length ? VERDE + "33" : enVac ? VACAC : (fstr > hoyStr ? FUT : ROJO + "2E");
+    sectors.push({ d: arcSeg(ri, ro, ang(8 * 60), ang(15 * 60)), fill: bandCol, tip: enVac ? "🏖️ Vacaciones" : laborable ? "Horario previsto 8:00–15:00" : "No laborable" });
     // Arcos de presencia real
     arr.forEach(f => {
       const iniM = new Date(f.entrada).getHours() * 60 + new Date(f.entrada).getMinutes();
@@ -5814,8 +5853,9 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, 
         const ent = worked ? fmtT([...arr].sort((a, b) => new Date(a.entrada) - new Date(b.entrada))[0].entrada) : null;
         const done = arr.filter(f => f.salida);
         const sal = worked ? (done.length ? fmtT([...done].sort((a, b) => new Date(b.salida) - new Date(a.salida))[0].salida) : "en curso") : null;
-        units.push({ label: ["L","M","X","J","V"][i], worked, future, laborable: true, mins,
-          tip: `${dn[i]} · ${worked ? `${ent}–${sal} · ${fmtH(mins)}` : future ? "—" : "Sin fichar"}` });
+        const vac = esVac(fstr);
+        units.push({ label: ["L","M","X","J","V"][i], worked, future, laborable: true, vacacion: vac, mins,
+          tip: `${dn[i]} · ${worked ? `${ent}–${sal} · ${fmtH(mins)}` : vac ? "🏖️ Vacaciones" : future ? "—" : "Sin fichar"}` });
       }
     } else if (periodo === "mes") {
       const ref = new Date(rango.desde + "T12:00:00"), y = ref.getFullYear(), m = ref.getMonth();
@@ -5825,8 +5865,9 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, 
         const laborable = dow >= 1 && dow <= 5;
         const arr = fichajesDe(fstr), worked = arr.length > 0, mins = minsDe(arr), future = fstr > hoyStr;
         totalMins += mins;
-        units.push({ label: (day === 1 || day % 5 === 0) ? String(day) : "", worked, future, laborable, mins,
-          tip: `${day} ${MES_N[m]} · ${!laborable ? "No laborable" : worked ? `${fmtH(mins)}` : future ? "—" : "Sin fichar"}` });
+        const vac = esVac(fstr);
+        units.push({ label: (day === 1 || day % 5 === 0) ? String(day) : "", worked, future, laborable, vacacion: vac, mins,
+          tip: `${day} ${MES_N[m]} · ${worked ? `${fmtH(mins)}` : vac ? "🏖️ Vacaciones" : !laborable ? "No laborable" : future ? "—" : "Sin fichar"}` });
       }
     } else { // anio
       const y = new Date(rango.desde + "T12:00:00").getFullYear(), now = new Date();
@@ -5844,7 +5885,7 @@ function RoscoFichaje({ u, emp, misF, periodo, rango, fechaRef, dm, size = 190, 
     const rMid = (ro + ri) / 2;
     units.forEach((un, i) => {
       const a0 = TOP + (i / n) * TAU + gap / 2, a1 = TOP + ((i + 1) / n) * TAU - gap / 2, am = (a0 + a1) / 2;
-      const fill = un.future ? FUT : un.worked ? VERDE : un.laborable ? ROJO : TRACK;
+      const fill = un.future ? FUT : un.worked ? VERDE : un.vacacion ? VACAC : un.laborable ? ROJO : TRACK;
       sectors.push({ d: arcSeg(ri, ro, a0, a1), fill, tip: un.tip });
       if (un.label) labels.push({ x: cx + (ro + 8) * Math.cos(am), y: cy + (ro + 8) * Math.sin(am) + 3, t: un.label, size: 8.5, fill: muted, w: 700 });
       if (periodo === "semana" && un.worked) labels.push({ x: cx + rMid * Math.cos(am), y: cy + rMid * Math.sin(am) + 3, t: fmtH(un.mins), size: 8, fill: "#fff", w: 800 });
