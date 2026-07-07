@@ -3739,7 +3739,7 @@ export default function App() {
         {/* ── FICHAJE ── */}
         {seccion === "fichaje" && can("fichaje") && <SeccionFichaje darkMode={darkMode} fichajes={fichajes} fichajeActivo={fichajeActivo} ficharEntrada={ficharEntrada} ficharSalida={ficharSalida} />}
 
-        {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
+        {seccion === "vacaciones" && can("vacaciones") && <SeccionVacaciones db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} esAprobador={can("vacaciones","creacion")} />}
 
         {seccion === "permisos" && usuario?.rol === "administrador" && <SeccionPermisos db={db} darkMode={darkMode} usuario={usuario} USUARIOS={USUARIOS} EMPRESAS={EMPRESAS} empColor={empColor} />}
 
@@ -4890,7 +4890,7 @@ function contarLaborables(ini, fin) {
   return count;
 }
 
-function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor }) {
+function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor, esAprobador }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [modalNueva,  setModalNueva]  = useState(false);
   const [loading,     setLoading]     = useState(true);
@@ -5055,6 +5055,7 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
           db={db} dm={dm} usuario={usuario} empColor={empColor}
           diasRestantes={diasRestantes}
           aprobadoresDe={aprobadoresDe}
+          esAprobador={esAprobador}
           onNotif={notif}
           onClose={() => setModalNueva(false)}
         />
@@ -5063,7 +5064,7 @@ function SeccionVacaciones({ db, darkMode, usuario, USUARIOS, EMPRESAS, empColor
   );
 }
 
-function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobadoresDe, onNotif, onClose }) {
+function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobadoresDe, esAprobador, onNotif, onClose }) {
   const hoyStr = new Date().toISOString().split("T")[0];
   const [ini, setIni] = useState(hoyStr);
   const [fin, setFin] = useState(hoyStr);
@@ -5086,13 +5087,18 @@ function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobado
     setGuardando(true);
     try {
       const id = "sol_" + Date.now();
+      const autoAprob = !!esAprobador; // el responsable (encargado/dir/ceo) se auto-aprueba
       await setDoc(doc(db, "solicitudesRRHH", id), {
         id, usuarioId: usuario.id, tipo: "vacaciones",
         fechaInicio: ini, fechaFin: fin, diasSolicitados: dias,
-        descripcion: desc.trim() || null, estado: "pendiente",
+        descripcion: desc.trim() || null,
+        estado: autoAprob ? "aprobada" : "pendiente",
+        ...(autoAprob ? { encargadoId: usuario.id, fechaGestion: new Date().toISOString() } : {}),
         fechaCreacion: new Date().toISOString(),
       });
-      aprobadoresDe(usuario.id).forEach(aid => onNotif(aid, `${usuario.nombre} ha solicitado vacaciones (${ini} → ${fin}, ${dias} días).`, "vacaciones"));
+      if (!autoAprob) {
+        aprobadoresDe(usuario.id).forEach(aid => onNotif(aid, `${usuario.nombre} ha solicitado vacaciones (${ini} → ${fin}, ${dias} días).`, "vacaciones"));
+      }
       onClose();
     } catch (e) {
       setError("Error al enviar la solicitud. Inténtalo de nuevo.");
@@ -5119,12 +5125,18 @@ function ModalNuevaVacacion({ db, dm, usuario, empColor, diasRestantes, aprobado
           </div>
           <p style={{ margin: 0, color: muted, fontSize: 11 }}>Te quedan <b style={{ color: text }}>{diasRestantes}</b> días disponibles este año.</p>
 
+          {esAprobador && (
+            <div style={{ background: "#38A16912", border: "1px solid #38A16944", borderRadius: 8, padding: "9px 12px", color: "#38A169", fontSize: 12, fontWeight: 600 }}>
+              ✅ Como responsable, tus vacaciones se aprueban automáticamente.
+            </div>
+          )}
+
           {error && <p style={{ margin: 0, color: "#E53E3E", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</p>}
 
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
             <button onClick={onClose} style={{ flex: 1, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: 10, borderRadius: 8, border: `1px solid ${border}`, cursor: "pointer", background: "transparent", color: muted }}>Cancelar</button>
             <button onClick={guardar} disabled={guardando} style={{ flex: 2, fontFamily: "inherit", fontSize: 13, fontWeight: 800, padding: 10, borderRadius: 8, border: "none", cursor: guardando ? "default" : "pointer", background: guardando ? empColor + "88" : empColor, color: "#fff" }}>
-              {guardando ? "Enviando..." : "✓ Enviar solicitud"}
+              {guardando ? "Enviando..." : esAprobador ? "✓ Confirmar vacaciones" : "✓ Enviar solicitud"}
             </button>
           </div>
         </div>
