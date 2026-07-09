@@ -568,7 +568,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onBorrar }
   const empOrigen   = EMPRESAS.find(e => e.id === ticket.empresaOrigenId);
   const accentColor = empOrigen?.color || "#3182CE";
   const miEmpresa   = EMPRESAS.find(e => e.id === usuarioActual.empresaId);
-  const misTrabs    = esDirector ? USUARIOS.filter(u => u.rol === "trabajador" || u.rol === "encargado") : USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && ["trabajador","encargado","administrador"].includes(u.rol))
+  const misTrabs    = (esDirector ? USUARIOS.filter(u => u.rol === "trabajador" || u.rol === "encargado") : USUARIOS.filter(u => u.empresaId === usuarioActual.empresaId && ["trabajador","encargado","administrador"].includes(u.rol))).filter(u => u.activo !== false)
 
   const toggleSel = (id) => setSelecs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -1011,7 +1011,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onBorrar }
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                   {esDirector
                     ? EMPRESAS.map(emp => {
-                        const trabsEmp = USUARIOS.filter(u => u.empresaId === emp.id && !["director","ceo"].includes(u.rol));
+                        const trabsEmp = USUARIOS.filter(u => u.empresaId === emp.id && !["director","ceo"].includes(u.rol) && u.activo !== false);
                         if (!trabsEmp.length) return null;
                         return (
                           <div key={emp.id}>
@@ -1059,7 +1059,7 @@ function ModalDetalle({ ticket, usuarioActual, onClose, onActualizar, onBorrar }
 
         {/* Asignación directa Comercial — solo quien creó el ticket */}
         {empresasDestino.includes(0) && esCreadoPor && !["Completado", "Cancelado"].includes(ticket.estado) && (() => {
-          const trabsComercial = USUARIOS.filter(u => u.empresaId === 0);
+          const trabsComercial = USUARIOS.filter(u => u.empresaId === 0 && u.activo !== false);
           const asignadosComercial = asignaciones[0] || [];
           const col = "#E53E3E";
           const asignarComercial = (nuevos) => {
@@ -1988,18 +1988,22 @@ function ModalAdministracion({ onClose }) {
       nuevos = usuarios.map(u => u.id === formUser.id ? { ...u, nombre: formUser.nombre.trim(), empresaId: Number(formUser.empresaId), rol: formUser.rol, activo: formUser.activo } : u);
       const idx = USUARIOS.findIndex(u => u.id === formUser.id);
       if (idx >= 0) USUARIOS[idx] = { ...USUARIOS[idx], ...formUser, empresaId: Number(formUser.empresaId) };
+      // Persistir estado activo/inactivo en Firestore
+      try { setDoc(doc(db, "estadoUsuarios", String(formUser.id)), { activo: formUser.activo !== false }); } catch {}
     }
     setUsuarios(nuevos);
     persistConfig("usuarios", nuevos);
     setFormUser(null);
   };
 
-  const toggleActivo = (id) => {
-    const nuevos = usuarios.map(u => u.id === id ? { ...u, activo: u.activo === false ? true : false } : u);
+  const toggleActivo = async (id) => {
+    const actualActivo = USUARIOS.find(u => u.id === id)?.activo !== false;
+    const nuevoActivo = !actualActivo;
+    const nuevos = usuarios.map(u => u.id === id ? { ...u, activo: nuevoActivo } : u);
     const idx = USUARIOS.findIndex(u => u.id === id);
-    if (idx >= 0) USUARIOS[idx].activo = USUARIOS[idx].activo === false ? true : false;
+    if (idx >= 0) USUARIOS[idx].activo = nuevoActivo;
     setUsuarios(nuevos);
-    persistConfig("usuarios", nuevos);
+    try { await setDoc(doc(db, "estadoUsuarios", String(id)), { activo: nuevoActivo }); } catch {}
   };
 
   const eliminarUsuario = (id) => {
@@ -2791,6 +2795,18 @@ export default function App() {
   }, []);
   // Helper: ¿el usuario actual tiene al menos 'nivel' en 'modulo'?
   const can = (modulo, nivel = "visualizacion") => tienePermiso(permisos, usuarioId, modulo, nivel);
+
+  // ── Estado activo/inactivo de usuarios (persistente en Firestore) ──
+  const [estadoUsuariosVer, setEstadoUsuariosVer] = useState(0);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "estadoUsuarios"), snap => {
+      const map = {};
+      snap.docs.forEach(d => { map[d.id] = d.data().activo; });
+      USUARIOS.forEach(u => { u.activo = String(u.id) in map ? map[String(u.id)] !== false : true; });
+      setEstadoUsuariosVer(v => v + 1);
+    }, () => {});
+    return () => unsub();
+  }, []);
 
   // ── Mis vacaciones aprobadas (para reflejarlas en el fichaje) ──
   const [misVacaciones, setMisVacaciones] = useState([]);
@@ -5548,11 +5564,12 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
     return { u, emp, misF, misVac, activoAhora, totalMins, ultimoFichaje };
   });
 
-  // KPIs
-  const fichados   = datosEmpleado.filter(d => d.activoAhora).length;
-  const hanFichado = datosEmpleado.filter(d => d.misF.length > 0).length;
-  const sinFichar  = datosEmpleado.filter(d => d.misF.length === 0).length;
-  const totalHoras = datosEmpleado.reduce((acc,d) => acc+d.totalMins, 0);
+  // KPIs (sin contar inactivos)
+  const activos    = datosEmpleado.filter(d => d.u.activo !== false);
+  const fichados   = activos.filter(d => d.activoAhora).length;
+  const hanFichado = activos.filter(d => d.misF.length > 0).length;
+  const sinFichar  = activos.filter(d => d.misF.length === 0).length;
+  const totalHoras = activos.reduce((acc,d) => acc+d.totalMins, 0);
 
   // Empresas para tabs
   const empresasConEmpleados = EMPRESAS.filter(e =>
@@ -5648,14 +5665,14 @@ function GestionFichajesRRHH({ darkMode, usuario, db, USUARIOS, EMPRESAS, empCol
                 <span style={{ color:muted, fontSize:11 }}>· {datos.filter(d=>d.misF.length>0).length}/{datos.length} han fichado</span>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14 }}>
-                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} vacaciones={d.misVac} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
+                {datos.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={emp} misF={d.misF} vacaciones={d.misVac} inactivo={d.u.activo === false} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
               </div>
             </div>
           ];
         })
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:14, marginBottom:26 }}>
-          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} vacaciones={d.misVac} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
+          {datosEmpleado.map(d => <RoscoFichaje key={d.u.id} u={d.u} emp={d.emp} misF={d.misF} vacaciones={d.misVac} inactivo={d.u.activo === false} periodo={periodo} rango={rango} fechaRef={fechaRef} dm={dm} size={190} onClick={() => setDetalle(d)} />)}
         </div>
       )}
 
@@ -5904,7 +5921,7 @@ function ModalDetalleFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fe
 // ── Rosco de fichajes por persona: el anillo es la línea de tiempo ──
 // Horario laboral: L–V, 8:00–15:00. Verde = fichó · Rojo = no fichó (día laborable)
 // Gris = no laborable (findes) · Gris claro = aún no ha llegado.
-function RoscoFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef, dm, size = 190, onClick }) {
+function RoscoFichaje({ u, emp, misF, vacaciones = [], inactivo = false, periodo, rango, fechaRef, dm, size = 190, onClick }) {
   const cx = size / 2, cy = size / 2, ro = size / 2 - 13, ri = size / 2 - 35;
   const TAU = Math.PI * 2, TOP = -Math.PI / 2;
   const textPri = dm ? "#E2E8F0" : "#0F172A";
@@ -6020,6 +6037,19 @@ function RoscoFichaje({ u, emp, misF, vacaciones = [], periodo, rango, fechaRef,
       if (un.label) labels.push({ x: cx + (ro + 8) * Math.cos(am), y: cy + (ro + 8) * Math.sin(am) + 3, t: un.label, size: 8.5, fill: muted, w: 700 });
       if (periodo === "semana" && un.worked) labels.push({ x: cx + rMid * Math.cos(am), y: cy + rMid * Math.sin(am) + 3, t: fmtH(un.mins), size: 8, fill: "#fff", w: 800 });
     });
+  }
+
+  if (inactivo) {
+    return (
+      <div style={{ background: cardBg, border: `1px dashed ${muted}66`, borderRadius: 14, padding: 12, display: "flex", flexDirection: "column", alignItems: "center", opacity: 0.75 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={cx} cy={cy} r={size * 0.36} fill="none" stroke={dm ? "#1E293B" : "#E5E9F0"} strokeWidth={size * 0.09} />
+          <text x={cx} y={cy + size * 0.02} textAnchor="middle" fontSize={size * 0.3} fontWeight="900" fill={muted}>✕</text>
+          <text x={cx} y={cy + size * 0.17} textAnchor="middle" fontSize={size * 0.06} fontWeight="800" fill={muted} letterSpacing="1">INACTIVO</text>
+        </svg>
+        <p style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 700, color: muted, textAlign: "center", maxWidth: size, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>{u.nombre}</p>
+      </div>
+    );
   }
 
   return (
