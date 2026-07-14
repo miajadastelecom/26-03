@@ -2768,9 +2768,7 @@ export default function App() {
   const [modalAdmin,    setModalAdmin] = useState(false);
   const [modalCrear,    setModalCrear] = useState(false);
   const [modalMisTickets, setModalMisTickets] = useState(false);
-  const [misTicketsPersonales, setMisTicketsPersonales] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("mis_tickets_personales") || "[]"); } catch { return []; }
-  });
+  const [misTicketsPersonales, setMisTicketsPersonales] = useState([]);
   const [detalleMiTicket, setDetalleMiTicket] = useState(null);
   const [detalle,       setDetalle]    = useState(null);
   const [filtros,       setFiltros]    = useState({ estado: "kpi_total", empresa: "todas", buscar: "" });
@@ -2808,6 +2806,27 @@ export default function App() {
   }, []);
   // Helper: ¿el usuario actual tiene al menos 'nivel' en 'modulo'?
   const can = (modulo, nivel = "visualizacion") => tienePermiso(permisos, usuarioId, modulo, nivel);
+
+  // ── Tickets personales: privados por usuario (con migración de los antiguos) ──
+  const keyMisTickets = uid => `mis_tickets_personales_${uid}`;
+  useEffect(() => {
+    if (usuarioId == null) { setMisTicketsPersonales([]); return; }
+    try {
+      const propios = localStorage.getItem(keyMisTickets(usuarioId));
+      if (propios !== null) { setMisTicketsPersonales(JSON.parse(propios) || []); return; }
+      // Migración: si existen tickets del formato antiguo (compartidos), se
+      // asignan a este usuario la primera vez que entra, para no perder nada.
+      const antiguos = localStorage.getItem("mis_tickets_personales");
+      if (antiguos) {
+        const lista = JSON.parse(antiguos) || [];
+        localStorage.setItem(keyMisTickets(usuarioId), JSON.stringify(lista));
+        localStorage.removeItem("mis_tickets_personales");
+        setMisTicketsPersonales(lista);
+        return;
+      }
+      setMisTicketsPersonales([]);
+    } catch { setMisTicketsPersonales([]); }
+  }, [usuarioId]);
 
   // ── Usuarios: base (código) + nuevos y estado activo/inactivo (Firestore) ──
   const [estadoMap, setEstadoMap] = useState({});   // estadoUsuarios: id -> activo
@@ -3146,7 +3165,7 @@ export default function App() {
   const guardarTicketPersonal = (t) => {
     const nuevos = [t, ...misTicketsPersonales];
     setMisTicketsPersonales(nuevos);
-    try { localStorage.setItem("mis_tickets_personales", JSON.stringify(nuevos)); } catch {}
+    try { if (usuarioId != null) localStorage.setItem(keyMisTickets(usuarioId), JSON.stringify(nuevos)); } catch {}
     // Programar notificación si tiene alerta
     if (t.alerta && t.fechaAlerta) {
       const ms = new Date(t.fechaAlerta).getTime() - Date.now();
@@ -3163,7 +3182,7 @@ export default function App() {
   const actualizarTicketPersonal = (t) => {
     const nuevos = misTicketsPersonales.map(x => x.id === t.id ? t : x);
     setMisTicketsPersonales(nuevos);
-    try { localStorage.setItem("mis_tickets_personales", JSON.stringify(nuevos)); } catch {}
+    try { if (usuarioId != null) localStorage.setItem(keyMisTickets(usuarioId), JSON.stringify(nuevos)); } catch {}
     if (detalleMiTicket?.id === t.id) setDetalleMiTicket(t);
   };
 
@@ -3179,21 +3198,60 @@ export default function App() {
       });
   };
 
+  // Limpia todo el estado de UI del usuario anterior (evita que el siguiente
+  // usuario herede su sección, filtros, detalles o modales abiertos).
+  const resetUI = () => {
+    setSeccion("tickets");
+    setDetalle(null);
+    setDetalleMiTicket(null);
+    setModalMisTickets(false);
+    setFiltros({ estado: "kpi_total", empresa: "todas", buscar: "" });
+    setTicketsExpanded(true);
+    setRrhhExpanded(true);
+    setMisTicketsPersonales([]);
+  };
+
+  // Si la sección actual no está permitida para este usuario, llevarlo a la
+  // primera a la que sí tenga acceso (evita pantallas en blanco).
+  useEffect(() => {
+    if (!logueado || usuarioId == null) return;
+    const permitida = {
+      tickets: can("tickets"), historial: can("tickets"),
+      reportes: can("tickets", "administracion"), equipo: can("tickets", "administracion"),
+      calendario: can("calendario"), comunicacion: can("comunicacion"),
+      vacaciones: can("vacaciones"), proyectos: can("proyectos"),
+      nominas: can("nominas"), fichaje: can("fichaje"),
+      salas: can("salas"), coches: can("coches"), perfil: can("perfil"),
+      permisos: usuario?.rol === "administrador",
+      gestion_nominas: can("nominas", "administracion"),
+      gestion_vacaciones: can("vacaciones", "administracion"),
+      gestion_fichajes: can("fichaje", "administracion"),
+    };
+    if (permitida[seccion] === false) {
+      const primera = ["tickets","calendario","comunicacion","vacaciones","proyectos","nominas","fichaje","salas","coches","perfil"].find(s => permitida[s]);
+      if (primera) setSeccion(primera);
+    }
+  }, [logueado, usuarioId, seccion, permisos]);
+
   const handleLogin = () => {
     const uid = Number(loginUsuarioId);
     const pin = pins[uid];
     if (!pin) { setLoginError("Selecciona un usuario"); return; }
     if (loginPin !== pin) { setLoginError("PIN incorrecto"); return; }
+    resetUI();
     setUsuarioId(uid);
     try { sessionStorage.setItem("grupo_usuario_id", String(uid)); sessionStorage.setItem("grupo_logueado", "1"); } catch {}
     setLogueado(true);
     setLoginError("");
+    setLoginPin("");
   };
 
   const handleLogout = () => {
     setLogueado(false);
     setLoginPin("");
+    setLoginUsuarioId("");
     setUsuarioId(null);
+    resetUI();
     try { sessionStorage.removeItem("grupo_logueado"); sessionStorage.removeItem("grupo_usuario_id"); } catch {}
   };
 
