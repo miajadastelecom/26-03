@@ -285,7 +285,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
 
   const empColor = EMPRESAS.find(e => e.id === (usuarioActual.empresaId > 0 ? usuarioActual.empresaId : 1))?.color || "#94A3B8";
   const disponibles = EMPRESAS; // incluye Independiente (id:0)
-  const puedeCrear  = titulo.trim().length > 0 && empresasDestino.length > 0;
+  const puedeCrear  = titulo.trim().length > 0 && empresasDestino.length > 0 &&
+    (!empresasDestino.includes(0) || comercialAsignados.length > 0);
 
   const toggleEmp = (id) => {
     setEmps(prev => {
@@ -307,8 +308,8 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
     if (!puedeCrear || enviando) return;
     setEnviando(true);
     const asignacionesPorEmpresa = {};
-    empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = id === 6 ? comercialAsignados : []; });
-    const tieneAsignadosComercial = empresasDestino.includes(6) && comercialAsignados.length > 0;
+    empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = id === 0 ? comercialAsignados : []; });
+    const tieneAsignadosComercial = empresasDestino.includes(0) && comercialAsignados.length > 0;
     try {
       onCrear({
         id: genId(), titulo: titulo.trim(), descripcion, prioridad, categoria,
@@ -515,7 +516,7 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
             {empresasDestino.length > 0 && (
               <p style={{ margin: "6px 0 0", color: darkMode ? "#64748B" : "#475569", fontSize: 11 }}>
                 {empresasDestino.filter(id => id !== 0).length > 0 && "El encargado de cada empresa asignará a sus trabajadores. "}
-                {empresasDestino.includes(0) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Comercial.</span>}
+                {empresasDestino.includes(0) && comercialAsignados.length === 0 && <span style={{ color: "#E53E3E" }}>⚠️ Selecciona al menos una persona de Independiente.</span>}
               </p>
             )}
           </div>
