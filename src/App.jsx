@@ -83,6 +83,9 @@ const USUARIOS = [
   { id: 45, nombre: "Antonio Vellarino Maeso",   empresaId: 5, rol: "trabajador"    },
   { id: 46, nombre: "Daniel Pizarro Pizarro",    empresaId: 5, rol: "rrhh"          },
 ];
+// Copia base de los usuarios del código (los 47 originales), para reconstruir
+// USUARIOS = base + usuarios nuevos (Firestore) sin perder identidad.
+const USUARIOS_BASE = USUARIOS.map(u => ({ ...u }));
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Urgente"];
 let PRIORIDAD_COLORES = { Baja: "#38A169", Media: "#D4A017", Alta: "#DD6B20", Urgente: "#E53E3E" };
@@ -1984,12 +1987,18 @@ function ModalAdministracion({ onClose }) {
       USUARIOS.push(nuevo);
       // PIN por defecto
       PINS_DEFAULT[newId] = "1234";
+      // Persistir identidad del nuevo usuario en Firestore
+      try { setDoc(doc(db, "usuariosNuevos", String(newId)), { nombre: nuevo.nombre, empresaId: nuevo.empresaId, rol: nuevo.rol, pin: "1234" }); } catch {}
     } else {
       nuevos = usuarios.map(u => u.id === formUser.id ? { ...u, nombre: formUser.nombre.trim(), empresaId: Number(formUser.empresaId), rol: formUser.rol, activo: formUser.activo } : u);
       const idx = USUARIOS.findIndex(u => u.id === formUser.id);
       if (idx >= 0) USUARIOS[idx] = { ...USUARIOS[idx], ...formUser, empresaId: Number(formUser.empresaId) };
       // Persistir estado activo/inactivo en Firestore
       try { setDoc(doc(db, "estadoUsuarios", String(formUser.id)), { activo: formUser.activo !== false }); } catch {}
+      // Si es un usuario nuevo (id > 46), persistir también su identidad editada
+      if (Number(formUser.id) > 46) {
+        try { setDoc(doc(db, "usuariosNuevos", String(formUser.id)), { nombre: formUser.nombre.trim(), empresaId: Number(formUser.empresaId), rol: formUser.rol }, { merge: true }); } catch {}
+      }
     }
     setUsuarios(nuevos);
     persistConfig("usuarios", nuevos);
@@ -2011,6 +2020,10 @@ function ModalAdministracion({ onClose }) {
     const nuevos = usuarios.filter(u => u.id !== id);
     const idx = USUARIOS.findIndex(u => u.id === id);
     if (idx >= 0) USUARIOS.splice(idx, 1);
+    // Si es un usuario nuevo (id > 46), borrar su registro persistente
+    if (Number(id) > 46) {
+      try { deleteDoc(doc(db, "usuariosNuevos", String(id))); deleteDoc(doc(db, "estadoUsuarios", String(id))); } catch {}
+    }
     setUsuarios(nuevos);
     persistConfig("usuarios", nuevos);
   };
@@ -2796,17 +2809,41 @@ export default function App() {
   // Helper: ¿el usuario actual tiene al menos 'nivel' en 'modulo'?
   const can = (modulo, nivel = "visualizacion") => tienePermiso(permisos, usuarioId, modulo, nivel);
 
-  // ── Estado activo/inactivo de usuarios (persistente en Firestore) ──
-  const [estadoUsuariosVer, setEstadoUsuariosVer] = useState(0);
+  // ── Usuarios: base (código) + nuevos y estado activo/inactivo (Firestore) ──
+  const [estadoMap, setEstadoMap] = useState({});   // estadoUsuarios: id -> activo
+  const [nuevosMap, setNuevosMap] = useState({});   // usuariosNuevos: id -> {nombre,empresaId,rol,pin}
+  const [usuariosVer, setUsuariosVer] = useState(0);
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "estadoUsuarios"), snap => {
-      const map = {};
-      snap.docs.forEach(d => { map[d.id] = d.data().activo; });
-      USUARIOS.forEach(u => { u.activo = String(u.id) in map ? map[String(u.id)] !== false : true; });
-      setEstadoUsuariosVer(v => v + 1);
+      const m = {}; snap.docs.forEach(d => { m[d.id] = d.data().activo; });
+      setEstadoMap(m);
     }, () => {});
     return () => unsub();
   }, []);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "usuariosNuevos"), snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = { id: Number(d.id), ...d.data() }; });
+      setNuevosMap(m);
+    }, () => {});
+    return () => unsub();
+  }, []);
+  // Reconstruir la lista global USUARIOS cada vez que cambien base/nuevos/estado
+  useEffect(() => {
+    const final = USUARIOS_BASE.map(u => ({ ...u }));
+    const pinsNuevos = {};
+    Object.values(nuevosMap).forEach(nv => {
+      if (!final.some(u => u.id === nv.id)) {
+        final.push({ id: nv.id, nombre: nv.nombre, empresaId: Number(nv.empresaId), rol: nv.rol || "trabajador" });
+        if (nv.pin) { PINS_DEFAULT[nv.id] = nv.pin; pinsNuevos[nv.id] = nv.pin; }
+      }
+    });
+    final.forEach(u => { u.activo = (String(u.id) in estadoMap) ? estadoMap[String(u.id)] !== false : true; });
+    USUARIOS.length = 0;
+    USUARIOS.push(...final);
+    if (Object.keys(pinsNuevos).length) setPins(p => ({ ...p, ...pinsNuevos }));
+    setUsuariosVer(v => v + 1);
+  }, [estadoMap, nuevosMap]);
 
   // ── Mis vacaciones aprobadas (para reflejarlas en el fichaje) ──
   const [misVacaciones, setMisVacaciones] = useState([]);
@@ -6182,8 +6219,239 @@ const PLANTILLA_OBRA_ELECTRICA = {
   ],
 };
 
+// ---------- PLANTILLAS: Construcción ----------
+const PLANTILLA_OBRA_EDIFICACION = {
+  id: "plantilla_obra_edificacion",
+  nombre: "Obra de edificación (construcción)",
+  descripcion: "Cronograma de obra de edificación: actuaciones previas, movimiento de tierras, cimentación, estructura, cerramientos, instalaciones y fin de obra.",
+  categoria: "Construcción",
+  color: "#8B5E3C",
+  duracionTotalDias: 261,
+  fases: [
+    {
+      nombre: "Actuaciones previas",
+      color: "#6B7280",
+      tareas: [
+        { nombre: "Vallado y señalización de obra",        offsetDias:   0, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Acometidas provisionales (agua y luz)", offsetDias:   2, duracionDias:  5, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Replanteo general",                     offsetDias:   5, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Casetas de obra y zonas de acopio",     offsetDias:   6, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Movimiento de tierras",
+      color: "#8B5E3C",
+      tareas: [
+        { nombre: "Desbroce y limpieza del terreno",      offsetDias:  10, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Excavación / vaciado a cielo abierto", offsetDias:  14, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Excavación de zanjas y pozos",         offsetDias:  22, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Transporte de tierras a vertedero",    offsetDias:  24, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Saneamiento",
+      color: "#0077ab",
+      tareas: [
+        { nombre: "Red horizontal enterrada",     offsetDias:  28, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Arquetas y pozos de registro", offsetDias:  34, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Pruebas de estanqueidad",      offsetDias:  40, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Cimentaciones",
+      color: "#4A5568",
+      tareas: [
+        { nombre: "Hormigón de limpieza",               offsetDias:  40, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Armado de zapatas y vigas de atado", offsetDias:  43, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Encofrado de cimentación",           offsetDias:  47, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Vertido de hormigón",                offsetDias:  53, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Curado y desencofrado",              offsetDias:  57, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Estructura",
+      color: "#2D3748",
+      tareas: [
+        { nombre: "Encofrado de pilares",             offsetDias:  62, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Armado y hormigonado de pilares",  offsetDias:  70, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Encofrado de forjados",            offsetDias:  78, duracionDias: 14, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Armado y hormigonado de forjados", offsetDias:  90, duracionDias: 14, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Desencofrado y curado",            offsetDias: 100, duracionDias: 12, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Ejecución de escaleras",           offsetDias: 105, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Albañilería",
+      color: "#cf142b",
+      tareas: [
+        { nombre: "Cerramientos de fachada",                offsetDias: 115, duracionDias: 20, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Tabiquería interior",                    offsetDias: 130, duracionDias: 20, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Formación de huecos y dinteles",         offsetDias: 145, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Ayudas a instalaciones (rozas y pasos)", offsetDias: 150, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Cubiertas",
+      color: "#e0ad12",
+      tareas: [
+        { nombre: "Formación de pendientes", offsetDias: 150, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Impermeabilización",      offsetDias: 156, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Aislamiento térmico",     offsetDias: 162, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Cobertura y remates",     offsetDias: 166, duracionDias: 12, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Revestimientos y alicatados",
+      color: "#38A169",
+      tareas: [
+        { nombre: "Enfoscados y guarnecidos",    offsetDias: 175, duracionDias: 15, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Falsos techos",               offsetDias: 185, duracionDias: 12, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Alicatado de baños y cocina", offsetDias: 190, duracionDias: 15, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Pavimentos y remates",
+      color: "#3182CE",
+      tareas: [
+        { nombre: "Solados y pavimentos", offsetDias: 200, duracionDias: 18, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Rodapiés y remates",   offsetDias: 215, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Pintura interior",     offsetDias: 220, duracionDias: 15, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Carpintería y Cerrajería",
+      color: "#805AD5",
+      tareas: [
+        { nombre: "Carpintería exterior (ventanas)", offsetDias: 210, duracionDias: 12, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Carpintería interior (puertas)",  offsetDias: 222, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Cerrajería y barandillas",        offsetDias: 228, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Instalaciones",
+      color: "#D4A017",
+      tareas: [
+        { nombre: "Fontanería y saneamiento interior", offsetDias: 160, duracionDias: 20, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Electricidad y telecomunicaciones", offsetDias: 165, duracionDias: 25, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Climatización y ventilación",       offsetDias: 180, duracionDias: 20, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Aparatos sanitarios y griferías",   offsetDias: 225, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Mecanismos y luminarias",           offsetDias: 230, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Pruebas y puesta en servicio",      offsetDias: 238, duracionDias:  7, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Fin de obra",
+      color: "#4F8C0d",
+      tareas: [
+        { nombre: "Limpieza final",            offsetDias: 240, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Repasos y remates",         offsetDias: 244, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Certificado final de obra", offsetDias: 252, duracionDias:  5, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Entrega y liquidación",     offsetDias: 256, duracionDias:  5, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+  ],
+};
+
+const PLANTILLA_REFORMA_INTERIOR = {
+  id: "plantilla_reforma_interior",
+  nombre: "Reforma interior de vivienda",
+  descripcion: "Reforma interior sin alteración estructural: licencia, demoliciones, albañilería, instalaciones, revestimientos, carpinterías, pinturas y entrega.",
+  categoria: "Construcción",
+  color: "#D4A017",
+  duracionTotalDias: 84,
+  fases: [
+    {
+      nombre: "Gestión previa y licencia",
+      color: "#6B7280",
+      tareas: [
+        { nombre: "Redacción de memoria técnica",       offsetDias:   0, duracionDias:  7, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Licencia / declaración responsable", offsetDias:   5, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Plan de gestión de residuos",        offsetDias:   8, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Plan de seguridad y salud",          offsetDias:   8, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Demoliciones",
+      color: "#8B5E3C",
+      tareas: [
+        { nombre: "Levantado de pavimentos existentes",         offsetDias:  15, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Picado y retirada de revestimientos",        offsetDias:  17, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Desmontaje de aparatos sanitarios",          offsetDias:  19, duracionDias:  2, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Retirada de mobiliario fijo de cocina",      offsetDias:  20, duracionDias:  2, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Desmontaje de carpinterías interiores",      offsetDias:  21, duracionDias:  2, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Retirada de falsos techos deteriorados",     offsetDias:  22, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Transporte de residuos a gestor autorizado", offsetDias:  24, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Albañilería",
+      color: "#cf142b",
+      tareas: [
+        { nombre: "Tabiquería no estructural (fábrica / cartón-yeso)", offsetDias:  26, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Ayudas a instalaciones (rozas y pasos)",            offsetDias:  30, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Enfoscados y enlucidos",                            offsetDias:  36, duracionDias:  7, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Instalaciones",
+      color: "#D4A017",
+      tareas: [
+        { nombre: "Fontanería: nueva distribución",    offsetDias:  30, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Evacuación y saneamiento interior", offsetDias:  34, duracionDias:  5, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Electricidad y mecanismos",         offsetDias:  32, duracionDias: 10, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Pruebas de estanqueidad",           offsetDias:  43, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Pavimentos y revestimientos",
+      color: "#38A169",
+      tareas: [
+        { nombre: "Preparación de soporte",               offsetDias:  44, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Alicatado cerámico de baños y cocina", offsetDias:  46, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Colocación de pavimento interior",     offsetDias:  52, duracionDias:  8, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Rodapiés y remates",                   offsetDias:  59, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Carpinterías",
+      color: "#805AD5",
+      tareas: [
+        { nombre: "Puertas interiores (madera lacada/laminada)", offsetDias:  62, duracionDias:  6, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Herrajes, manivelas y bisagras",              offsetDias:  67, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Pinturas y acabados",
+      color: "#3182CE",
+      tareas: [
+        { nombre: "Preparación de paramentos", offsetDias:  68, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Pintura plástica lavable",  offsetDias:  71, duracionDias:  7, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+    {
+      nombre: "Aparatos y entrega",
+      color: "#4F8C0d",
+      tareas: [
+        { nombre: "Aparatos sanitarios y griferías", offsetDias:  70, duracionDias:  5, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Mecanismos y luminarias",         offsetDias:  74, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Limpieza final",                  offsetDias:  78, duracionDias:  3, responsableSugerido: "", avanceEjemplo: 0 },
+        { nombre: "Repasos y entrega",               offsetDias:  80, duracionDias:  4, responsableSugerido: "", avanceEjemplo: 0 },
+      ],
+    },
+  ],
+};
+
+// Tipos de proyecto y sus plantillas
+const TIPOS_PROYECTO = [
+  { id: "electrico",    label: "⚡ Proyecto eléctrico",    color: "#e0ad12", desc: "Instalaciones eléctricas" },
+  { id: "construccion", label: "🏗️ Proyecto de construcción", color: "#8B5E3C", desc: "Obra y reforma" },
+];
+
 // Registro de plantillas disponibles (añade aquí futuras plantillas)
-const PLANTILLAS = [PLANTILLA_OBRA_ELECTRICA];
+const PLANTILLA_OBRA_ELECTRICA_T   = { ...PLANTILLA_OBRA_ELECTRICA,   tipo: "electrico" };
+const PLANTILLA_OBRA_EDIFICACION_T = { ...PLANTILLA_OBRA_EDIFICACION, tipo: "construccion" };
+const PLANTILLA_REFORMA_INTERIOR_T = { ...PLANTILLA_REFORMA_INTERIOR, tipo: "construccion" };
+const PLANTILLAS = [PLANTILLA_OBRA_ELECTRICA_T, PLANTILLA_OBRA_EDIFICACION_T, PLANTILLA_REFORMA_INTERIOR_T];
 
 // ---------- Instanciar un proyecto desde una plantilla ----------
 // opciones: { nombre, fechaInicio (YYYY-MM-DD), empresaId, creadoPor, usarAvanceEjemplo }
@@ -6534,6 +6802,7 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
   const [nombre, setNombre] = useState("");
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().slice(0,10));
   const [empresaId, setEmpresaId] = useState(esDirCeo ? 0 : (usuario?.empresaId ?? 0));
+  const [tipoProyecto, setTipoProyecto] = useState("electrico"); // electrico | construccion
   const [plantillaId, setPlantillaId] = useState(PLANTILLAS[0]?.id || "");
   const [archivo, setArchivo] = useState(null);
   const [err, setErr] = useState("");
@@ -6598,13 +6867,55 @@ function ModalNuevoProyecto({ darkMode, empColor, usuario, usuarioId, esDirCeo, 
         )}
 
         {modo === "plantilla" && (
-          <div style={{ marginBottom:14 }}>
-            <label style={lbl}>Plantilla</label>
-            <select style={inp} value={plantillaId} onChange={e=>setPlantillaId(e.target.value)}>
-              {PLANTILLAS.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.fases.reduce((s,f)=>s+f.tareas.length,0)} tareas)</option>)}
-            </select>
-            {(() => { const pl = PLANTILLAS.find(x=>x.id===plantillaId); return pl && <p style={{ margin:"6px 0 0", color:muted, fontSize:11 }}>{pl.descripcion}</p>; })()}
-          </div>
+          <>
+            {/* Tipo de proyecto */}
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>Tipo de proyecto</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                {TIPOS_PROYECTO.map(t => {
+                  const sel = tipoProyecto === t.id;
+                  return (
+                    <button key={t.id}
+                      onClick={() => {
+                        setTipoProyecto(t.id);
+                        const primera = PLANTILLAS.find(p => p.tipo === t.id);
+                        if (primera) setPlantillaId(primera.id);
+                      }}
+                      style={{ fontFamily:"inherit", textAlign:"left", padding:"11px 12px", borderRadius:10, cursor:"pointer",
+                        border:`1.5px solid ${sel ? t.color : border}`, background: sel ? t.color+"18" : "transparent" }}>
+                      <div style={{ fontSize:13, fontWeight:800, color: sel ? t.color : textPri }}>{t.label}</div>
+                      <div style={{ fontSize:10.5, color:muted, marginTop:2 }}>{t.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Plantillas del tipo seleccionado */}
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>Plantilla</label>
+              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                {PLANTILLAS.filter(p => p.tipo === tipoProyecto).map(p => {
+                  const sel = plantillaId === p.id;
+                  const nTareas = p.fases.reduce((s,f)=>s+f.tareas.length,0);
+                  return (
+                    <button key={p.id} onClick={()=>setPlantillaId(p.id)}
+                      style={{ fontFamily:"inherit", textAlign:"left", padding:"11px 13px", borderRadius:10, cursor:"pointer",
+                        border:`1.5px solid ${sel ? p.color : border}`, background: sel ? p.color+"12" : "transparent" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                        <span style={{ width:9, height:9, borderRadius:"50%", background:p.color, flexShrink:0 }} />
+                        <span style={{ fontSize:13, fontWeight:800, color: sel ? p.color : textPri }}>{p.nombre}</span>
+                      </div>
+                      <div style={{ fontSize:11, color:muted, marginTop:4, lineHeight:1.4 }}>{p.descripcion}</div>
+                      <div style={{ fontSize:10.5, color:muted, marginTop:5, fontWeight:700 }}>
+                        {p.fases.length} fases · {nTareas} tareas · ~{p.duracionTotalDias} días
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
 
         {modo !== "excel" && (
