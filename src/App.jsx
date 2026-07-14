@@ -309,25 +309,31 @@ function ModalCrearTicket({ usuarioActual, onClose, onCrear }) {
     const asignacionesPorEmpresa = {};
     empresasDestino.forEach(id => { asignacionesPorEmpresa[id] = id === 6 ? comercialAsignados : []; });
     const tieneAsignadosComercial = empresasDestino.includes(6) && comercialAsignados.length > 0;
-    onCrear({
-      id: genId(), titulo: titulo.trim(), descripcion, prioridad, categoria,
-      empresasDestino,
-      empresaOrigenId: ["director","ceo"].includes(usuarioActual.rol) ? origenId : usuarioActual.empresaId,
-      creadoPor: usuarioActual.id,
-      estado: tieneAsignadosComercial ? "Asignado" : "Pendiente",
-      asignacionesPorEmpresa,
-      fecha: new Date().toISOString(),
-      fechaAsignacion: tieneAsignadosComercial ? new Date().toISOString() : null,
-      fechaInicio: fechaInicio || null,
-      horaInicio:  horaInicio  || null,
-      duracion:    duracion    || null,
-      fechaLimite: fechaLimite || null,
-      ubicacion: ubicacion.trim() || null,
-      comentarios: [], imagenes,
-      acopio: acopio,
-      materiales: acopio === true ? materiales.trim() : null,
-    });
-    onClose();
+    try {
+      onCrear({
+        id: genId(), titulo: titulo.trim(), descripcion, prioridad, categoria,
+        empresasDestino,
+        empresaOrigenId: ["director","ceo"].includes(usuarioActual.rol) ? origenId : usuarioActual.empresaId,
+        creadoPor: usuarioActual.id,
+        estado: tieneAsignadosComercial ? "Asignado" : "Pendiente",
+        asignacionesPorEmpresa,
+        fecha: new Date().toISOString(),
+        fechaAsignacion: tieneAsignadosComercial ? new Date().toISOString() : null,
+        fechaInicio: fechaInicio || null,
+        horaInicio:  horaInicio  || null,
+        duracion:    duracion    || null,
+        fechaLimite: fechaLimite || null,
+        ubicacion: ubicacion.trim() || null,
+        comentarios: [], imagenes,
+        acopio: acopio,
+        materiales: acopio === true ? materiales.trim() : null,
+      });
+    } catch (e) {
+      console.error("Error al crear el ticket:", e);
+    } finally {
+      setEnviando(false);
+      onClose();
+    }
   };
 
   return (
@@ -3129,17 +3135,19 @@ export default function App() {
     // Guardar en Firestore (serializado)
     setDoc(doc(db, "tickets", String(t.id)), ticketToFirestore(t))
       .catch(e => console.error("Error creando ticket:", e));
-    // Notificar a encargados de empresas destino
-    (t.empresasDestino||[]).forEach(empId => {
-      const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
-      // Empresa Independiente (id:0) no tiene encargado — notificar al director y CEO
-      if (!enc && empId === 0) {
-        USUARIOS.filter(u => ["director","ceo"].includes(u.rol)).forEach(u => {
-          if (u.id !== usuarioId) addNotif({ usuarioDestinoId: u.id, tipo: "ticket_nuevo", texto: `Nuevo ticket de empresa Independiente: "${titulo}"`, ticketId: newId });
-        });
-      }
-      if (enc && enc.id !== usuarioId) addNotif({ usuarioDestinoId: enc.id, tipo: "nuevo", ticketId: t.id, texto: `Nuevo ticket para tu empresa: "${t.titulo}".` });
-    });
+    // Notificar a encargados de empresas destino (nunca debe romper la creación)
+    try {
+      (t.empresasDestino||[]).forEach(empId => {
+        const enc = USUARIOS.find(u => u.empresaId === empId && u.rol === "encargado");
+        // Empresa Independiente (id:0) no tiene encargado — notificar al director y CEO
+        if (!enc && empId === 0) {
+          USUARIOS.filter(u => ["director","ceo"].includes(u.rol)).forEach(u => {
+            if (u.id !== usuarioId) addNotif({ usuarioDestinoId: u.id, tipo: "nuevo", ticketId: t.id, texto: `Nuevo ticket de empresa Independiente: "${t.titulo}"` });
+          });
+        }
+        if (enc && enc.id !== usuarioId) addNotif({ usuarioDestinoId: enc.id, tipo: "nuevo", ticketId: t.id, texto: `Nuevo ticket para tu empresa: "${t.titulo}".` });
+      });
+    } catch (e) { console.error("Error notificando el ticket:", e); }
   };
 
   // ── Fichaje ──
