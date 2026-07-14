@@ -3009,6 +3009,9 @@ export default function App() {
       base = base.filter(t => ["Asignado","En progreso"].includes(t.estado) && asigsFn(t).includes(usuarioId));
     } else if (filtros.estado === "kpi_completados") {
       base = base.filter(t => t.estado === "Completado" && (asigsFn(t).includes(usuarioId) || t.creadoPor === usuarioId));
+    } else if (filtros.estado === "kpi_solicitados") {
+      // Tickets que YO he creado (para seguir su estado, los haya pedido a quien sea)
+      base = tickets.filter(t => t.creadoPor === usuarioId);
     } else if (filtros.estado === "kpi_sinasignar") {
       base = base.filter(t => {
         if (t.estado !== "Pendiente") return false;
@@ -3080,6 +3083,7 @@ export default function App() {
     enProgreso:  misEnProgreso.length,
     completados: misCompletados.length,
     sinAsignar:  sinAsignar.length,
+    solicitados: tickets.filter(t => t.creadoPor === usuarioId).length,
   };
 
   const guardarNotifs = (nuevas) => {
@@ -3739,6 +3743,7 @@ export default function App() {
             <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: `repeat(4,1fr)`, gap: 12, marginBottom: 24 }}>
               {[
                 ["Mis tickets",  stats.total,       "#94A3B8", "🎫", "kpi_total"],
+                ["Solicitados",  stats.solicitados, "#805AD5", "📨", "kpi_solicitados"],
                 ["Pendientes",   stats.pendientes,  "#718096", "⏳", "kpi_pendientes"],
                 ["En progreso",  stats.enProgreso,  "#D4A017", "⚙️", "kpi_progreso"],
                 ["Completados",  stats.completados, "#38A169", "✅", "kpi_completados"],
